@@ -7,6 +7,12 @@
     ];
     home-manager.users.shot = {
       home.packages = with pkgs; [
+      (pkgs.writeShellScriptBin "lg" ''
+        eval "$(${pkgs.openssh}/bin/ssh-agent -s)" > /dev/null
+        trap 'kill "$SSH_AGENT_PID"' EXIT INT TERM > /dev/null
+        ${pkgs.openssh}/bin/ssh-add ~/.ssh/github 2> /dev/null
+        ${pkgs.gitui}/bin/gitui
+      '')
       ];
       programs.gitui = {
         enable = true;
