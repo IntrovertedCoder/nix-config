@@ -7,6 +7,7 @@
       self.nixosModules.gitui
       self.nixosModules.comma
       self.nixosModules.nh
+      self.nixosModules.console
     ];
     environment.systemPackages = with pkgs; [
     ];
