@@ -23,7 +23,6 @@ in {
         c.base0E
         c.base0F # Bright white
       ];
-      font = "${pkgs.terminus_font}/share/consolefonts/ter-v16b.psf.gz";
     };
   };
 }
