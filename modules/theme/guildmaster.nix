@@ -1,22 +1,22 @@
 { config, lib, ...}:
 let
   rawPalette = {
-    base00 = "060606"; # color0, background
-    base01 = "1c1c1c";
-    base02 = "383838";
-    base03 = "545454"; # color8
-    base04 = "7c7c7c";
-    base05 = "a1a1a1"; # lgrey, color7, foreground, cursorColor
-    base06 = "a1a1a1"; # lgray, color7
-    base07 = "efefef"; # white, color15
-    base08 = "c0545c"; # red, color1
-    base09 = "de6f75"; # lred, color9
-    base0A = "867718"; # yellow, color3
-    base0B = "308821"; # green, color2
-    base0C = "6e6ccd"; # cyan, color6
-    base0D = "238879"; # blue, color4
-    base0E = "ac53b8"; # magenta, color5
-    base0F = "40a090"; # lblue, color12
+    base00 = "060606"; # Black
+    base01 = "c0545c"; # Red
+    base02 = "308821"; # Green
+    base03 = "867718"; # Yellow
+    base04 = "238879"; # Blue
+    base05 = "ac53b8"; # Magenta
+    base06 = "6e6ccd"; # Cyan
+    base07 = "a1a1a1"; # LWhite
+    base08 = "545454"; # LBlack
+    base09 = "de6f75"; # LRed
+    base0A = "4da33b"; # LYellow
+    base0B = "a19133"; # LGreen
+    base0C = "40a090"; # LCyan
+    base0D = "c86ed4"; # LBlue
+    base0E = "8a85e9"; # LMagenta
+    base0F = "efefef"; # White
   };
 
   expandColors = colors:
