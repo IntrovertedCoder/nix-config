@@ -5,13 +5,17 @@
       self.nixosModules.tealdeer
       self.nixosModules.git
       self.nixosModules.comma
+      self.nixosModules.nh
     ];
     environment.systemPackages = with pkgs; [
     ];
     home-manager.users.shot = {
       home.packages = with pkgs; [
       ];
-      programs.ssh.enable = true;
+      programs.ssh = {
+        enable = true;
+        enableDefaultConfig = false;
+      };
     };
   };
 }
