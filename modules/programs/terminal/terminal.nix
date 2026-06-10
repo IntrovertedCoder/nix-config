@@ -4,6 +4,7 @@
       inputs.home-manager.nixosModules.home-manager
       self.nixosModules.tealdeer
       self.nixosModules.git
+      self.nixosModules.gitui
       self.nixosModules.comma
       self.nixosModules.nh
     ];
