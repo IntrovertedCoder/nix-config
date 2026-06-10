@@ -1,17 +1,19 @@
 { self, inputs, ... }: {
-  flake.nixosModules.terminal = { pkgs, ...}: {
+  flake.nixosModules.comma = { pkgs, ...}: {
     imports = [
       inputs.home-manager.nixosModules.home-manager
-      self.nixosModules.tealdeer
-      self.nixosModules.git
-      self.nixosModules.comma
     ];
+
     environment.systemPackages = with pkgs; [
     ];
     home-manager.users.shot = {
+      imports = [
+        inputs.nix-index-database.homeModules.nix-index
+      ];
+      programs.nix-index.enable = true;
+      programs.nix-index-database.comma.enable = true;
       home.packages = with pkgs; [
       ];
-      programs.ssh.enable = true;
     };
   };
 }

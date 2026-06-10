@@ -8,8 +8,8 @@
     unstable = {
       url = "github:nixos/nixpkgs/nixos-unstable";
     };
-    comma = {
-      url = "github:nix-community/comma";
+    nix-index-database = {
+      url = "github:nix-community/nix-index-database";
       inputs.nixpkgs.follows = "unstable";
     };
     disko = {
