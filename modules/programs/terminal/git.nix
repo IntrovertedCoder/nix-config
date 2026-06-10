@@ -12,8 +12,23 @@
       programs.git = {
         enable = true;
         delta.enable = true;
-        userEmail = "NATrotinc@gmail.com";
-        userName = "IntrovertedCoder";
+        settings = {
+          user = {
+            email = "NATrotnic@gmail.com";
+            name = "IntrovertedCoder";
+          };
+        };
+      };
+      home.activation.git = ''
+        if [ ! -f ~/.ssh/github ]; then
+          ${pkgs.openssh}/bin/ssh-keygen -t ed25519 -C "NATrotinc@gmail.com" -f ~/.ssh/github
+        fi
+      '';
+      programs.ssh.settings = {
+        "github.com" = {
+          hostname = "github.com";
+          identityFile = "~/.ssh/github";
+        };
       };
     };
   };
