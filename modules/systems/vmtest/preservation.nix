@@ -24,16 +24,16 @@
         ];
 
         # Preserve user files
-        # users.yurii = {
-        #   directories = [
-        #     ".ssh"
-        #     ".mozilla"
-        #   ];
-        #
-        #   files = [
-        #
-        #   ];
-        # };
+        users.shot = {
+          directories = [
+            ".ssh"
+            "nix-config"
+          ];
+       
+          files = [
+       
+          ];
+        };
       };
     };
 
