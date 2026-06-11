@@ -1,22 +1,30 @@
 { config, lib, ...}:
 let
   rawPalette = {
-    base00 = "060606"; # Black
-    base01 = "c0545c"; # Red
-    base02 = "308821"; # Green
-    base03 = "867718"; # Yellow
-    base04 = "238879"; # Blue
-    base05 = "ac53b8"; # Magenta
-    base06 = "6e6ccd"; # Cyan
-    base07 = "a1a1a1"; # LWhite
-    base08 = "545454"; # LBlack
-    base09 = "de6f75"; # LRed
-    base0A = "4da33b"; # LYellow
-    base0B = "a19133"; # LGreen
-    base0C = "40a090"; # LCyan
-    base0D = "c86ed4"; # LBlue
-    base0E = "8a85e9"; # LMagenta
-    base0F = "efefef"; # White
+    black    = "060606"; #060606 Black
+    black1   = "202020"; #202020 Black1
+    black2   = "3a3a3a"; #3a3a3a Black2
+    grey1    = "545454"; #545454 Grey1
+    grey2    = "6e6e6e"; #6e6e6e Grey2
+    grey3    = "878787"; #878787 Grey3
+    grey4    = "a1a1a1"; #a1a1a1 Grey4
+    white1   = "bbbbbb"; #bbbbbb White2
+    white2   = "d5d5d5"; #d5d5de White2
+    white    = "efefef"; #efefef White
+    red      = "c0545c"; #c0545c Red
+    orange   = "A36639"; #A36639 Orange
+    yellow   = "867718"; #867718 Yellow
+    green    = "308821"; #308821 Green
+    blue     = "238879"; #238879 Blue
+    magenta  = "ac53b8"; #ac53b8 Magenta
+    cyan     = "6e6ccd"; #6e6ccd Cyan
+    lred     = "de6f75"; #de6f75 LRed
+    lorange  = "C28254"; #c25254 LOrange
+    lyellow  = "4da33b"; #4da33b LYellow
+    lgreen   = "a19133"; #a19133 LGreen
+    lcyan    = "40a090"; #40a090 LCyan
+    lblue    = "c86ed4"; #c86ed4 LBlue
+    lmagenta = "8a85e9"; #8a85e9 LMagenta
   };
 
   expandColors = colors:
