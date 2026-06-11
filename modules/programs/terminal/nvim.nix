@@ -25,6 +25,17 @@ in {
           # NVim plugins
           nvim-colorizer-lua
           mini-nvim
+          git-blame-nvim
+
+          (pkgs.vimUtils.buildVimPlugin {
+            name = "toggleword-nvim";
+            src = pkgs.fetchFromGitHub {
+              owner = "iquzart";
+              repo = "toggleword.nvim";
+              rev = "b2d0e49e3b33b9d8c15ac008aefc2bc5bbee5925"; # Pin specific commit
+              hash = "sha256-ig9o5bNihfr7Ki3IWby4he2Oa7YsLIU3uQlDEEuBTHY=";
+            };
+          })
         ];
         initLua = ''
           -- Leader key
@@ -45,6 +56,7 @@ in {
           opt.softtabstop = 2
           opt.expandtab = true
           opt.autoindent = true
+          opt.smartindent = true
 
           -- UI
           opt.number = true
@@ -112,6 +124,21 @@ in {
             css_fn = true;
 
             mode = 'background'
+          })
+
+          -- Git Blame
+          require('gitblame').setup({
+            enabled = true,
+          })
+
+          -- Mini Indentscope
+          require('mini.indentscope').setup({
+            
+          })
+
+          -- Toggleword
+          require('toggleword').setup({
+            key = "<leader>t"
           })
 
           ---------------------------------------------------------------------
