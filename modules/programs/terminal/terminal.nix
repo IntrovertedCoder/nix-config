@@ -8,12 +8,14 @@
       self.nixosModules.comma
       self.nixosModules.nh
       self.nixosModules.console
+      self.nixosModules.zoxide
     ];
     environment.systemPackages = with pkgs; [
     ];
     home-manager.users.shot = {
       home.packages = with pkgs; [
       ];
+      programs.bash.enable = true;
       programs.ssh = {
         enable = true;
         enableDefaultConfig = false;
