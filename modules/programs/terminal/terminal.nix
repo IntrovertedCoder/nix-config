@@ -12,6 +12,7 @@
       self.nixosModules.nvim
       self.nixosModules.fish
       self.nixosModules.fd
+      self.nixosModules.fsel
     ];
     environment.systemPackages = with pkgs; [
     ];
