@@ -26,6 +26,8 @@ in {
           nvim-colorizer-lua
           mini-nvim
           git-blame-nvim
+          rainbow-delimiters-nvim
+          (nvim-treesitter.withAllGrammars)
 
           (pkgs.vimUtils.buildVimPlugin {
             name = "toggleword-nvim";
@@ -37,7 +39,7 @@ in {
             };
           })
         ];
-        initLua = ''
+        initLua = /* lua */ ''
           -- Leader key
           vim.g.mapleader = " "
 
@@ -102,6 +104,7 @@ in {
             callback = function()
               local save_cursor = vim.fn.getpos(".")
               vim.cmd([[%s/\s+$//e]])
+              vim.fn.setpos(".", save_cursor)
             end,
           })
 
@@ -133,12 +136,45 @@ in {
 
           -- Mini Indentscope
           require('mini.indentscope').setup({
-            
           })
 
           -- Toggleword
           require('toggleword').setup({
             key = "<leader>t"
+          })
+
+          -- Rainbow Delimiters
+          require('rainbow-delimiters.setup').setup({
+            strategy = {
+              [""] = require('rainbow-delimiters').strategy['global']
+            },
+            query = {
+              [""] = 'rainbow-delimiters',
+            },
+
+            highlight = {
+              'RainbowDelimiterRed',
+              'RainbowDelimiterYellow',
+              'RainbowDelimiterBlue',
+              'RainbowDelimiterOrange',
+              'RainbowDelimiterGreen',
+              'RainbowDelimiterViolet',
+              'RainbowDelimiterCyan',
+            },
+          })
+          vim.api.nvim_set_hl(0, 'RainbowDelimiterRed', { fg = '#${c.red}' })
+          vim.api.nvim_set_hl(0, 'RainbowDelimiterOrange', { fg = '#${c.orange}' })
+          vim.api.nvim_set_hl(0, 'RainbowDelimiterYellow', { fg = '#${c.yellow}' })
+          vim.api.nvim_set_hl(0, 'RainbowDelimiterGreen', { fg = '#${c.green}' })
+          vim.api.nvim_set_hl(0, 'RainbowDelimiterBlue', { fg = '#${c.blue}' })
+          vim.api.nvim_set_hl(0, 'RainbowDelimiterViolet', { fg = '#${c.magenta}' })
+          vim.api.nvim_set_hl(0, 'RainbowDelimiterCyan', { fg = '#${c.cyan}' })
+
+          -- Treesitter for rainbow delimiters in nix
+          vim.api.nvim_create_autocmd('FileType', {
+            callback = function()
+              pcall(vim.treesitter.start)
+            end,
           })
 
           ---------------------------------------------------------------------
@@ -165,8 +201,19 @@ in {
             },
             use_cterm = true,
           })
+          vim.api.nvim_set_hl(0, "@string.injected.bg", { 
+            bg = "#${c.black1}", -- Replace this hex code with whatever background tint you prefer!
+          })
         '';
       };
+      xdg.configFile."nvim/queries/nix/highlights.scm".text = ''
+        ; extends
+
+        ((comment) . [
+          (string_expression)
+          (indented_string_expression)
+        ] @string.injected.bg)
+      '';
     };
   };
 }
