@@ -14,6 +14,7 @@
       self.nixosModules.fd
       self.nixosModules.fsel
       self.nixosModules.vs
+      self.nixosModules.eza
     ];
     environment.systemPackages = with pkgs; [
     ];
