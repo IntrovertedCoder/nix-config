@@ -85,21 +85,22 @@ in {
             bind f3 edit_command_buffer
           # }}}
 
-          # Start text
-          function fish_greeting
-            function center
-              set termwidth (tput cols)
-              awk -v termwidth=$termwidth '{ pad=(termwidth - length($0))/2; printf "%*s%s\n", pad, "", $0 }'
+          # Start text {{{
+            function fish_greeting
+              function center
+                set termwidth (tput cols)
+                awk -v termwidth=$termwidth '{ pad=(termwidth - length($0))/2; printf "%*s%s\n", pad, "", $0 }'
+              end
+              if status is-interactive
+                set host (hostname | sed 's/\b\(.\)/\u\1/g')
+                set username (whoami | sed 's/\b\(.\)/\u\1/g')
+                begin
+                  ${pkgs.figlet}/bin/figlet "Welcome     $username" | center
+                  ${pkgs.figlet}/bin/figlet "To     $host" | center
+                end | ${pkgs.lolcat}/bin/lolcat
+              end
             end
-            if status is-interactive
-              set host (hostname | sed 's/\b\(.\)/\u\1/g')
-              set username (whoami | sed 's/\b\(.\)/\u\1/g')
-              begin
-                ${pkgs.figlet}/bin/figlet "Welcome     $username" | center
-                ${pkgs.figlet}/bin/figlet "To     $host" | center
-              end | ${pkgs.lolcat}/bin/lolcat
-            end
-          end
+          # }}}
 
         '';
 
