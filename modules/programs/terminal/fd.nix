@@ -4,6 +4,7 @@
       inputs.home-manager.nixosModules.home-manager
     ];
     environment.systemPackages = with pkgs; [
+      fd
     ];
     home-manager.users.shot = {
       programs.fd = {
