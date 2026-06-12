@@ -19,7 +19,7 @@
           };
         };
       };
-      home.activation.git = ''
+      home.activation.git = /* bash */''
         if [ ! -f ~/.ssh/github ]; then
           ${pkgs.openssh}/bin/ssh-keygen -t ed25519 -C "NATrotinc@gmail.com" -f ~/.ssh/github
         fi

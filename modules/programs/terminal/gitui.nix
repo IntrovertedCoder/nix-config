@@ -16,7 +16,7 @@
       ];
       programs.gitui = {
         enable = true;
-        keyConfig = ''
+        keyConfig = /* ron */ ''
           (
             open_help: Some(( code: F(1), modifiers: "")),
 

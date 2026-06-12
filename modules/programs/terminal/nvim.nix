@@ -206,7 +206,7 @@ in {
           })
         '';
       };
-      xdg.configFile."nvim/queries/nix/highlights.scm".text = ''
+      xdg.configFile."nvim/queries/nix/highlights.scm".text = /* query */ ''
         ; extends
 
         ((comment) . [
