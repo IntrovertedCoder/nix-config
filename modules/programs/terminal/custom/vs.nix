@@ -7,7 +7,7 @@
     environment.systemPackages = with pkgs; [
     ];
     environment.shellAliases = {
-      vs = "fd | fsel --dmenu | xargs -r -o vim";
+      vs = "fd -t f | fsel --dmenu | xargs -r -o vim";
     };
   };
 }
