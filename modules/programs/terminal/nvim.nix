@@ -68,6 +68,9 @@ in {
           opt.colorcolumn = "80"
           vim.api.nvim_set_hl(0, 'ColorColumn', {bg = '#${c.grey1}', ctermbg = 235 })
 
+          -- Folds
+          vim.opt.foldmethod = "marker"
+
           -- Invisible characters
           opt.list = true
           opt.listchars = { tab = "| ", trail = "+", eol = "$" }
@@ -201,8 +204,8 @@ in {
             },
             use_cterm = true,
           })
-          vim.api.nvim_set_hl(0, "@string.injected.bg", { 
-            bg = "#${c.black1}", -- Replace this hex code with whatever background tint you prefer!
+          vim.api.nvim_set_hl(0, "@string.injected.bg", {
+            bg = "#${c.black1}",
           })
         '';
       };
