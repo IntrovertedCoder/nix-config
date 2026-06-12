@@ -11,6 +11,7 @@
       self.nixosModules.zoxide
       self.nixosModules.nvim
       self.nixosModules.fish
+      self.nixosModules.fd
     ];
     environment.systemPackages = with pkgs; [
     ];
