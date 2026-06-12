@@ -10,6 +10,7 @@
       self.nixosModules.console
       self.nixosModules.zoxide
       self.nixosModules.nvim
+      self.nixosModules.fish
     ];
     environment.systemPackages = with pkgs; [
     ];
