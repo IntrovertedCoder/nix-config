@@ -5,9 +5,9 @@
       # self.nixosModules.fsel
     ];
     environment.systemPackages = with pkgs; [
+      (writeShellScriptBin "vs" ''
+        fd -t f | fsel --dmenu | xargs -r -o vim
+      '')
     ];
-    environment.shellAliases = {
-      vs = "fd -t f | fsel --dmenu | xargs -r -o vim";
-    };
   };
 }
