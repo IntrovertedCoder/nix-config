@@ -9,22 +9,22 @@ let
     grey3    = "878787"; #878787 Grey3
     grey4    = "a1a1a1"; #a1a1a1 Grey4
     white1   = "bbbbbb"; #bbbbbb White2
-    white2   = "d5d5d5"; #d5d5de White2
+    white2   = "d5d5d5"; #d5d5d5 White2
     white    = "efefef"; #efefef White
     red      = "c0545c"; #c0545c Red
     orange   = "A36639"; #A36639 Orange
     yellow   = "867718"; #867718 Yellow
     green    = "308821"; #308821 Green
-    blue     = "238879"; #238879 Blue
+    blue     = "6E6CCD"; #6E6CCD Blue
     magenta  = "ac53b8"; #ac53b8 Magenta
-    cyan     = "6e6ccd"; #6e6ccd Cyan
+    cyan     = "1F8576"; #1F8576 Cyan
     lred     = "de6f75"; #de6f75 LRed
-    lorange  = "C28254"; #c25254 LOrange
-    lyellow  = "4da33b"; #4da33b LYellow
-    lgreen   = "a19133"; #a19133 LGreen
+    lorange  = "C28254"; #C28254 LOrange
+    lyellow  = "a19133"; #a19133 LYellow
+    lgreen   = "4da33b"; #4da33b LGreen
+    lblue    = "8a85e9"; #8a85e9 LBlue
+    lmagenta = "c86ed4"; #c86ed4 LMagenta
     lcyan    = "40a090"; #40a090 LCyan
-    lblue    = "c86ed4"; #c86ed4 LBlue
-    lmagenta = "8a85e9"; #8a85e9 LMagenta
   };
 
   expandColors = colors:
