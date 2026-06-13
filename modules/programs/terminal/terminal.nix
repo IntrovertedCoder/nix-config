@@ -15,6 +15,7 @@
       self.nixosModules.fsel
       self.nixosModules.vs
       self.nixosModules.eza
+      self.nixosModules.bat
     ];
     environment.systemPackages = with pkgs; [
     ];
