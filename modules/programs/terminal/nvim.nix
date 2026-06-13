@@ -207,6 +207,34 @@ in {
           vim.api.nvim_set_hl(0, "@string.injected.bg", {
             bg = "#${c.black1}",
           })
+
+          ---------------------------------------------------------------------
+          -- Dynamic Nix Color Highlighting (Standalone Color Names)
+          ---------------------------------------------------------------------
+          local nix_colors = {
+            ${pkgs.lib.concatStringsSep ",\n  " (pkgs.lib.mapAttrsToList (name: hex: ''${name} = "#${hex}"'') c)}
+          }
+
+          local function get_contrast_fg(hex)
+            local h = hex:gsub("#", "")
+            local r = tonumber("0x" .. h:sub(1, 2))
+            local g = tonumber("0x" .. h:sub(3, 4))
+            local b = tonumber("0x" .. h:sub(5, 6))
+            if not r or not g or not b then return "#ffffff" end
+            local luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+            return luminance > 0.5 and "#000000" or "#ffffff"
+          end
+
+          for name, hex in pairs(nix_colors) do
+            if not name:match(".*[rgb]$") or nix_colors[name:sub(1, -2)] == nil then
+              local group_name = "NixColor_" .. name
+
+              -- Set background to the hex color, and foreground to the contrast color
+              vim.api.nvim_set_hl(0, group_name, { bg = hex, fg = get_contrast_fg(hex) })
+
+              vim.fn.matchadd(group_name, [[\<]] .. name .. [[\>]])
+            end
+          end
         '';
       };
       xdg.configFile."nvim/queries/nix/highlights.scm".text = /* query */ ''
