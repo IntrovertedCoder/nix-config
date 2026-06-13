@@ -18,7 +18,7 @@ in {
           duckdb           = pkgs.yaziPlugins.duckdb;
           ouch             = pkgs.yaziPlugins.ouch;
           rich-preview     = pkgs.yaziPlugins.rich-preview;
-          # starship         = pkgs.yaziPlugins.starship;
+          starship         = pkgs.yaziPlugins.starship;
         };
 
         extraPackages = with pkgs; [
@@ -68,7 +68,7 @@ in {
         };
 
         initLua = /* lua */ ''
-          -- require("starship"):setup()
+          require("starship"):setup()
         '';
         theme = {
           # : Manager {{{
