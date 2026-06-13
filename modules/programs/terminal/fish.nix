@@ -40,44 +40,44 @@ in {
             set -g fish_pager_color_progress ${c.white} --background=${c.magenta} # Selected item row indicator
           # }}}
 
-          # Custom prompt {{{
-            function fish_prompt
-              set -g __fish_git_prompt_show_informative_status 1
-              set -g __fish_git_prompt_color_branch ${c.magenta} --bold
-
-              set -g __fish_git_prompt_char_untrackedfiles "…"
-              set -g __fish_git_prompt_color_untrackedfiles ${c.red}
-
-              set -g __fish_git_prompt_char_stagedstate "●"
-              set -g __fish_git_prompt_color_stagedstate ${c.green}
-
-              set -g __fish_git_prompt_char_dirtystate "+"
-              set -g __fish_git_prompt_color_dirtystate ${c.orange}
-
-              set -g __fish_git_prompt_char_cleanstate ""
-              set -g __fish_git_prompt_color_cleanstate ${c.yellow}
-
-              set -g __fish_git_prompt_char_upstream_ahead "↑"
-              set -g __fish_git_prompt_char_upstream_behind "↓"
-              set -g __fish_git_prompt_char_upstream_equal "="
-
-              if test -n "$SSH_TTY"
-                  echo -n (set_color ${c.yellow})(prompt_hostname)' '
-              end
-
-              echo -n (set_color ${c.grey2})(prompt_pwd)
-
-              set_color -o
-              if test "$USER" = 'root'
-                  printf '%s' (set_color ${c.white})('__fish_git_prompt')
-                  echo -n (set_color ${c.blue})' # '
-              else
-                  printf '%s' (set_color ${c.white})('__fish_git_prompt')
-                  echo -n (set_color ${c.red})' $ '
-              end
-              set_color normal
-            end
-          # }}}
+          # # Custom prompt {{{
+          #   function fish_prompt
+          #     set -g __fish_git_prompt_show_informative_status 1
+          #     set -g __fish_git_prompt_color_branch ${c.magenta} --bold
+          #
+          #     set -g __fish_git_prompt_char_untrackedfiles "…"
+          #     set -g __fish_git_prompt_color_untrackedfiles ${c.red}
+          #
+          #     set -g __fish_git_prompt_char_stagedstate "●"
+          #     set -g __fish_git_prompt_color_stagedstate ${c.green}
+          #
+          #     set -g __fish_git_prompt_char_dirtystate "+"
+          #     set -g __fish_git_prompt_color_dirtystate ${c.orange}
+          #
+          #     set -g __fish_git_prompt_char_cleanstate ""
+          #     set -g __fish_git_prompt_color_cleanstate ${c.yellow}
+          #
+          #     set -g __fish_git_prompt_char_upstream_ahead "↑"
+          #     set -g __fish_git_prompt_char_upstream_behind "↓"
+          #     set -g __fish_git_prompt_char_upstream_equal "="
+          #
+          #     if test -n "$SSH_TTY"
+          #         echo -n (set_color ${c.yellow})(prompt_hostname)' '
+          #     end
+          #
+          #     echo -n (set_color ${c.grey2})(prompt_pwd)
+          #
+          #     set_color -o
+          #     if test "$USER" = 'root'
+          #         printf '%s' (set_color ${c.white})('__fish_git_prompt')
+          #         echo -n (set_color ${c.blue})' # '
+          #     else
+          #         printf '%s' (set_color ${c.white})('__fish_git_prompt')
+          #         echo -n (set_color ${c.red})' $ '
+          #     end
+          #     set_color normal
+          #   end
+          # # }}}
 
 
           # Custom keybinds {{{

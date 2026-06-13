@@ -11,6 +11,7 @@
       self.nixosModules.zoxide
       self.nixosModules.nvim
       self.nixosModules.fish
+      self.nixosModules.starship
       self.nixosModules.fd
       self.nixosModules.fsel
       self.nixosModules.vs
