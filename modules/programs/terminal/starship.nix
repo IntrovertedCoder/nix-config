@@ -59,14 +59,14 @@ in {
           };
 
           directory = {
-            read_only = "";
+            read_only = " ";
             format = "[$path](#${c.blue})[$read_only](#${c.red}) ";
             truncation_length = 16;
             truncation_symbol = "…/";
           };
 
           sudo = {
-            format = "[](#${c.orange})";
+            format = "[ ](#${c.orange})";
             disabled = false ;
           };
 
@@ -95,9 +95,9 @@ in {
           };
 
           status = {
-            symbol = "";
-            success_symbol = "";
-            not_found_symbol = "";
+            symbol = " ";
+            success_symbol = " ";
+            not_found_symbol = " ";
             sigint_symbol = "";
             not_executable_symbol = "";
             format = "[\($symbol$common_meaning$signal_name$maybe_int\)](#${c.black2})";
