@@ -97,6 +97,29 @@ in {
           keymap('n', '<leader>o', 'o<Esc>', { silent = true})
           keymap('n', '<leader>O', 'O<Esc>', { silent = true})
 
+          -- Run vs
+          vim.keymap.set("n", "<leader>vs", "<cmd>tabnew | term vs<cr>i", { desc = "Run vs script in new tab" })
+
+          -- Runs lg
+          vim.keymap.set("n", "<leader>lg", "<cmd>vsplit | term lg<cr>i", { desc = "Open Yazi in vertical split" })
+
+          -- Runs nh os switch
+          vim.keymap.set("n", "<leader>rb", "<cmd>vsplit | term nh os switch<cr>i", { desc = "Open Yazi in vertical split" })
+
+          -- Open Yazi in a split window
+          vim.keymap.set("n", "<leader>yz", "<cmd>vsplit | term yazi<cr>i", { desc = "Open Yazi in vertical split" })
+
+            -- Automatically enter insert mode when a terminal opens
+            vim.api.nvim_create_autocmd("TermOpen", {
+              pattern = "*",
+              callback = function()
+                vim.cmd("startinsert")
+                -- Optional: Turn off line numbers in terminal windows for a cleaner look
+                vim.opt_local.number = false
+                vim.opt_local.relativenumber = false
+              end,
+            })
+
           ---------------------------------------------------------------------
           -- Autocommands
           ---------------------------------------------------------------------
