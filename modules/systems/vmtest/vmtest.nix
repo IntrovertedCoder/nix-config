@@ -6,7 +6,7 @@
       self.nixosModules.vmtestDisko
       self.nixosModules.vmtestPreservation
       self.nixosModules.user-shot
-      self.nixosModules.ssh
+      self.nixosModules.sshd
       { nixpkgs.hostPlatform = "x86_64-linux"; }
     ];
   };

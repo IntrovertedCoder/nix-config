@@ -1,5 +1,5 @@
 { self, inputs, ... }: {
-  flake.nixosModules.ssh = { pkgs, ...}: {
+  flake.nixosModules.sshd = { pkgs, ...}: {
     preservation.preserveAt."/persistent" = {
       files = [
         { file = "/etc/ssh/ssh_host_ed25519_key"; mode = "0600"; }
@@ -16,6 +16,13 @@
       settings = {
         PasswordAuthentication = false;
         KbdInteractiveAuthentication = false;
+        AllowTcpForwarding = false;
+        ClientAliveCountMax = 2;
+        MaxAuthTries = 3;
+        MaxSessions = 4;
+        TCPKeepAlive = false;
+        PermitRootLogin = "no";
+        AllowAgentForwarding = false;
       };
     };
   };
