@@ -60,7 +60,7 @@ in {
 
           directory = {
             read_only = "";
-            format = "[$path ](#${c.blue})[$read_only](#${c.red}) ";
+            format = "[$path](#${c.blue})[$read_only](#${c.red}) ";
             truncation_length = 16;
             truncation_symbol = "…/";
           };
@@ -79,8 +79,12 @@ in {
             format = "[ \\[$name\\]](#${c.magenta})" ;
           };
 
+          username = {
+            format = "[$user](#${c.yellow})";
+          };
+
           hostname = {
-            format = "[$hostname](#${c.magenta}) in ";
+            format = " at [$hostname](#${c.magenta}) in ";
             disabled = false ;
           };
 
