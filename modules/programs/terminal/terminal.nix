@@ -18,6 +18,7 @@
       self.nixosModules.eza
       self.nixosModules.bat
       self.nixosModules.yazi
+      self.nixosModules.btop
     ];
     environment.systemPackages = with pkgs; [
     ];
