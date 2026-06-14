@@ -248,6 +248,7 @@ in {
             return luminance > 0.5 and "#000000" or "#ffffff"
           end
 
+          -- Highlight color names
           for name, hex in pairs(nix_colors) do
             if not name:match(".*[rgb]$") or nix_colors[name:sub(1, -2)] == nil then
               local group_name = "NixColor_" .. name
@@ -258,6 +259,70 @@ in {
               vim.fn.matchadd(group_name, [[\<]] .. name .. [[\>]])
             end
           end
+
+          -- Helper: Convert hex strings to RGB components
+          local function hex_to_rgb(hex)
+            local h = hex:gsub("#", "")
+            local r = tonumber("0x" .. h:sub(1, 2))
+            local g = tonumber("0x" .. h:sub(3, 4))
+            local b = tonumber("0x" .. h:sub(5, 6))
+            return r, g, b
+          end
+
+          -- Core Engine: Finds the mathematical closest match in your dynamic palette
+          local function find_closest_color(target_hex)
+            local tr, tg, tb = hex_to_rgb(target_hex)
+            if not tr or not tg or not tb then
+              print("Invalid hex color format: " .. tostring(target_hex))
+              return
+            end
+
+            local closest_name = ""
+            local min_dist = math.huge
+
+            for name, hex in pairs(nix_colors) do
+              if not name:match(".*[rgb]$") or nix_colors[name:sub(1, -2)] == nil then
+                local r, g, b = hex_to_rgb(hex)
+                if r and g and b then
+                  local dist = math.sqrt((tr - r)^2 + (tg - g)^2 + (tb - b)^2)
+                  if dist < min_dist then
+                    min_dist = dist
+                    closest_name = name
+                  end
+                end
+              end
+            end
+
+            local accuracy = (1 - (min_dist / 441.67)) * 100
+
+            -- Outputs a clean format ready for copy-pasting directly back into Nix configuration files
+            print(string.format("Closest: ''${c.%s} (%s) | Match: %.1f%%", closest_name, nix_colors[closest_name], accuracy))
+          end
+
+          -- Expose the utility command (nargs = '?' makes the argument optional)
+          vim.api.nvim_create_user_command('ClosestColor', function(opts)
+            local target = opts.args
+
+            -- If no argument is provided, auto-extract the hex code under the cursor
+            if target == "" then
+              local word = vim.fn.expand("<cWORD>")
+              -- Clean the string and look for standard 6-digit or 3-digit hex strings
+              target = word:match("#?%x%x%x%x%x%x") or word:match("#?%x%x%x")
+
+              if not target then
+                print("No valid hex color found under the cursor.")
+                return
+              end
+            end
+
+            find_closest_color(target)
+          end, { nargs = '?' })
+
+          -- Keymap: Press <leader>cc over any hex code to evaluate it instantly
+          vim.keymap.set('n', '<leader>cc', ':ClosestColor<CR>', { 
+            desc = 'Find closest Nix palette color under cursor', 
+            silent = true 
+          })
         '';
       };
       xdg.configFile."nvim/queries/nix/highlights.scm".text = /* query */ ''
