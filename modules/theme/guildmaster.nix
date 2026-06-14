@@ -11,19 +11,26 @@ let
     white1   = "bbbbbb"; #bbbbbb White2
     white2   = "d5d5d5"; #d5d5d5 White2
     white    = "efefef"; #efefef White
+    dred     = "A33A45"; #A33A45 DRed
     red      = "c0545c"; #c0545c Red
-    orange   = "A36639"; #A36639 Orange
-    yellow   = "867718"; #867718 Yellow
-    green    = "308821"; #308821 Green
-    blue     = "6E6CCD"; #6E6CCD Blue
-    magenta  = "ac53b8"; #ac53b8 Magenta
-    cyan     = "1F8576"; #1F8576 Cyan
     lred     = "de6f75"; #de6f75 LRed
+    dorange  = "895025"; #895025 DOrange
+    orange   = "A36639"; #A36639 Orange
     lorange  = "C28254"; #C28254 LOrange
+    dyellow  = "6B5F00"; #6B5F00 DYellow
+    yellow   = "867718"; #867718 Yellow
     lyellow  = "a19133"; #a19133 LYellow
+    dgreen   = "056E00"; #056E00 DGreen
+    green    = "308821"; #308821 Green
     lgreen   = "4da33b"; #4da33b LGreen
+    dblue    = "5254B1"; #5254B1 DBlue
+    blue     = "6E6CCD"; #6E6CCD Blue
     lblue    = "8a85e9"; #8a85e9 LBlue
+    dmagenta = "90399D"; #90399D DMagenta
+    magenta  = "ac53b8"; #ac53b8 Magenta
     lmagenta = "c86ed4"; #c86ed4 LMagenta
+    dcyan    = "006C5D"; #006C5D DCyan
+    cyan     = "1F8576"; #1F8576 Cyan
     lcyan    = "40a090"; #40a090 LCyan
   };
 
