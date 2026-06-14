@@ -29,7 +29,7 @@ in {
         };
 
         themes = {
-          guildmaster = ''
+          guildmaster = /* php */ ''
             theme[main_bg]        ="#${c.black}"
             theme[main_fg]        ="#${c.white}"
             theme[title]          ="#${c.white}"
