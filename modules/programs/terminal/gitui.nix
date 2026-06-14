@@ -1,4 +1,7 @@
-{ self, inputs, ... }: {
+{ self, inputs, config, ... }:
+let
+  c = config.var.colors;
+in {
   flake.nixosModules.gitui = { pkgs, ...}: {
     imports = [
       inputs.home-manager.nixosModules.home-manager
@@ -47,6 +50,32 @@
             stash_open: Some(( code: Char('l'), modifiers: "")),
 
             abort_merge: Some(( code: Char('M'), modifiers: "SHIFT")),
+          )
+        '';
+
+        theme = /* ron */ ''
+          (
+            selected_tab: Some("Reset"),
+            command_fg: Some("#${c.white}"),
+            selection_bg: Some("#${c.blue}"),
+            selection_fg: Some("#${c.white}"),
+            cmdbar_bg: Some("#${c.blue}"),
+            cmdbar_extra_lines_bg: Some("#${c.blue}"),
+            disabled_fg: Some("#${c.grey2}"),
+            diff_line_add: Some("#${c.green}"),
+            diff_line_delete: Some("#${c.red}"),
+            diff_file_added: Some("#${c.lgreen}"),
+            diff_file_removed: Some("#${c.lred}"),
+            diff_file_moved: Some("#${c.lmagenta}"),
+            diff_file_modified:  Some("#${c.yellow}"),
+            commit_hash: Some("#${c.magenta}"),
+            commit_time: Some("#${c.lcyan}"),
+            commit_author: Some("#${c.green}"),
+            danger_fg: Some("#${c.red}"),
+            push_gauge_bg: Some("#${c.blue}"),
+            push_gauge_fg: Some("Reset"),
+            tag_fg: Some("#${c.lmagenta}"),
+            branch_fg: Some("#${c.lyellow}"),
           )
         '';
       };
