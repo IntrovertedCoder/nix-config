@@ -11,9 +11,9 @@ let
     white1   = "bbbbbb"; #bbbbbb White2
     white2   = "d5d5d5"; #d5d5d5 White2
     white    = "efefef"; #efefef White
-    dpink    = "9F3B60"; #9F3B60 dpink
-    pink     = "BB5579"; #BB5579 pink
-    lpink    = "D86F92"; #D86F92 lpink
+    dpink    = "9F3B60"; #9F3B60 DPink
+    pink     = "BB5579"; #BB5579 Pink
+    lpink    = "D86F92"; #D86F92 LPink
     dred     = "A33A45"; #A33A45 DRed
     red      = "c0545c"; #c0545c Red
     lred     = "de6f75"; #de6f75 LRed
