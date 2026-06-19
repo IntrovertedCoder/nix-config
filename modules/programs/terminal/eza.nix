@@ -1,5 +1,8 @@
-{ self, ... }: {
+{ self, inputs, ... }: {
   flake.nixosModules.eza = { pkgs, ...}: {
+    imports = [
+      self.nixosModules.ls
+    ];
     environment.systemPackages = with pkgs; [
       eza
     ];
