@@ -19,6 +19,9 @@
       self.nixosModules.bat
       self.nixosModules.yazi
       self.nixosModules.btop
+      self.nixosModules.fzf
+      self.nixosModules.ripgrep
+      self.nixosModules.rgf
     ];
     environment.systemPackages = with pkgs; [
     ];
