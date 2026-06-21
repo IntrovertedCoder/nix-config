@@ -8,8 +8,6 @@
     home-manager.users.shot = {
       home.packages = with pkgs; [
       ];
-      home.activation.tealdeer = ''
-      '';
     };
   };
 }
