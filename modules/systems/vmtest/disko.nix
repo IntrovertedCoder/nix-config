@@ -1,5 +1,7 @@
 { inputs, ... }: {
   flake.nixosModules.vmtestDisko = {
+    boot.tmp.cleanOnBoot = true;
+
     imports = [ inputs.disko.nixosModules.disko ];
 
     fileSystems."/nix".neededForBoot = true;
@@ -66,6 +68,11 @@
             "/nix" = {
               mountOptions = ["subvol=nix" "noatime"];
               mountpoint = "/nix";
+            };
+
+            "/tmp" = {
+              mountOptions = ["subvol=tmp" "noatime"];
+              mountpoint = "/tmp";
             };
           };
         };
