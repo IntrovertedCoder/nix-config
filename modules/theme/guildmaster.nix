@@ -43,17 +43,37 @@ let
         builtins.concatMap (name:
           let
             hex = colors.${name};
+            rHex = builtins.substring 0 2 hex;
+            gHex = builtins.substring 2 2 hex;
+            bHex = builtins.substring 4 2 hex;
+
+            # Helper function to convert 2-char hex to decimal integer
+            hexToDec = hStr:
+              let
+                dict = {
+                  "0"=0; "1"=1; "2"=2; "3"=3; "4"=4; "5"=5; "6"=6; "7"=7; "8"=8; "9"=9;
+                  "a"=10; "b"=11; "c"=12; "d"=13; "e"=14; "f"=15;
+                  "A"=10; "B"=11; "C"=12; "D"=13; "E"=14; "F"=15;
+                };
+                first = builtins.substring 0 1 hStr;
+                second = builtins.substring 1 1 hStr;
+              in (dict.${first} * 16) + dict.${second};
           in [
-            { name = "${name}r"; value = builtins.substring 0 2 hex; } # First 2 chars
-            { name = "${name}g"; value = builtins.substring 2 2 hex; } # Middle 2 chars
-            { name = "${name}b"; value = builtins.substring 4 2 hex; } # Last 2 chars
+            # Your original hex substrings
+            { name = "${name}r"; value = rHex; }
+            { name = "${name}g"; value = gHex; }
+            { name = "${name}b"; value = bHex; }
+            # New distinct decimal integer fields
+            { name = "${name}rd"; value = hexToDec rHex; }
+            { name = "${name}gd"; value = hexToDec gHex; }
+            { name = "${name}bd"; value = hexToDec bHex; }
           ]
         ) (builtins.attrNames colors)
       )
     );
 in {
   options.var.colors = lib.mkOption {
-    type = lib.types.attrsOf lib.types.str;
+    type = lib.types.attrsOf (lib.types.either lib.types.str lib.types.int);
     description = "Base16 color theme";
   };
 
