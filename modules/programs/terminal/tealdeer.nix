@@ -10,42 +10,51 @@ in {
     ];
     home-manager.users.shot = {
       home.packages = with pkgs; [
+        (writeShellScriptBin "tldr" /* bash */ ''
+          TEALDEER="${pkgs.tealdeer}/bin/tldr"
+          CACHE_DIR="$HOME/.cache/tealdeer/tldr-pages"
+
+          # Conditional logic: Update if missing or older than 7 days
+          if [ ! -d "$CACHE_DIR" ] || [ -n "$(find "$CACHE_DIR" -maxdepth 0 -mtime +7)" ]; then
+            $TEALDEER --update &> /dev/null
+          fi
+
+          # Execute the actual tldr binary
+          exec $TEALDEER "$@"
+        '')
       ];
-      programs.tealdeer = {
-        enable = true;
-        settings = {
-          display = {
-            compact = true;
-          };
-          style = {
-            description = {
-              foreground = {
-                rgb = { r = c.whiterd; g = c.whitegd; b = c.whitebd; };
-              };
-            };
-            command_name = {
-              foreground = {
-                rgb = { r = c.bluerd; g = c.bluegd; b = c.bluebd; };
-              };
-            };
-            example_text = {
-              foreground = {
-                rgb = { r = c.greenrd; g = c.greengd; b = c.greenbd; };
-              };
-            };
-            example_code = {
-              foreground = {
-                rgb = { r = c.magentard; g = c.magentagd; b = c.magentabd; };
-              };
-            };
-            example_variable = {
-              foreground = {
-                rgb = { r = c.cyanrd; g = c.cyangd; b = c.cyanbd; };
-              };
-            };
-          };
-        };
-      };
+      xdg.configFile."tealdeer/config.toml".text = /* toml */ ''
+        [display]
+        compact = true
+
+        [style.command_name.foreground.rgb]
+        r = ${toString c.bluerd}
+        g = ${toString c.bluegd}
+        b = ${toString c.bluebd}
+
+        [style.description.foreground.rgb]
+        r = ${toString c.whiterd}
+        g = ${toString c.whitegd}
+        b = ${toString c.whitebd}
+
+        [style.example_code.foreground.rgb]
+        r = ${toString c.magentard}
+        g = ${toString c.magentagd}
+        b = ${toString c.magentabd}
+
+        [style.example_text.foreground.rgb]
+        r = ${toString c.greenrd}
+        g = ${toString c.greengd}
+        b = ${toString c.greenbd}
+
+        [style.example_variable.foreground.rgb]
+        r = ${toString c.cyanrd}
+        g = ${toString c.cyangd}
+        b = ${toString c.cyanbd}
+
+        [updates]
+        auto_update = false
+      '';
     };
   };
 }
