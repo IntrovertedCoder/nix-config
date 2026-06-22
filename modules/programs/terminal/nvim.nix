@@ -235,7 +235,11 @@ in {
           -- Dynamic Nix Color Highlighting (Standalone Color Names)
           ---------------------------------------------------------------------
           local nix_colors = {
-            ${pkgs.lib.concatStringsSep ",\n  " (pkgs.lib.mapAttrsToList (name: hex: ''${name} = "#${hex}"'') c)}
+            ${pkgs.lib.concatStringsSep ",\n  " (
+              pkgs.lib.mapAttrsToList 
+                (name: hex: ''${name} = "#${hex}"'') 
+                (pkgs.lib.filterAttrs (n: v: builtins.isString v) c)
+            )}
           }
 
           local function get_contrast_fg(hex)
