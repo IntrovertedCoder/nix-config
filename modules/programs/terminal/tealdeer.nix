@@ -1,10 +1,12 @@
-{ self, inputs, ... }: {
+{ config, inputs, ... }:
+let
+  c = config.var.colors;
+in {
   flake.nixosModules.tealdeer = { pkgs, ...}: {
     imports = [
       inputs.home-manager.nixosModules.home-manager
     ];
     environment.systemPackages = with pkgs; [
-      # tealdeer
     ];
     home-manager.users.shot = {
       home.packages = with pkgs; [
@@ -14,11 +16,33 @@
         settings = {
           display = {
             compact = true;
-            use_pager = true;
           };
-          updates = {
-            auto_update = true;
-            auto_update_interval_hours = 168; # 1 week
+          style = {
+            description = {
+              foreground = {
+                rgb = { r = c.whiterd; g = c.whitegd; b = c.whitebd; };
+              };
+            };
+            command_name = {
+              foreground = {
+                rgb = { r = c.bluerd; g = c.bluegd; b = c.bluebd; };
+              };
+            };
+            example_text = {
+              foreground = {
+                rgb = { r = c.greenrd; g = c.greengd; b = c.greenbd; };
+              };
+            };
+            example_code = {
+              foreground = {
+                rgb = { r = c.magentard; g = c.magentagd; b = c.magentabd; };
+              };
+            };
+            example_variable = {
+              foreground = {
+                rgb = { r = c.cyanrd; g = c.cyangd; b = c.cyanbd; };
+              };
+            };
           };
         };
       };
