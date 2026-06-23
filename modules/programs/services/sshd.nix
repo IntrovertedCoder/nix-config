@@ -1,5 +1,5 @@
 { self, inputs, ... }: {
-  flake.nixosModules.sshd = { pkgs, ...}: {
+  flake.nixosModules.sshd = { pkgs, lib, config, ...}: {
     preservation.preserveAt."/persistent" = {
       files = [
         { file = "/etc/ssh/ssh_host_ed25519_key"; mode = "0600"; }
@@ -13,6 +13,7 @@
     ];
     services.openssh = {
       enable = true;
+      ports = [ 20530 ];
       settings = {
         PasswordAuthentication = false;
         KbdInteractiveAuthentication = false;
@@ -23,6 +24,18 @@
         TCPKeepAlive = false;
         PermitRootLogin = "no";
         AllowAgentForwarding = false;
+        LogLevel = "VERBOSE";
+      };
+    };
+
+    services.fail2ban = {
+      enable = true; 
+      jails.sshd = {
+        settings = {
+          enabled = true;
+          port = lib.concatStringsSep "," (builtins.map toString config.services.openssh.ports);
+          backend = "systemd";
+        };
       };
     };
   };
