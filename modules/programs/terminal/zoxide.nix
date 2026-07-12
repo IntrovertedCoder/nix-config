@@ -13,7 +13,7 @@
         ];
       };
     };
-      
+
     home-manager.users.shot = {
       programs.zoxide = {
         enable = true;

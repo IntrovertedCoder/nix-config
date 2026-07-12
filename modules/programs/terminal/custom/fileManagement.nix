@@ -28,6 +28,7 @@
       '')
 
       (writeShellScriptBin "mvd" /*bash*/ ''
+        # This is for moving across disks
         ${pkgs.rsync}/bin/rsync -aP --remove-source-files "$@"
         if [ $? -eq 0 ]; then
           for arg in "$@"; do
