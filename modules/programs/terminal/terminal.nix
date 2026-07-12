@@ -23,6 +23,7 @@
       self.nixosModules.ripgrep
       self.nixosModules.rgf
       self.nixosModules.fileManagement
+      self.nixosModules.ex
     ];
     environment.systemPackages = with pkgs; [
     ];
