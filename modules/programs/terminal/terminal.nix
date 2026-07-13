@@ -24,6 +24,7 @@
       self.nixosModules.rgf
       self.nixosModules.fileManagement
       self.nixosModules.ex
+      self.nixosModules.disktui
     ];
     environment.systemPackages = with pkgs; [
     ];
