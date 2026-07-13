@@ -26,6 +26,7 @@
       self.nixosModules.ex
       self.nixosModules.disktui
       self.nixosModules.doggo
+      self.nixosModules.fend
     ];
     environment.systemPackages = with pkgs; [
     ];
