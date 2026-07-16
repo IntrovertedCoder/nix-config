@@ -22,6 +22,9 @@
       };
       home.shellAliases = {
       };
+      home.sessionVariables = {
+        _ZO_EXCLUDES = "^/persistent/.*";
+      };
       home.packages = with pkgs; [
       ];
     };
