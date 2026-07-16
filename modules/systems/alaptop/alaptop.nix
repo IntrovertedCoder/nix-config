@@ -8,6 +8,7 @@
       self.nixosModules.user-shot
       self.nixosModules.sshd
       self.nixosModules.customFirewall
+      self.nixosModules.workstation
       { nixpkgs.hostPlatform = "x86_64-linux"; }
     ];
   };
@@ -21,6 +22,7 @@
     boot.kernelPackages = pkgs.linuxPackages_latest;
     boot.kernelModules = [ "kvm-amd" ];
     boot.initrd.kernelModules = [ "amdgpu" ];
+
 
     networking.hostName = "alaptop";
     networking.networkmanager.enable = true;

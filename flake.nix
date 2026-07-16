@@ -24,6 +24,10 @@
     import-tree = {
       url = "github:vic/import-tree";
     };
+    mangowm = {
+      url = "github:mangowm/mango";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = inputs:
