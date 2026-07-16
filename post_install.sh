@@ -4,4 +4,4 @@ echo "Tailscale"
 sudo tailscale login -qr
 sudo tailscale up --operator=$USER
 tailscale debug prefs | grep -i operator
-tailscale up --accept-routes
+tailscale up
