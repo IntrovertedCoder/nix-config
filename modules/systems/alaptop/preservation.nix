@@ -10,10 +10,10 @@
           "/etc/nixos"
           "/var/lib/bluetooth"
           "/var/lib/nixos"
-          "/etc/ssh/NetworkManager/system-connections"
+          "/etc/NetworkManager/system-connections"
           # {
-            # directory = "/var/lib/nixos";
-            # inInitrd = true;
+          #   directory = "/var/lib/nixos";
+          #   inInitrd = true;
           # }
         ];
 
@@ -21,7 +21,7 @@
           {
             file = "/etc/machine-id";
             inInitrd = true;
-            how = "bindmount";
+            how = "symlink";
           }
         ];
 
