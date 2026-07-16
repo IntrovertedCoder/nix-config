@@ -1,5 +1,10 @@
 { self, inputs, ... }: {
   flake.nixosModules.tailscale = { pkgs, ...}: {
+    preservation.preserveAt."/persistent" = {
+      directories = [
+        "/var/lib/tailscale"
+      ];
+    };
     imports = [
     ];
     environment.systemPackages = with pkgs; [
