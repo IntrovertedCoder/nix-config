@@ -12,7 +12,14 @@
       imports = [
         inputs.mangowm.hmModules.mango
       ];
-      wayland.windowManager.mango.enable = true;
+      wayland.windowManager.mango = {
+        enable = true;
+        settings = {
+          bind = [
+            "Alt,Return,spawn,foot"
+          ];
+        };
+      };
     };
   };
 }

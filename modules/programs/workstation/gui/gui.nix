@@ -3,6 +3,7 @@
     imports = [
       inputs.home-manager.nixosModules.home-manager
       self.nixosModules.mango
+      self.nixosModules.foot
     ];
     environment.systemPackages = with pkgs; [
     ];
