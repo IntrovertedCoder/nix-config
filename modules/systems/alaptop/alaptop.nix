@@ -42,13 +42,13 @@
     networking.firewall.enable = true;
 
     var.firewall.untrustedInterfaces = {
-      "ygg0" = {
+      "wlp2s0" = {
         ipGroups = {
           "myDevices" = {
-            ips = [ 
-              "202:d9a4:dafb:21e6:f536:764b:144b:32a6 "
+            ips = [
+              "192.168.10.219"
             ];
-            allowedTCPPorts = [ 22 ];
+            allowedTCPPorts = [ 20530 ];
           };
 
           # "friends" = {
@@ -59,8 +59,10 @@
           # };
         };
 
-        # Open a basic landing page or public service to all of yggdrasil
+        # Open a basic landing page or public service to all of interface
         # generalAllowedTCPPorts = [ 80 443 ]; 
+        # Allow 68 for DHCP
+        generalAllowedUDPPorts = [ 68 ];
       };
     };
 
