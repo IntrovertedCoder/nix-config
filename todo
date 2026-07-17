@@ -1,0 +1,74 @@
+Secret management
+Firewall block all incoming connections unless allowed I don't care what firewall just securely:
+  Yggdrasil
+  i2p
+  reticulum?
+  For the servers I want to be able to allow apps through to all (including eth0), and allow specific ips (mainly from yggdrasil and my clients) to access these services so I don't have to port forward
+
+fix left click not snapping window in mangowc
+
+switch out lemurs since shutdown doesn't work
+
+workstation:
+  mullvad
+  gui:
+    sunshine
+    wl-copy
+    wdisplay
+    gammastep
+    mpd
+      rmpc
+    games:
+      gamemode
+      mangohud
+      gamemoderun
+    radaromega
+    video player (not vlc)
+    eventually:
+      ratbagctl (gui version)
+      vial (for keyboard)
+      davinci resolve
+
+Lynis OpenVAS (network) vulnix (system) sbomnix
+  nix run github:DeterminateSystems/flake-checker
+  nix run nixpkgs#vulnix -- --system
+  nix run github:tiiuae/sbomnix#vulnxscan -- .#nixosConfigurations.vmtest.config.system.build.toplevel
+
+Desktop:
+  Mangowc
+  Launcher: (I liked ulaunchers ability to do math, search, and power options, but I didn't like the overhead ulaucher had)
+    https://github.com/Mjoyufull/fsel/blob/main/USAGE.md
+      https://github.com/kuokuo123/otter-launcher/tree/main
+        I would like this setup to be able to do simplier math, power options, launch apps (doesn't need to do .desktop, just commands) with optional arguments, integrate with bitwarden
+
+
+edit install.sh to have options for install location and hostname
+
+nvd (nix visual diff, shows differences in packages)
+nix-diff (shows differences in files)
+
+mpd
+put rmpc into scratchpad on alt+m
+
+pssh (parallel ssh)
+
+firefox
+  Keep the tabs on restart, and cookies folder
+
+
+auto update:
+  store current git commit
+  git pull
+  nh os switch --update (update gets done on one machine [probably a vm] which gets ran a day early for time to debug issues)
+  if failed:
+    restore to saved git commit, try nh os switch --update
+    if failed:
+      send notification through unifiedpush (or discord channel) saying update failed (maybe provide error message)
+  if succeeded:
+    send notification saying update on hostname succeded
+
+
+
+https://github.com/mat-1/metasearch2
+another display manager alt
+https://github.com/kavau/atrium
