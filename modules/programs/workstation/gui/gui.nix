@@ -6,10 +6,13 @@
       self.nixosModules.foot
       self.nixosModules.uwsm
       self.nixosModules.lemurs
+
+      self.nixosModules.firefox
     ];
     environment.systemPackages = with pkgs; [
     ];
     home-manager.users.shot = {
+      xdg.mimeApps.enable = true;
       home.packages = with pkgs; [
       ];
     };
