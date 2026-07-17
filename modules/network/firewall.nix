@@ -96,6 +96,10 @@
           iptables  -N untrusted-ifaces 2>/dev/null || iptables  -F untrusted-ifaces
           ip6tables -N untrusted-ifaces 2>/dev/null || ip6tables -F untrusted-ifaces
 
+          # ALLOW RETURN TRAFFIC: Accept replies to connections initiated by this machine
+          iptables  -A untrusted-ifaces -m conntrack --ctstate RELATED,ESTABLISHED -j nixos-fw-accept
+          ip6tables -A untrusted-ifaces -m conntrack --ctstate RELATED,ESTABLISHED -j nixos-fw-accept
+
           # Insert jump at position 1 in nixos-fw, before any global openFirewall rules
           iptables  -I nixos-fw 1 -j untrusted-ifaces
           ip6tables -I nixos-fw 1 -j untrusted-ifaces
