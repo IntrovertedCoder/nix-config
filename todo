@@ -12,7 +12,6 @@ switch out lemurs since shutdown doesn't work
 workstation:
   mullvad
   gui:
-    sunshine
     wl-copy
     wdisplay
     gammastep
@@ -41,6 +40,7 @@ Desktop:
       https://github.com/kuokuo123/otter-launcher/tree/main
         I would like this setup to be able to do simplier math, power options, launch apps (doesn't need to do .desktop, just commands) with optional arguments, integrate with bitwarden
 
+add "auto login sunshine" file
 
 edit install.sh to have options for install location and hostname
 
