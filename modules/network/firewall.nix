@@ -4,6 +4,13 @@
 
     isIPv6 = ip: builtins.match ".*:.*" ip != null;
 
+    portRangeType = lib.types.submodule {
+      options = {
+        from = lib.mkOption { type = lib.types.int; };
+        to = lib.mkOption { type = lib.types.int; };
+      };
+    };
+
   in {
     options.var.firewall = {
       untrustedInterfaces = lib.mkOption {
@@ -29,6 +36,14 @@
                     type = lib.types.listOf lib.types.int;
                     default = [];
                   };
+                  allowedTCPPortRanges = lib.mkOption {
+                    type = lib.types.listOf portRangeType;
+                    default = [];
+                  };
+                  allowedUDPPortRanges = lib.mkOption {
+                    type = lib.types.listOf portRangeType;
+                    default = [];
+                  };
                 };
               });
             };
@@ -41,6 +56,16 @@
               type = lib.types.listOf lib.types.int;
               default = [];
               description = "UDP ports open to all traffic on this interface.";
+            };
+            generalAllowedUDPPortRanges = lib.mkOption {
+              type = lib.types.listOf portRangeType;
+              default = [];
+              description = "UDP port ranges open to all traffic on this interface.";
+            };
+            generalAllowedTCPPortRanges = lib.mkOption {
+              type = lib.types.listOf portRangeType;
+              default = [];
+              description = "TCP port ranges open to all traffic on this interface.";
             };
           };
         });
@@ -64,11 +89,15 @@
                   map (ip: lib.concatStringsSep "\n" (
                     map (port: "iptables  -A untrusted-ifaces -i ${iface} -s ${ip} -p tcp --dport ${toString port} -j nixos-fw-accept") groupCfg.allowedTCPPorts
                     ++ map (port: "iptables  -A untrusted-ifaces -i ${iface} -s ${ip} -p udp --dport ${toString port} -j nixos-fw-accept") groupCfg.allowedUDPPorts
+                    ++ map (range: "iptables  -A untrusted-ifaces -i ${iface} -s ${ip} -p tcp --dport ${toString range.from}:${toString range.to} -j nixos-fw-accept") groupCfg.allowedTCPPortRanges
+                    ++ map (range: "iptables  -A untrusted-ifaces -i ${iface} -s ${ip} -p udp --dport ${toString range.from}:${toString range.to} -j nixos-fw-accept") groupCfg.allowedUDPPortRanges
                   )) v4
                   ++
                   map (ip: lib.concatStringsSep "\n" (
                     map (port: "ip6tables -A untrusted-ifaces -i ${iface} -s ${ip} -p tcp --dport ${toString port} -j nixos-fw-accept") groupCfg.allowedTCPPorts
                     ++ map (port: "ip6tables -A untrusted-ifaces -i ${iface} -s ${ip} -p udp --dport ${toString port} -j nixos-fw-accept") groupCfg.allowedUDPPorts
+                    ++ map (range: "ip6tables -A untrusted-ifaces -i ${iface} -s ${ip} -p tcp --dport ${toString range.from}:${toString range.to} -j nixos-fw-accept") groupCfg.allowedTCPPortRanges
+                    ++ map (range: "ip6tables -A untrusted-ifaces -i ${iface} -s ${ip} -p udp --dport ${toString range.from}:${toString range.to} -j nixos-fw-accept") groupCfg.allowedUDPPortRanges
                   )) v6
                 )
               ) ifaceCfg.ipGroups);
@@ -82,6 +111,16 @@
                 iptables  -A untrusted-ifaces -i ${iface} -p udp --dport ${toString port} -j nixos-fw-accept
                 ip6tables -A untrusted-ifaces -i ${iface} -p udp --dport ${toString port} -j nixos-fw-accept
               '') ifaceCfg.generalAllowedUDPPorts);
+
+              generalUDPRangeRules = lib.concatStringsSep "\n" (map (range: ''
+                iptables  -A untrusted-ifaces -i ${iface} -p udp --dport ${toString range.from}:${toString range.to} -j nixos-fw-accept
+                ip6tables -A untrusted-ifaces -i ${iface} -p udp --dport ${toString range.from}:${toString range.to} -j nixos-fw-accept
+              '') ifaceCfg.generalAllowedUDPPortRanges);
+
+              generalTCPRangeRules = lib.concatStringsSep "\n" (map (range: ''
+                iptables  -A untrusted-ifaces -i ${iface} -p udp --dport ${toString range.from}:${toString range.to} -j nixos-fw-accept
+                ip6tables -A untrusted-ifaces -i ${iface} -p udp --dport ${toString range.from}:${toString range.to} -j nixos-fw-accept
+              '') ifaceCfg.generalAllowedPortRanges);
             in ''
               # === Untrusted interface: ${iface} ===
               ${groupRules}

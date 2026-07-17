@@ -9,6 +9,7 @@
       self.nixosModules.sshd
       self.nixosModules.customFirewall
       self.nixosModules.workstation
+      self.nixosModules.sunshine
       { nixpkgs.hostPlatform = "x86_64-linux"; }
     ];
   };
@@ -47,8 +48,13 @@
           "myDevices" = {
             ips = [
               "192.168.10.219"
+              "192.168.10.107"
             ];
-            allowedTCPPorts = [ 20530 ];
+            allowedTCPPorts = [ 20530 47984 47989 47990 48010 ];
+            allowedUDPPortRanges = [
+              { from = 47998; to = 48000; }
+              { from = 8000; to = 8010; }
+            ];
           };
 
           # "friends" = {
