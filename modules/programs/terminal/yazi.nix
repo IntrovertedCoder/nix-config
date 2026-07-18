@@ -8,6 +8,7 @@ in {
     ];
     environment.systemPackages = with pkgs; [
     ];
+    services.udisks2.enable = true;
     home-manager.users.shot = {
       programs.yazi = {
         enable = true;
@@ -19,6 +20,7 @@ in {
           ouch             = pkgs.yaziPlugins.ouch;
           rich-preview     = pkgs.yaziPlugins.rich-preview;
           starship         = pkgs.yaziPlugins.starship;
+          mount            = pkgs.yaziPlugins.mount;
         };
 
         extraPackages = with pkgs; [
@@ -64,6 +66,7 @@ in {
             { on = [ "g" "d" ]; run = "cd ~/Downloads";  desc = "Go to Downloads"; }
             { on = [ "r" "b" ]; run = "shell 'nh os switch' --block";    desc = "Rebuild nix system"; }
             { on = [ "v" "s" ]; run = "shell 'vs' --block";    desc = "Find files to edit with vim"; }
+            { on = [ "M" ]; run = "plugin mount"; desc = "Mount plugin"; }
           ];
         };
 
