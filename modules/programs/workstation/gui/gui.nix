@@ -6,6 +6,7 @@
       self.nixosModules.foot
       self.nixosModules.uwsm
       self.nixosModules.tuigreet
+      self.nixosModules.launcher
 
       self.nixosModules.firefox
     ];

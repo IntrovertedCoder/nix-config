@@ -20,6 +20,9 @@ in {
       ];
       wayland.windowManager.mango = {
         enable = true;
+        extraConfig = ''
+          windowrule=appid:launcher,isfloating:1
+        '';
         settings = {
           circle_layout = "scroller,vertical_scroller,center_tile";
 
@@ -79,7 +82,8 @@ in {
 
           bind = [
             # Launch Apps
-            "Alt,Return,spawn,foot"
+            "Alt,Return,spawn,uwsm app foot"
+            "ALT,d,spawn,uwsm app -- foot -a launcher -e otter-launcher"
 
             "ALT+SHIFT+CTRL,r,reload_config"
             "ALT+SHIFT,q,killclient"

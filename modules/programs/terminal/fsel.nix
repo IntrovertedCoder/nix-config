@@ -38,7 +38,7 @@ in {
       hard_stop = false
 
       # Use rounded corners for panels
-      rounded_borders = true
+      rounded_borders = false
 
       # ===== COLORS =====
       # WARNING: Color options go at ROOT LEVEL (not in [app_launcher])
@@ -102,7 +102,7 @@ in {
 
       # Optional command prefix used before launched apps
       # Example: ["runapp", "--"] or ["uwsm", "app", "--"]
-      # launch_prefix = ["runapp", "--"]
+      launch_prefix = ["uwsm", "app", "--"]
 
       # Match mode: "fuzzy" or "exact"
       # fuzzy = fzf-style matching (fire matches Firefox)
@@ -156,7 +156,7 @@ in {
       # input_text_color = "White"
 
       # UI
-      # rounded_borders = true
+      rounded_borders = false
       # hard_stop = false
       # header_title_color = "LightBlue"
 
@@ -196,7 +196,7 @@ in {
       # input_text_color = "White"
 
       # UI
-      # rounded_borders = true
+      rounded_borders = false
       # hard_stop = false
       # header_title_color = "LightBlue"
 
