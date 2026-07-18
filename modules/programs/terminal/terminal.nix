@@ -27,6 +27,7 @@
       self.nixosModules.disktui
       self.nixosModules.doggo
       self.nixosModules.fend
+      self.nixosModules.dua
       self.nixosModules.tailscale
     ];
     environment.systemPackages = with pkgs; [

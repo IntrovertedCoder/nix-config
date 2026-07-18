@@ -95,7 +95,7 @@ in {
             "ALT,k,focusdir,up"
             "ALT,l,focusdir,right"
             # Move window
-            "ALT+SHFIT,h,exchange_client,left"
+            "ALT+SHIFT,h,exchange_client,left"
             "ALT+SHIFT,j,exchange_client,down"
             "ALT+SHIFT,k,exchange_client,up"
             "ALT+SHIFT,l,exchange_client,right"
