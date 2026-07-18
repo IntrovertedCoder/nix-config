@@ -74,7 +74,7 @@ in {
           edge_scroller_pointer_focus = 1; # Default
           edge_scroller_focus_allow_speed = 0.0; # Default
           scroller_default_proportion_single = 1.0;
-          scroller_ignore_proportion_single = 1; # Default
+          scroller_ignore_proportion_single = 0;
           scroller_proportion_preset = "0.2,0.4,0.6,0.8,1.0";
 
           bind = [

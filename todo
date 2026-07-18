@@ -5,13 +5,10 @@ Firewall block all incoming connections unless allowed I don't care what firewal
   reticulum?
   For the servers I want to be able to allow apps through to all (including eth0), and allow specific ips (mainly from yggdrasil and my clients) to access these services so I don't have to port forward
 
-fix left click not snapping window in mangowc
-
-switch out lemurs since shutdown doesn't work
-
 workstation:
   mullvad
   gui:
+    screen lock/auto locker
     wl-copy
     wdisplay
     gammastep
