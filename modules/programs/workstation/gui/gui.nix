@@ -5,7 +5,7 @@
       self.nixosModules.mango
       self.nixosModules.foot
       self.nixosModules.uwsm
-      self.nixosModules.lemurs
+      self.nixosModules.tuigreet
 
       self.nixosModules.firefox
     ];
