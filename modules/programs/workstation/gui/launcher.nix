@@ -10,20 +10,20 @@ in {
     home-manager.users.shot = {
       # Install the required tools
       home.packages = with pkgs; [
-        inputs.otter-launcher.packages.${pkgs.system}.default
+        inputs.otter-launcher.packages.${pkgs.stdenv.hostPlatform.system}.default
       ];
 
       # Configure otter-launcher
       xdg.configFile."otter-launcher/config.toml".text = /*toml*/ ''
         [general]
         default_module = "search"
-        empty_module = "search"
+        empty_module = "app"
         exec_cmd = "sh -c"
 
         [[modules]]
         description = "search apps interactively"
         prefix = "search"
-        cmd = "fsel -vv -r -ss \"{}\""
+        cmd = "fsel --uwsm -d -vv -r -ss \"{}\""
         with_argument = false
 
         [[modules]]

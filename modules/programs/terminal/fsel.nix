@@ -102,7 +102,7 @@ in {
 
       # Optional command prefix used before launched apps
       # Example: ["runapp", "--"] or ["uwsm", "app", "--"]
-      launch_prefix = ["uwsm", "app", "--"]
+      launch_prefix = ["systemd-run", "--user", "--background", "--slice=app.slice", "--"]
 
       # Match mode: "fuzzy" or "exact"
       # fuzzy = fzf-style matching (fire matches Firefox)
