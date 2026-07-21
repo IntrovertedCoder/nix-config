@@ -49,6 +49,16 @@ in {
         cmd = "${pkgs.systemctl-tui}/bin/systemctl-tui"
 
         [[modules]]
+        description = "freeze"
+        prefix = "fz"
+        cmd = "systemctl --user list-units --type=scope,service --state=running --no-legend | fsel --dmenu | awk '{print $1}' | xargs -r systemctl --user freeze"
+
+        [[modules]]
+        description = "thaw"
+        prefix = "th"
+        cmd = "systemctl --user list-units --type=scope,service --state=running --no-legend | fsel --dmenu | awk '{print $1}' | xargs -r systemctl --user thaw"
+
+        [[modules]]
         description = "calculator"
         prefix = "="
         cmd = "fend"
