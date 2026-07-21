@@ -37,6 +37,29 @@ in {
         prefix = "nm"
         cmd = "nmtui"
 
+        [[modules]]
+        description = "calculator"
+        prefix = "="
+        cmd = "fend"
+        with_argument = true
+
+        [[modules]]
+        description = "power menu"
+        prefix = "po"
+        cmd = """
+        function power {
+        if [[ -n $1 ]]; then
+        case $1 in
+        "logout") session=`loginctl session-status | head -n 1 | awk '{print $1}'`; loginctl terminate-session $session ;;
+        "suspend") systemctl suspend ;;
+        "hibernate") systemctl hibernate ;;
+        "reboot") systemctl reboot ;;
+        "shutdown") systemctl poweroff ;;
+        "lock") lock ;;
+        esac fi }
+        power $(echo -e 'reboot\nshutdown\nlogout\nsuspend\nhibernate\nlock' | fsel --dmenu | tail -1)
+        """
+
         [interface]
         header = "  $USER@$(echo $HOSTNAME)     \u001B[31m\u001B[0m $(free -h | awk 'FNR == 2 {print $3}' | sed 's/i//')\n  "
         list_prefix = "  "

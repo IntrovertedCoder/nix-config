@@ -5,14 +5,16 @@ Firewall block all incoming connections unless allowed I don't care what firewal
   reticulum?
   For the servers I want to be able to allow apps through to all (including eth0), and allow specific ips (mainly from yggdrasil and my clients) to access these services so I don't have to port forward
 
-fix otter-launcher search not opening unless its in actual terminal
-fend in otter-launcher
 figure out how to open yazi from the launcher since its in the list
 
 workstation:
   mullvad
   gui:
+    audio:
+      easyeffects (autostart)
+      volume/output controller
     screen lock/auto locker
+    screen capture working
     wl-copy
     wdisplay
     gammastep
