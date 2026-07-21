@@ -6,6 +6,7 @@ Firewall block all incoming connections unless allowed I don't care what firewal
   For the servers I want to be able to allow apps through to all (including eth0), and allow specific ips (mainly from yggdrasil and my clients) to access these services so I don't have to port forward
 
 figure out how to open yazi from the launcher since its in the list
+  This works with app, but not search
 
 workstation:
   mullvad

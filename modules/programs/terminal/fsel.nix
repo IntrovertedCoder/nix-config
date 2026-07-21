@@ -32,7 +32,7 @@ in {
       cursor = "█"
 
       # Command to launch terminal apps (apps with Terminal=true). Use "tty" for TTY mode (same as -t/--tty).
-      terminal_launcher = "kitty -e"
+      # terminal_launcher = "echo"
 
       # Don't wrap around at list ends (false = wrap around)
       hard_stop = false

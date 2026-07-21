@@ -11,7 +11,13 @@ in {
       # Install the required tools
       home.packages = with pkgs; [
         inputs.otter-launcher.packages.${pkgs.stdenv.hostPlatform.system}.default
+        systemctl-tui
       ];
+
+      xdg.terminal-exec = {
+        enable = true;
+        settings.default = [ "foot.desktop" ];
+      };
 
       # Configure otter-launcher
       xdg.configFile."otter-launcher/config.toml".text = /*toml*/ ''
@@ -29,13 +35,18 @@ in {
         [[modules]]
         description = "launch apps instantly"
         prefix = "app"
-        cmd = "uwsm app -t service -- \"{}\""
+        cmd = "uwsm app -t service -- \"{}.desktop\" || uwsm app -t service -- \"{}\""
         with_argument = true
 
         [[modules]]
         description = "nmtui"
         prefix = "nm"
         cmd = "nmtui"
+
+        [[modules]]
+        description = "systemctl-tui"
+        prefix = "st"
+        cmd = "${pkgs.systemctl-tui}/bin/systemctl-tui"
 
         [[modules]]
         description = "calculator"
