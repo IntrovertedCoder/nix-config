@@ -16,7 +16,7 @@
       description = "shot";
       extraGroups = [ "wheel" "networkmanager" "video" "audio" ];
 
-      hashedPassword = "$y$j9T$xaTOftkAyVD6OBl1BrHTK/$/zSwrOGjzoJuXYU8nhqKf2Vq8UcqQMPaWX23PJ04P/3"; 
+      hashedPassword = "$y$j9T$BNfZNKNNKEyCyPuAcAnUl/$VTC2fLWujyNvInhMvQip3AS13BP9nFyohzAE7qDzHP5";
     };
   };
 }
