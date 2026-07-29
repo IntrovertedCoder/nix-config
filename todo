@@ -12,8 +12,8 @@ workstation:
   mullvad
   gui:
     audio:
-      easyeffects (autostart)
       volume/output controller
+    switch out options such as easyeffects to mangoeasyeffects so I can swap wm's easier
     screen lock/auto locker
     screen capture working
     wl-copy
