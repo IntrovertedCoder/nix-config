@@ -63,7 +63,7 @@ in {
           drag_tile_to_tile = 1;
           mouse_natural_scrolling = 0;
           # Trackpad
-          trackpad_natural_scrolling = 0; # Default
+          trackpad_natural_scrolling = 1; # Default
           tap_to_click = 1; # Default
           tap_and_drag = 1; # Default
 
