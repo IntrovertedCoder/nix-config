@@ -2,7 +2,7 @@
 let
   c = config.var.colors;
 in {
-  flake.nixosModules.launcher = { pkgs, ...}: {
+  flake.nixosModules.launcher = { pkgs, config, ...}: {
     imports = [
       inputs.home-manager.nixosModules.home-manager
     ];
@@ -76,7 +76,7 @@ in {
         "hibernate") systemctl hibernate ;;
         "reboot") systemctl reboot ;;
         "shutdown") systemctl poweroff ;;
-        "lock") lock ;;
+        "lock") setsid -f ${config.var.lockCommand} >/dev/null 2>&1 ;;
         esac fi }
         power $(echo -e 'reboot\nshutdown\nlogout\nsuspend\nhibernate\nlock' | fsel --dmenu | tail -1)
         """
