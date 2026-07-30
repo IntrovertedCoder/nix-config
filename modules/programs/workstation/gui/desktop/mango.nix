@@ -2,7 +2,7 @@
 let
   c = config.var.colors;
 in {
-  flake.nixosModules.mango = { pkgs, ...}: {
+  flake.nixosModules.mango = { pkgs, config, ...}: {
     imports = [
       inputs.home-manager.nixosModules.home-manager
       inputs.mangowm.nixosModules.mango
@@ -86,6 +86,7 @@ in {
             "ALT,d,spawn,uwsm app -- foot -a launcher -e otter-launcher"
 
             "ALT+SHIFT+CTRL,r,reload_config"
+            "ALT+SHIFT+CTRL,l,spawn_shell,${config.var.lockCommand}"
             "ALT+SHIFT,q,killclient"
             "ALT,n,switch_layout"
             "ALT,tab,togglejump"

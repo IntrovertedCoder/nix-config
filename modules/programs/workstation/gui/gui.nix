@@ -10,6 +10,7 @@
       self.nixosModules.easyeffects
 
       self.nixosModules.firefox
+      self.nixosModules.hyprlock
     ];
     environment.systemPackages = with pkgs; [
     ];
