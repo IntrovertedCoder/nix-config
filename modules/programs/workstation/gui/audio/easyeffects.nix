@@ -269,7 +269,7 @@
                 boost-amount = 6.0;
                 boost-threshold = -72.0;
                 bypass = false;
-                dry = -100.0;
+                dry = -80;
                 hpf-frequency = 200.0;
                 input-gain = 0.0;
                 knee = -6.0;
@@ -280,7 +280,7 @@
                 output-gain = 0.0;
                 ratio = 4.0;
                 release = 100.0;
-                release-threshold = -100.0;
+                release-threshold = -80;
                 sidechain = {
                   lookahead = 0.0;
                   mode = "RMS";
@@ -307,7 +307,7 @@
                   makeup = 0.0;
                   mute = false;
                   ratio = 1.0;
-                  release-threshold = -100.0;
+                  release-threshold = -80.0;
                   release-time = 100.0;
                   sidechain-custom-highcut-filter = false;
                   sidechain-custom-lowcut-filter = false;
@@ -334,7 +334,7 @@
                   makeup = 0.0;
                   mute = false;
                   ratio = 4.0;
-                  release-threshold = -100.0;
+                  release-threshold = -80.0;
                   release-time = 100.0;
                   sidechain-custom-highcut-filter = false;
                   sidechain-custom-lowcut-filter = false;
@@ -362,7 +362,7 @@
                   makeup = 0.0;
                   mute = false;
                   ratio = 1.0;
-                  release-threshold = -100.0;
+                  release-threshold = -80.0;
                   release-time = 100.0;
                   sidechain-custom-highcut-filter = false;
                   sidechain-custom-lowcut-filter = false;
@@ -390,7 +390,7 @@
                   makeup = 0.0;
                   mute = false;
                   ratio = 1.0;
-                  release-threshold = -100.0;
+                  release-threshold = -80.0;
                   release-time = 100.0;
                   sidechain-custom-highcut-filter = false;
                   sidechain-custom-lowcut-filter = false;
@@ -418,7 +418,7 @@
                   makeup = 0.0;
                   mute = false;
                   ratio = 1.0;
-                  release-threshold = -100.0;
+                  release-threshold = -80.0;
                   release-time = 100.0;
                   sidechain-custom-highcut-filter = false;
                   sidechain-custom-lowcut-filter = false;
@@ -446,7 +446,7 @@
                   makeup = 0.0;
                   mute = false;
                   ratio = 1.0;
-                  release-threshold = -100.0;
+                  release-threshold = -80.0;
                   release-time = 100.0;
                   sidechain-custom-highcut-filter = false;
                   sidechain-custom-lowcut-filter = false;
@@ -474,7 +474,7 @@
                   makeup = 0.0;
                   mute = false;
                   ratio = 1.0;
-                  release-threshold = -100.0;
+                  release-threshold = -80.0;
                   release-time = 100.0;
                   sidechain-custom-highcut-filter = false;
                   sidechain-custom-lowcut-filter = false;
@@ -502,7 +502,7 @@
                   makeup = 0.0;
                   mute = false;
                   ratio = 1.0;
-                  release-threshold = -100.0;
+                  release-threshold = -80.0;
                   release-time = 100.0;
                   sidechain-custom-highcut-filter = false;
                   sidechain-custom-lowcut-filter = false;
@@ -519,7 +519,7 @@
                 };
                 bypass = false;
                 compressor-mode = "Modern";
-                dry = -100.0;
+                dry = -80.0;
                 envelope-boost = "None";
                 input-gain = 0.0;
                 output-gain = 0.0;
@@ -545,7 +545,7 @@
                 attack = 20.0;
                 curve-threshold = -50.0;
                 curve-zone = -6.0;
-                dry = -100.0;
+                dry = -80.0;
                 hpf-frequency = 10;
                 hpf-mode = "off";
                 hysteresis = true;
@@ -586,7 +586,7 @@
                 attack = 10.0;
                 boost-amount = 6.0;
                 boost-threshold = -72.0;
-                dry = -100.0;
+                dry = -80.0;
                 hpf-frequency = 10.0;
                 hpf-mode = "off";
                 input-gain = 0.0;
@@ -598,7 +598,7 @@
                 output-gain = 0.0;
                 ratio = 4.0;
                 release = 20.0;
-                release-threshold = -100.0;
+                release-threshold = -80.0;
                 sidechain = {
                   lookahead = 0.0;
                   mode = "RMS";
@@ -617,7 +617,7 @@
                 attack = 20.0;
                 boost-amount = 6.0;
                 boost-threshold = -72.0;
-                dry = -100.0;
+                dry = -80.0;
                 hpf-frequency = 10.0;
                 hpf-mode = "off";
                 input-gain = 0.0;
@@ -629,7 +629,7 @@
                 output-gain = 0.0;
                 ratio = 4.0;
                 release = 20.0;
-                release-threshold = -100.0;
+                release-threshold = -80.0;
                 sidechain = {
                   lookahead = 0.0;
                   mode = "RMS";
