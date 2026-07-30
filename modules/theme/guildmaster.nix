@@ -2,15 +2,19 @@
 let
   rawPalette = {
     black    = "060606"; #060606 Black
-    black1   = "202020"; #202020 Black1
-    black2   = "3a3a3a"; #3a3a3a Black2
-    grey1    = "545454"; #545454 Grey1
-    grey2    = "6e6e6e"; #6e6e6e Grey2
-    grey3    = "878787"; #878787 Grey3
-    grey4    = "a1a1a1"; #a1a1a1 Grey4
-    white1   = "bbbbbb"; #bbbbbb White2
-    white2   = "d5d5d5"; #d5d5d5 White2
+    black1   = "1d1d1d"; #1d1d1d Black1
+    black2   = "353535"; #353535 Black2
+    grey1    = "4c4c4c"; #4c4c4c Grey1
+    grey2    = "636363"; #636363 Grey2
+    greym    = "7b7b7b"; #7b7b7b Greym
+    grey3    = "929292"; #929292 Grey3
+    grey4    = "a9a9a9"; #a9a9a9 Grey4
+    white1   = "c0c0c0"; #c0c0c0 White2
+    white2   = "d8d8d8"; #d8d8d8 White2
     white    = "efefef"; #efefef White
+    dgrey    = "5e5e5e"; #5e5e5e dgrey
+    grey     = "777777"; #777777 grey
+    lgrey    = "919191"; #919191 lgrey
     dpink    = "9f3b60"; #9f3b60 DPink
     pink     = "bb5579"; #bb5579 Pink
     lpink    = "d86f92"; #d86f92 LPink
