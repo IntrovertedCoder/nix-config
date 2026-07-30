@@ -36,22 +36,26 @@ in {
             input-field = [
               {
                 monitor = "";
-                size = "250, 50";
-                position = "0, -100";
+                size = "50, 50";
+                position = "0, -50";
                 halign = "center";
                 valign = "center";
 
                 outline_thickness = 2;
-                dots_size = 0.2; 
+                dots_size = 0.2;
                 dots_spacing = 0.2; 
                 dots_center = true;
 
                 outer_color = "rgb(${c.black2})";
                 inner_color = "rgb(${c.black1})";
                 font_color = "rgb(${c.white})";
+                font_family = "Hack Nerd Font";
+                capslock_color = "rgb(${c.blue})";
+                numlock_color = "rbg${c.green})";
+                bothlock_color = "rbg${c.cyan})";
 
-                fade_on_empty = false;
-                hide_input = false;
+                fade_on_empty = true;
+                hide_input = true;
 
                 check_color = "rgb(${c.cyan})";
                 fail_color = "rgb(${c.red})";
@@ -63,9 +67,8 @@ in {
                 monitor = "";
                 text = "$TIME";
                 font_size = 40;
-                font_family = "Hack Nerd Font";
                 color = "rbg(${c.white})";
-                position = "0, 100";
+                position = "0, 50";
                 halign = "center";
                 valign = "center";
               }
