@@ -2,9 +2,10 @@
 let
   c = config.var.colors;
 in {
-  flake.nixosModules.hyprlock = { pkgs, lib, ...}: {
+  flake.nixosModules.hyprlock = { pkgs, lib, config, ...}: {
     imports = [
       inputs.home-manager.nixosModules.home-manager
+      self.nixosModules.wallpaper
     ];
 
     options.var.lockCommand = lib.mkOption {
@@ -29,9 +30,7 @@ in {
             background = [
               {
                 monitor = "";
-                path = "screenshot";
-                blur_passes = 2;
-                blur_size = 8;
+                path = "${config.var.wallpaper}";
               }
             ];
             input-field = [

@@ -13,8 +13,13 @@ workstation:
   gui:
     audio:
       volume/output controller
+    auto locker
+
+    desktop-portal for screen cap
+    allow running commands through launcher (mainly comma)
+      hyprpicker
+      flameshot
     switch out options such as easyeffects to mangoeasyeffects so I can swap wm's easier
-    screen lock/auto locker
     screen capture working
     wl-copy
     wdisplay
