@@ -44,19 +44,19 @@
             # Prevent suspend on rebuild, but allow locking
             {
               timeout = 900;
-              on-timeout = "pidof nh || pidof nixos-rebuild || pidof nix || systemctl suspend";
+              on-timeout = "pidof nh || pidof nixos-rebuild || systemctl suspend";
             }
             {
               timeout = 1800;
-              on-timeout = "pidof nh || pidof nixos-rebuild || pidof nix || systemctl suspend";
+              on-timeout = "pidof nh || pidof nixos-rebuild || systemctl suspend";
             }
             {
               timeout = 2700;
-              on-timeout = "pidof nh || pidof nixos-rebuild || pidof nix || systemctl suspend";
+              on-timeout = "pidof nh || pidof nixos-rebuild || systemctl suspend";
             }
             {
               timeout = 3600;
-              on-timeout = "pidof nh || pidof nixos-rebuild || pidof nix || systemctl suspend";
+              on-timeout = "pidof nh || pidof nixos-rebuild || systemctl suspend";
             }
           ];
         };

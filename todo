@@ -13,8 +13,6 @@ workstation:
   gui:
     audio:
       volume/output controller
-    auto locker
-      auto lock on suspend/hibernate/lid close
 
     desktop-portal for screen cap
     allow running commands through launcher (mainly comma)
