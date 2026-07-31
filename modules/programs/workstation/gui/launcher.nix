@@ -44,6 +44,11 @@ in {
         cmd = "nmtui"
 
         [[modules]]
+        description = "pulsemixer"
+        prefix = "pm"
+        cmd = "pulsemixer"
+
+        [[modules]]
         description = "systemctl-tui"
         prefix = "st"
         cmd = "${pkgs.systemctl-tui}/bin/systemctl-tui"

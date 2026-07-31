@@ -8,6 +8,7 @@
       self.nixosModules.tuigreet
       self.nixosModules.launcher
       self.nixosModules.easyeffects
+      self.nixosModules.pulsemixer
 
       self.nixosModules.firefox
       self.nixosModules.hyprlock

@@ -11,9 +11,6 @@ figure out how to open yazi from the launcher since its in the list
 workstation:
   mullvad
   gui:
-    audio:
-      volume/output controller
-
     desktop-portal for screen cap
     allow running commands through launcher (mainly comma)
       hyprpicker
