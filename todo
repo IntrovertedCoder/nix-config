@@ -22,6 +22,8 @@ workstation:
       flameshot
     switch out options such as easyeffects to mangoeasyeffects so I can swap wm's easier
     screen capture working
+    pkexec
+      https://wiki.archlinux.org/title/Polkit
     wl-copy
     wdisplay
     gammastep

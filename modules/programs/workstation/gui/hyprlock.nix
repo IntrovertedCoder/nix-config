@@ -14,6 +14,12 @@ in {
       description = "The command used to lock the screen";
     };
 
+    options.var.lockGrace = lib.mkOption {
+      type = lib.types.str;
+      default = "${pkgs.hyprlock}/bin/hyprlock --grace 15";
+      description = "The command used to lock the screen";
+    };
+
     config = {
       programs.hyprlock.enable = true;
 
