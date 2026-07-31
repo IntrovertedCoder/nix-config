@@ -15,7 +15,7 @@ in {
         settings = {
           main = {
             # font = "monospace:size=9";
-            font = "Hack Nerd Font Mono:size=9";
+            font = "Hack Nerd Font Mono:size=7";
             dpi-aware = "yes";
           };
 
