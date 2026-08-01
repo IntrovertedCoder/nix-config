@@ -94,6 +94,9 @@ in {
             "ALT,n,switch_layout"
             "ALT,tab,togglejump"
 
+            "ALT,m,spawn_shell,makoctl dismiss"
+            "ALT+SHIF,m,spawn_shell, makoctl dismiss -a"
+
             # Scroller keybinds
             "ALT,x,switch_proportion_preset"
 

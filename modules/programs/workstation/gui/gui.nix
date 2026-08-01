@@ -17,6 +17,7 @@
       self.nixosModules.polkit
       self.nixosModules.flameshot
       self.nixosModules.stash-clip
+      self.nixosModules.mako
     ];
     environment.systemPackages = with pkgs; [
     ];
