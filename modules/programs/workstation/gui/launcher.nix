@@ -96,6 +96,21 @@ in {
         power $(echo -e 'reboot\nshutdown\nlogout\nsuspend\nhibernate\nlock' | fsel --dmenu | tail -1)
         """
 
+        [[modules]]
+        description = "Run shell command (Background)"
+        prefix = "$"
+        # This runs silently in the background. Perfect for GUI tools like: $ , baobab
+        cmd = "uwsm app -t service -- sh -c '{}'"
+        with_argument = true
+
+        [[modules]]
+        description = "Run shell command (Foreground)"
+        prefix = ">"
+        # This opens a new foot window to run the command. Perfect for CLI tools like: > , htop
+        # The 'read' command at the end ensures the terminal stays open if the command throws an error.
+        cmd = "uwsm app -t service -- foot -e sh -c '{}; echo \"\n[Process Finished - Press Enter to close]\"; read'"
+        with_argument = true
+
         [interface]
         header = "  $USER@$(echo $HOSTNAME)     \u001B[31m\u001B[0m $(free -h | awk 'FNR == 2 {print $3}' | sed 's/i//')\n  "
         list_prefix = "  "

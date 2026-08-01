@@ -10,7 +10,10 @@ figure out how to open yazi from the launcher since its in the list
 workstation:
   mullvad
   gui:
-    allow running commands through launcher (mainly comma)
+    notification setup
+    otter-launcher
+      allow "git pull && NH_ELEVATION_STRATEGY=pkexec nh os switch" and throw error if failed with urgent notification and copy error
+      git pull && NH_ELEVATION_STRATEGY=pkexec nh os switch --update
     switch out options such as easyeffects to mangoeasyeffects so I can swap wm's easier
     fix sunshine not registering keys or mouse moves
     wl-copy
