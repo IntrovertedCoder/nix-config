@@ -16,6 +16,7 @@
       self.nixosModules.hypridle
       self.nixosModules.polkit
       self.nixosModules.flameshot
+      self.nixosModules.stash-clip
     ];
     environment.systemPackages = with pkgs; [
     ];

@@ -49,6 +49,11 @@ in {
         cmd = "yazi"
 
         [[modules]]
+        description = "Clipboard history"
+        prefix = "ch"
+        cmd = "stash list | fsel --dmenu | stash decode > /tmp/wl-copy-data && uwsm app -t service -- sh -c 'wl-copy < /tmp/wl-copy-data'"
+
+        [[modules]]
         description = "pulsemixer"
         prefix = "pm"
         cmd = "pulsemixer"
