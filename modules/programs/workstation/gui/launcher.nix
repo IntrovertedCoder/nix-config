@@ -44,6 +44,11 @@ in {
         cmd = "nmtui"
 
         [[modules]]
+        description = "yazi"
+        prefix = "yz"
+        cmd = "yazi"
+
+        [[modules]]
         description = "pulsemixer"
         prefix = "pm"
         cmd = "pulsemixer"
