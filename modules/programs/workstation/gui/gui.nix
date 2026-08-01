@@ -15,6 +15,7 @@
       self.nixosModules.hyprlock
       self.nixosModules.hypridle
       self.nixosModules.polkit
+      self.nixosModules.flameshot
     ];
     environment.systemPackages = with pkgs; [
     ];

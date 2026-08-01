@@ -13,7 +13,6 @@ workstation:
   gui:
     allow running commands through launcher (mainly comma)
       hyprpicker
-      flameshot
     switch out options such as easyeffects to mangoeasyeffects so I can swap wm's easier
     fix sunshine not registering keys or mouse moves
     wl-copy
@@ -79,3 +78,7 @@ auto update:
 https://github.com/mat-1/metasearch2
 another display manager alt
 https://github.com/kavau/atrium
+
+
+test on desktop:
+  Confirm flameshot works on multiple monitors

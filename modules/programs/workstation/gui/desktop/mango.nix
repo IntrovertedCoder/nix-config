@@ -85,6 +85,8 @@ in {
             "Alt,Return,spawn,uwsm app foot"
             "ALT,d,spawn,uwsm app -- foot -a launcher -e otter-launcher"
 
+            "NONE,Print,spawn,uwsm app flameshot gui"
+
             "ALT+SHIFT+CTRL,r,reload_config"
             "ALT+SHIFT+CTRL,l,spawn_shell,${config.var.lockCommand}"
             "ALT+SHIFT,q,killclient"
