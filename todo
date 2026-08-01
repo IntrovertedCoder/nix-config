@@ -3,7 +3,6 @@ Firewall block all incoming connections unless allowed I don't care what firewal
   Yggdrasil
   i2p
   reticulum?
-  For the servers I want to be able to allow apps through to all (including eth0), and allow specific ips (mainly from yggdrasil and my clients) to access these services so I don't have to port forward
 
 figure out how to open yazi from the launcher since its in the list
   This works with app, but not search
@@ -12,12 +11,15 @@ workstation:
   mullvad
   gui:
     allow running commands through launcher (mainly comma)
-      hyprpicker
     switch out options such as easyeffects to mangoeasyeffects so I can swap wm's easier
     fix sunshine not registering keys or mouse moves
     wl-copy
+    bitwarden in otter-launcher
     wdisplay
     gammastep
+    vesktop/discord (if vesktop add theme and plugins manually)
+      try to persist only the login file
+        Might not work since caching pictures can be large (try to put these in /tmp?)
     mpd
       rmpc
     obs
@@ -32,19 +34,15 @@ workstation:
       ratbagctl (gui version)
       vial (for keyboard)
       davinci resolve
+      gimp
+      audacity
+      blender
       theme gnome-polkit (or another auth polkit)
 
 Lynis OpenVAS (network) vulnix (system) sbomnix
   nix run github:DeterminateSystems/flake-checker
   nix run nixpkgs#vulnix -- --system
   nix run github:tiiuae/sbomnix#vulnxscan -- .#nixosConfigurations.vmtest.config.system.build.toplevel
-
-Desktop:
-  Mangowc
-  Launcher: (I liked ulaunchers ability to do math, search, and power options, but I didn't like the overhead ulaucher had)
-    https://github.com/Mjoyufull/fsel/blob/main/USAGE.md
-      https://github.com/kuokuo123/otter-launcher/tree/main
-        I would like this setup to be able to do simplier math, power options, launch apps (doesn't need to do .desktop, just commands) with optional arguments, integrate with bitwarden
 
 add "auto login sunshine" file
 
@@ -57,10 +55,6 @@ mpd
 put rmpc into scratchpad on alt+m
 
 pssh (parallel ssh)
-
-firefox
-  Keep the tabs on restart, and cookies folder
-
 
 auto update:
   store current git commit
@@ -76,8 +70,6 @@ auto update:
 
 
 https://github.com/mat-1/metasearch2
-another display manager alt
-https://github.com/kavau/atrium
 
 
 test on desktop:
