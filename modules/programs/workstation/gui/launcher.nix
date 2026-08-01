@@ -98,7 +98,7 @@ in {
         place_holder = "type & search"
         default_module_message = " \u001B[33mOpen\u001B[0m"
         suggestion_mode = "list"
-        suggestion_lines = 4
+        suggestion_lines = 20
         prefix_padding = 3
         prefix_color = "\u001B[33m"
         description_color = "\u001B[39m"
