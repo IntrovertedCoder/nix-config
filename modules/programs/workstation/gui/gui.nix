@@ -14,6 +14,7 @@
       self.nixosModules.firefox
       self.nixosModules.hyprlock
       self.nixosModules.hypridle
+      self.nixosModules.polkit
     ];
     environment.systemPackages = with pkgs; [
     ];

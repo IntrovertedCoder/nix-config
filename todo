@@ -11,14 +11,11 @@ figure out how to open yazi from the launcher since its in the list
 workstation:
   mullvad
   gui:
-    have file picker yazi be floating
     allow running commands through launcher (mainly comma)
       hyprpicker
       flameshot
     switch out options such as easyeffects to mangoeasyeffects so I can swap wm's easier
     fix sunshine not registering keys or mouse moves
-    pkexec
-      https://wiki.archlinux.org/title/Polkit
     wl-copy
     wdisplay
     gammastep
@@ -36,6 +33,7 @@ workstation:
       ratbagctl (gui version)
       vial (for keyboard)
       davinci resolve
+      theme gnome-polkit (or another auth polkit)
 
 Lynis OpenVAS (network) vulnix (system) sbomnix
   nix run github:DeterminateSystems/flake-checker

@@ -1,0 +1,10 @@
+:unbind p # clipboard open
+:unbind <C-f> # page down
+:unbind F: # open in background (prefer nf)
+
+:bind pf hint -wp
+:bind nf hint -b
+:set hintchars "spnt,.aeoihjkl" # change this to the split keyboard layout
+
+
+get rid of bookmark stuff
