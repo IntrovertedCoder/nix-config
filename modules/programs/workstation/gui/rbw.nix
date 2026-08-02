@@ -22,7 +22,7 @@
       {"email":"natrotnic@gmail.com","sso_id":null,"base_url":null,"identity_url":null,"ui_url":null,"notifications_url":null,"lock_timeout":300,"sync_interval":3600,"pinentry":"pinentry","client_cert_path":null}
       '';
       xdg.configFile."otter-launcher/config.toml".text = /*toml*/ ''
-      [[modules]]
+        [[modules]]
         description = "Bitwarden: Lock Vault"
         prefix = "bwl"
         cmd = "${pkgs.writeShellScript "bw-lock" ''
@@ -30,7 +30,7 @@
           ${pkgs.libnotify}/bin/notify-send -u low "Bitwarden" "Vault locked successfully."
         ''}"
 
-      [[modules]]
+        [[modules]]
         description = "Bitwarden: Auto-type Password"
         prefix = "bwp"
         cmd = "${pkgs.writeShellScript "bw-pass" ''

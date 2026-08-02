@@ -73,7 +73,7 @@ in {
 
         [[modules]]
         description = "Run shell command (Background)"
-        prefix = "$"
+        prefix = "<"
         # This runs silently in the background. Perfect for GUI tools like: $ , baobab
         cmd = "uwsm app -t service -- sh -c '{}'"
         with_argument = true
@@ -87,7 +87,67 @@ in {
         with_argument = true
 
         [interface]
-        header = "  $USER@$(echo $HOSTNAME)     \u001B[31m\u001B[0m $(free -h | awk 'FNR == 2 {print $3}' | sed 's/i//')\n  "
+        header = "$(${pkgs.writeShellScript "otter-header" ''
+          # 1. Helper function to convert Hex to TrueColor ANSI
+          hex_to_ansi() {
+            local hex=$1
+            # Bash printf converts 0x.. to decimal RGB values automatically
+            printf "\033[38;2;%d;%d;%dm" 0x''${hex:0:2} 0x''${hex:2:2} 0x''${hex:4:2}
+          }
+
+          # 2. Inject Nix colors into Bash variables
+          C_RED=$(hex_to_ansi "${c.red}")
+          C_GREEN=$(hex_to_ansi "${c.green}")
+          C_CYAN=$(hex_to_ansi "${c.cyan}")
+          C_RESET="\033[0m"
+
+          # 3. Define total header width
+          WIDTH=78
+
+          # 4. Build the Left Module
+          LEFT="  $USER@$HOSTNAME   $(date +"%a %y %b %+0e")"
+
+          # 5. Build the Center Module
+          CENTER="$(date +%H:%M)"
+
+          # 6. Build the Right Modules
+          RAM_VAL=$(free -m | awk '/Mem:/ {printf "%d%%", $3/$2 * 100}')
+          RAM="''${C_RED}''${C_RESET} $RAM_VAL"
+
+          if ${pkgs.tailscale}/bin/tailscale status 2>/dev/null | grep -q "stopped"; then
+            TS="''${C_CYAN}TS''${C_RESET} ''${C_RED}''${C_RESET}"
+          else
+            TS="''${C_CYAN}TS''${C_RESET} ''${C_GREEN}''${C_RESET}"
+          fi
+
+          BAT=$(cat /sys/class/power_supply/BAT*/capacity 2>/dev/null | head -1)
+          if [ -n "$BAT" ]; then
+            BAT_STR="  ''${C_GREEN}''${C_RESET} $BAT%"
+          else
+            BAT_STR=""
+          fi
+
+          RIGHT="$RAM   $TS$BAT_STR  \n"
+
+          # 7. Measure visible lengths (stripping ANSI color codes)
+          STRIP_ANSI="s/\x1B\[[0-9;]*[a-zA-Z]//g"
+          LEN_L=$(echo -ne "$LEFT" | sed -E "$STRIP_ANSI" | wc -m)
+          LEN_C=$(echo -ne "$CENTER" | sed -E "$STRIP_ANSI" | wc -m)
+          LEN_R=$(echo -ne "$RIGHT" | sed -E "$STRIP_ANSI" | wc -m)
+
+          # 8. Calculate dynamic spacing
+          PAD_L=$(( (WIDTH / 2) - (LEN_C / 2) - LEN_L ))
+          PAD_R=$(( WIDTH - LEN_L - PAD_L - LEN_C - LEN_R ))
+
+          [ $PAD_L -lt 1 ] && PAD_L=1
+          [ $PAD_R -lt 1 ] && PAD_R=1
+
+          SPACES_L=$(printf "%*s" $PAD_L "")
+          SPACES_R=$(printf "%*s" $PAD_R "")
+
+          # 9. Output the perfectly aligned and colored string
+          echo -e "$LEFT$SPACES_L$CENTER$SPACES_R$RIGHT $ "
+        ''})"
         list_prefix = "  "
         selection_prefix = "\u001B[31;1m> "
         place_holder = "type & search"

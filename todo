@@ -11,12 +11,15 @@ workstation:
   mullvad
   gui:
     otter-launcher
+      add calcure module
       allow "git pull && NH_ELEVATION_STRATEGY=pkexec nh os switch" and throw error if failed with urgent notification and copy error
       git pull && NH_ELEVATION_STRATEGY=pkexec nh os switch --update
     switch out options such as easyeffects to mangoeasyeffects so I can swap wm's easier
     fix sunshine not registering keys or mouse moves
     wdisplay
     gammastep
+    wlay/wdisplays (whichever one has a .desktop entry)
+    waybar/ironbar (waybar has native home-manager control)
     vesktop/discord (if vesktop add theme and plugins manually)
       try to persist only the login file
         Might not work since caching pictures can be large (try to put these in /tmp?)
@@ -24,11 +27,13 @@ workstation:
       rmpc
     obs
       make sure to persist obs settings
+      wshowkeys
     games:
       gamemode
       mangohud
       gamemoderun
     radaromega
+    image previewer
     video player (not vlc)
     eventually:
       ratbagctl (gui version)
@@ -37,6 +42,7 @@ workstation:
       gimp
       audacity
       blender
+      zathura
       theme gnome-polkit (or another auth polkit)
 
 Lynis OpenVAS (network) vulnix (system) sbomnix
