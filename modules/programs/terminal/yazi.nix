@@ -10,6 +10,13 @@ in {
     ];
     services.udisks2.enable = true;
     home-manager.users.shot = {
+      xdg.configFile."otter-launcher/config.toml".text = /*toml*/ ''
+        [[modules]]
+        description = "yazi"
+        prefix = "yz"
+        cmd = "yazi"
+      '';
+
       programs.yazi = {
         enable = true;
         enableFishIntegration = true;

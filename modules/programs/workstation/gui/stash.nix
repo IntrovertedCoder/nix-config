@@ -19,6 +19,12 @@
     ];
 
     home-manager.users.shot = {
+      xdg.configFile."otter-launcher/config.toml".text = /*toml*/ ''
+        [[modules]]
+        description = "Clipboard history"
+        prefix = "ch"
+        cmd = "stash list | fsel --dmenu | stash decode > /tmp/wl-copy-data && uwsm app -t service -- sh -c 'wl-copy < /tmp/wl-copy-data'"
+      '';
       home.packages = with pkgs; [
       ];
     };

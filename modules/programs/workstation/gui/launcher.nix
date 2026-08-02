@@ -44,41 +44,9 @@ in {
         cmd = "nmtui"
 
         [[modules]]
-        description = "yazi"
-        prefix = "yz"
-        cmd = "yazi"
-
-        [[modules]]
-        description = "Clipboard history"
-        prefix = "ch"
-        cmd = "stash list | fsel --dmenu | stash decode > /tmp/wl-copy-data && uwsm app -t service -- sh -c 'wl-copy < /tmp/wl-copy-data'"
-
-        [[modules]]
-        description = "pulsemixer"
-        prefix = "pm"
-        cmd = "pulsemixer"
-
-        [[modules]]
-        description = "Notification history"
-        prefix = "nh"
-        cmd = "${pkgs.writeShellScript "otter-notif-history" ''
-          { ${pkgs.mako}/bin/makoctl list -j; ${pkgs.mako}/bin/makoctl history -j; } | ${pkgs.jq}/bin/jq -r '.[] | "[\( (.urgency // "normal")[:1] | ascii_upcase )] [\(.app_name // "System")] \(.summary // "No Summary") ➜ \( (.body // "") | gsub("\n"; " ") )"' | fsel --dmenu
-        ''}"
-
-        [[modules]]
         description = "systemctl-tui"
         prefix = "st"
         cmd = "${pkgs.systemctl-tui}/bin/systemctl-tui"
-
-        [[modules]]
-        description = "freeze"
-        prefix = "fz"
-        cmd = "systemctl --user list-units --type=scope,service --state=running --no-legend | fsel --dmenu | awk '{print $1}' | xargs -r systemctl --user freeze"
-
-        [[modules]]
-        description = "thaw"
-        prefix = "th"
-        cmd = "systemctl --user list-units --type=scope,service --state=running --no-legend | fsel --dmenu | awk '{print $1}' | xargs -r systemctl --user thaw"
 
         [[modules]]
         description = "calculator"

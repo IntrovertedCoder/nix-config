@@ -9,6 +9,13 @@
       home.packages = with pkgs; [
         pulsemixer
       ];
+      xdg.configFile."otter-launcher/config.toml".text = /*toml*/ ''
+        [[modules]]
+        description = "pulsemixer"
+        prefix = "pm"
+        cmd = "pulsemixer"
+      '';
+
       xdg.configFile."pulsemixer.cfg".text = ''
       ;; Goes into ~/.config/pulsemixer.cfg, $XDG_CONFIG_HOME respected
 ;; Everything that starts with "#" or ";" is a comment

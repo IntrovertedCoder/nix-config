@@ -33,6 +33,16 @@ in {
           };
         };
       };
+
+      xdg.configFile."otter-launcher/config.toml".text = /*toml*/ ''
+      [[modules]]
+        description = "Notification history"
+        prefix = "nh"
+        cmd = "${pkgs.writeShellScript "otter-notif-history" ''
+          { ${pkgs.mako}/bin/makoctl list -j; ${pkgs.mako}/bin/makoctl history -j; } | ${pkgs.jq}/bin/jq -r '.[] | "[\( (.urgency // "normal")[:1] | ascii_upcase )] [\(.app_name // "System")] \(.summary // "No Summary") ➜ \( (.body // "") | gsub("\n"; " ") )"' | fsel --dmenu
+        ''}"
+      '';
+
       home.packages = with pkgs; [
       ];
     };
