@@ -82,7 +82,7 @@
                 }
               '';
               settings = { # {{{
-                "sidebar.revamp" =                                                true;
+                "sidebar.revamp" =                                                false;
                 # "sidebar.verticalTabs" =                                          true;
                 "toolkit.legacyUserProfileCustomizations.stylesheets" =           true;
                 "media.hardware-video-decoding.force-enabled" =                   true;

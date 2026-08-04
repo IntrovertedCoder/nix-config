@@ -35,7 +35,7 @@ in {
       };
 
       xdg.configFile."otter-launcher/config.toml".text = /*toml*/ ''
-      [[modules]]
+        [[modules]]
         description = "Notification history"
         prefix = "nh"
         cmd = "${pkgs.writeShellScript "otter-notif-history" ''
