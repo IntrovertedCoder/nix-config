@@ -99,6 +99,7 @@ in {
           C_RED=$(hex_to_ansi "${c.red}")
           C_GREEN=$(hex_to_ansi "${c.green}")
           C_CYAN=$(hex_to_ansi "${c.cyan}")
+          C_MAG=$(hex_to_ansi "${c.magenta}")
           C_RESET="\033[0m"
 
           # 3. Define total header width
@@ -120,6 +121,12 @@ in {
             TS="''${C_CYAN}TS''${C_RESET} ''${C_GREEN}''${C_RESET}"
           fi
 
+          if systemctl --user is-active --quiet suspend-block; then
+            SL="''${C_MAG}''${C_RESET}"
+          else
+            SL=""
+          fi
+
           BAT=$(cat /sys/class/power_supply/BAT*/capacity 2>/dev/null | head -1)
           if [ -n "$BAT" ]; then
             BAT_STR="  ''${C_GREEN}''${C_RESET} $BAT%"
@@ -127,7 +134,7 @@ in {
             BAT_STR=""
           fi
 
-          RIGHT="$RAM   $TS$BAT_STR  \n"
+          RIGHT="$RAM   $TS$BAT_STR $SL \n"
 
           # 7. Measure visible lengths (stripping ANSI color codes)
           STRIP_ANSI="s/\x1B\[[0-9;]*[a-zA-Z]//g"

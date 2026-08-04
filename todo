@@ -60,8 +60,6 @@ nix-diff (shows differences in files)
 mpd
 put rmpc into scratchpad on alt+m
 
-pssh (parallel ssh)
-
 auto update:
   store current git commit
   git pull

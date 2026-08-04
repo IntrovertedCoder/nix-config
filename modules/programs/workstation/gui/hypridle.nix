@@ -10,7 +10,7 @@
         wlopm
         brightnessctl
       ];
-    services.hypridle = {
+      services.hypridle = {
         enable = true;
         settings = {
           general = {
@@ -40,23 +40,6 @@
               timeout = 330;
               on-timeout = "${pkgs.wlopm}/bin/wlopm --off '*'";
               on-resume = "${pkgs.wlopm}/bin/wlopm --on '*'";
-            }
-            # Prevent suspend on rebuild, but allow locking
-            {
-              timeout = 900;
-              on-timeout = "pidof nh || pidof nixos-rebuild || systemctl suspend";
-            }
-            {
-              timeout = 1800;
-              on-timeout = "pidof nh || pidof nixos-rebuild || systemctl suspend";
-            }
-            {
-              timeout = 2700;
-              on-timeout = "pidof nh || pidof nixos-rebuild || systemctl suspend";
-            }
-            {
-              timeout = 3600;
-              on-timeout = "pidof nh || pidof nixos-rebuild || systemctl suspend";
             }
           ];
         };
