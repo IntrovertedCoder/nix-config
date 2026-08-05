@@ -37,8 +37,8 @@
               plugins_order = [
                 "equalizer#0" # IE200 EQ
                 "bass_enhancer#0"
-                "compressor#0" # Upward
                 "multiband_compressor#0" # Downward (exclude bass)
+                "compressor#0" # Upward
               ];
               "equalizer#0" = { # {{{
                 balance = 0.0;
@@ -97,7 +97,7 @@
                   };
                   band4 = {
                     frequency = 4000.0;
-                    gain = -3.0999999046325684;
+                    gain = 3.0999999046325684;
                     mode = "APO (DR)";
                     mute = false;
                     q = 0.5;
@@ -263,36 +263,6 @@
                 input-gain = 0.0;
                 output-gain = 0.0;
                 scope = 150;
-              }; # }}}
-              "compressor#0" = { # {{{
-                attack = 20.0;
-                boost-amount = 6.0;
-                boost-threshold = -72.0;
-                bypass = false;
-                dry = -80;
-                hpf-frequency = 200.0;
-                input-gain = 0.0;
-                knee = -6.0;
-                lpf-frequency = 20000.0;
-                lpf-mode = "off";
-                makeup = 0.0;
-                mode = "Upward";
-                output-gain = 0.0;
-                ratio = 4.0;
-                release = 100.0;
-                release-threshold = -80;
-                sidechain = {
-                  lookahead = 0.0;
-                  mode = "RMS";
-                  preamp = 0.0;
-                  reactivity = 10.0;
-                  source = "Middle";
-                  stereo-split-source = "Left/Right";
-                  type = "Feed-forward";
-                };
-                stereo-split = false;
-                threshold = -30.0;
-                wet = 0.0;
               }; # }}}
               "multiband_compressor#0" = { # {{{
                 band0 = {
@@ -524,6 +494,37 @@
                 input-gain = 0.0;
                 output-gain = 0.0;
                 stereo-split = false;
+                wet = 0.0;
+              }; # }}}
+              "compressor#0" = { # {{{
+                attack = 20.0;
+                boost-amount = 6.0;
+                boost-threshold = -72.0;
+                bypass = false;
+                dry = -80;
+                hpf-frequency = 200.0;
+                hpf-mode = "36 dB/oct";
+                input-gain = 0.0;
+                knee = -6.0;
+                lpf-frequency = 20000.0;
+                lpf-mode = "Off";
+                makeup = 0.0;
+                mode = "Upward";
+                output-gain = 0.0;
+                ratio = 4.0;
+                release = 100.0;
+                release-threshold = -80;
+                sidechain = {
+                  lookahead = 0.0;
+                  mode = "RMS";
+                  preamp = 0.0;
+                  reactivity = 10.0;
+                  source = "Middle";
+                  stereo-split-source = "Left/Right";
+                  type = "Feed-forward";
+                };
+                stereo-split = false;
+                threshold = -30.0;
                 wet = 0.0;
               }; # }}}
             }; # }}}
