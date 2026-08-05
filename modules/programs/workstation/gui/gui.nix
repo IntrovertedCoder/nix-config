@@ -19,6 +19,7 @@
       self.nixosModules.stash-clip
       self.nixosModules.mako
       self.nixosModules.rbw
+      self.nixosModules.displayConfigure
     ];
     environment.systemPackages = with pkgs; [
     ];
