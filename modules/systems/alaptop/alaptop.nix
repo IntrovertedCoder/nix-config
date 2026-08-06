@@ -9,6 +9,7 @@
       self.nixosModules.sshd
       self.nixosModules.customFirewall
       self.nixosModules.workstation
+      self.nixosModules.communications
       self.nixosModules.hypridlesuspend
       { nixpkgs.hostPlatform = "x86_64-linux"; }
     ];
