@@ -11,3 +11,4 @@ echo "Bitwarden client"
 echo "Open https://vault.bitwarden.com/#/settings/security/security-keys"
 read -p "Press enter"
 rbw register
+read -p "Sign into vesktop"
