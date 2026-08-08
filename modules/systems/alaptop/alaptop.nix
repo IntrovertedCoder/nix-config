@@ -11,6 +11,7 @@
       self.nixosModules.workstation
       self.nixosModules.communications
       self.nixosModules.hypridlesuspend
+      self.nixosModules.mullvad
       { nixpkgs.hostPlatform = "x86_64-linux"; }
     ];
   };

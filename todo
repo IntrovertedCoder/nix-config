@@ -16,6 +16,8 @@ workstation:
       git pull && NH_ELEVATION_STRATEGY=pkexec nh os switch --update
     switch out options such as easyeffects to mangoeasyeffects so I can swap wm's easier
     fix sunshine not registering keys or mouse moves
+    signal
+    email client
     gammastep
     mpd
       rmpc
