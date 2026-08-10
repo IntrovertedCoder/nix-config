@@ -8,7 +8,6 @@ figure out how to open yazi from the launcher since its in the list
   This works with app, but not search
 
 workstation:
-  mullvad
   gui:
     otter-launcher
       add calcure module
@@ -17,7 +16,6 @@ workstation:
     switch out options such as easyeffects to mangoeasyeffects so I can swap wm's easier
     fix sunshine not registering keys or mouse moves
     signal
-    email client
     gammastep
     mpd
       rmpc
@@ -28,7 +26,6 @@ workstation:
       gamemode
       mangohud
       gamemoderun
-    radaromega
     image previewer
     video player (not vlc)
     eventually:

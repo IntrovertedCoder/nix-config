@@ -20,6 +20,7 @@
       self.nixosModules.mako
       self.nixosModules.rbw
       self.nixosModules.displayConfigure
+      self.nixosModules.radaromega
     ];
     environment.systemPackages = with pkgs; [
     ];
