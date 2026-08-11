@@ -11,10 +11,6 @@ workstation:
   gui:
     otter-launcher
       add calcure module
-      allow "git pull && NH_ELEVATION_STRATEGY=pkexec nh os switch" and throw error if failed with urgent notification and copy error
-      git pull && NH_ELEVATION_STRATEGY=pkexec nh os switch --update
-    switch out options such as easyeffects to mangoeasyeffects so I can swap wm's easier
-    fix sunshine not registering keys or mouse moves
     signal
     gammastep
     mpd

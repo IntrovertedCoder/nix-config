@@ -21,6 +21,7 @@
       self.nixosModules.rbw
       self.nixosModules.displayConfigure
       self.nixosModules.radaromega
+      self.nixosModules.Vial
     ];
     environment.systemPackages = with pkgs; [
     ];
