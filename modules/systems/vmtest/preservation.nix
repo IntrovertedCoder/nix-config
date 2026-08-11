@@ -9,6 +9,7 @@
         directories = [
           "/etc/nixos"
           "/var/lib/bluetooth"
+          "/var/lib/samba"
           {
             directory = "/var/lib/nixos";
             inInitrd = true;
