@@ -8,6 +8,8 @@
       self.nixosModules.user-shot
       self.nixosModules.sshd
       self.nixosModules.customFirewall
+      self.nixosModules.workstation
+      self.nixosModules.sunshine
       { nixpkgs.hostPlatform = "x86_64-linux"; }
     ];
   };
@@ -19,6 +21,53 @@
 
     networking.hostName = "vmtest";
     networking.networkmanager.enable = true;
+
+    fileSystems."/mnt/tv" = {
+      device = "10.123.123.10:/mnt/share";
+      fsType = "nfs";
+    };
+    # optional, but ensures rpc-statsd is running for on demand mounting
+    boot.supportedFilesystems = [ "nfs" ];
+
+    users.users.sat = {
+      isNormalUser = true;
+      description = "User for SMB share";
+      # Optional: prevent local login if this user is purely for the share
+      shell = pkgs.shadow; 
+    };
+
+    services.samba = {
+      enable = true;
+      openFirewall = true; # Opens TCP 139/445 and UDP 137/138
+      
+      settings = {
+        global = {
+          "workgroup" = "WORKGROUP";
+          "server string" = "NixOS SMB Server";
+          "netbios name" = "nixos-smb";
+          "security" = "user";
+          # Disable guest access globally for extra security
+          "guest account" = "nobody";
+          "map to guest" = "bad user";
+        };
+        
+        "PrivateShare" = {
+          "path" = "/mnt/tv/share/Movies Shows"; # Replace with your actual path
+          "browseable" = "yes";
+          "read only" = "no";
+          "guest ok" = "no";
+          "valid users" = "sat";      # Restricts access to this user ONLY
+          "force user" = "shot";       # Forces all file operations to be owned by this user
+          "create mask" = "0644";
+          "directory mask" = "0755";
+        };
+      };
+    };
+
+
+
+
+
 
     boot.initrd.availableKernelModules = [
       "virtio_pci"
