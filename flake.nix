@@ -35,6 +35,10 @@
     nur = {
       url = "github:nix-community/NUR";
     };
+    wshowkeys = {
+      url = "github:DreamMaoMao/wshowkeys";
+      inputs.nixpkgs.follows = "nixpkgs"; # optional
+    };
   };
 
   outputs = inputs:
