@@ -12,11 +12,25 @@
       self.nixosModules.communications
       self.nixosModules.hypridlesuspend
       self.nixosModules.mullvad
+
+
+      self.nixosModules.games
+      self.nixosModules.recording
       { nixpkgs.hostPlatform = "x86_64-linux"; }
     ];
   };
 
   flake.nixosModules.alaptopSettings = { pkgs, ... }: {
+
+    systemd.user.slices.app-games = {
+      sliceConfig = {
+        Description = "Resource-constrained slice for games";
+        # Total ram - normal ram usage
+        MemoryMax = "5G";  # Hard limit: Force-kills the scope if exceeded
+        # -2G from Max
+        MemoryHigh = "3G"; # Soft limit: Throttles memory allocation/reclaim
+      };
+    };
 
     boot.loader.systemd-boot.enable = true;
     boot.loader.efi.canTouchEfiVariables = true;
