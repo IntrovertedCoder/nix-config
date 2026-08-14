@@ -5,6 +5,7 @@
     ];
     environment.systemPackages = with pkgs; [
     ];
+    systemd.user.services.polkit-gnome.serviceConfig.OOMScoreAdjust = -500;
     home-manager.users.shot = {
       services.polkit-gnome.enable = true;
     };

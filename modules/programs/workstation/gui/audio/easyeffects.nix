@@ -7,6 +7,8 @@
     environment.systemPackages = with pkgs; [
     ];
 
+    systemd.user.services.easyeffects.serviceConfig.OOMScoreAdjust = -500;
+
     home-manager.users.shot = {
       home.packages = with pkgs; [
       ];

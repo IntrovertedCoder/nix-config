@@ -9,6 +9,7 @@ in {
     ];
     environment.systemPackages = with pkgs; [
     ];
+    systemd.user.services.dbus-broker.serviceConfig.OOMScoreAdjust = -800;
     programs.mangowc.enable = true;
     hardware.graphics.enable = true;
     home-manager.users.shot = {

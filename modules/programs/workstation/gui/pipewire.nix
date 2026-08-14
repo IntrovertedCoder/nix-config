@@ -10,6 +10,12 @@ in {
       slurp
     ];
 
+    systemd.user.services.pipewire.serviceConfig.OOMScoreAdjust = -500;
+    systemd.user.services.pipewire-pulse.serviceConfig.OOMScoreAdjust = -500;
+    systemd.user.services.wireplumber.serviceConfig.OOMScoreAdjust = -500;
+    systemd.user.services."wireplumber@".serviceConfig.OOMScoreAdjust = -500;
+    systemd.user.services.xdg-desktop-portal.serviceConfig.OOMScoreAdjust = -500;
+
     security.rtkit.enable = true;
     services.pipewire = {
       enable = true;
@@ -22,7 +28,6 @@ in {
       enable = true;
       wlr = {
         enable = true;
-        # MOVE THE SETTINGS HERE:
         settings = {
           screencast = {
             chooser_type = "simple";
