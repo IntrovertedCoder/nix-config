@@ -15,9 +15,6 @@ workstation:
     gammastep
     mpd
       rmpc
-    obs
-      make sure to persist obs settings
-      wshowkeys
     games:
       gamemode
       mangohud

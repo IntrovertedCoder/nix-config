@@ -13,3 +13,5 @@ read -p "Press enter"
 rbw register
 read -p "Sign into vesktop"
 read -p "Sign into RadarOmega"
+read -p "Sign into steam"
+read -p "Steam -> Settings -> Storage -> Add ~/Games/Steam -> Make Default"
