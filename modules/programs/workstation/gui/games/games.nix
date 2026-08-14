@@ -4,6 +4,8 @@
       inputs.home-manager.nixosModules.home-manager
       self.nixosModules.steam
       self.nixosModules.mangohud
+      self.nixosModules.gamescope
+      self.nixosModules.gamemode
     ];
     preservation.preserveAt."/persistent" = {
       users.shot = {
@@ -25,6 +27,11 @@
       (writeShellScriptBin "gmmh" /*bash*/ ''
         exec ${pkgs.uwsm}/bin/uwsm app -s app-games.slice -- \
           ${pkgs.gamemode}/bin/gamemoderun \
+          ${pkgs.mangohud}/bin/mangohud "$@"
+        '')
+
+      (writeShellScriptBin "mh" /*bash*/ ''
+        exec ${pkgs.uwsm}/bin/uwsm app -s app-games.slice -- \
           ${pkgs.mangohud}/bin/mangohud "$@"
         '')
     ];
