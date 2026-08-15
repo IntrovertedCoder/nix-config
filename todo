@@ -9,8 +9,6 @@ figure out how to open yazi from the launcher since its in the list
 
 workstation:
   gui:
-    otter-launcher
-      add calcure module
     signal
     gammastep
     mpd

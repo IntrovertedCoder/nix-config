@@ -55,6 +55,24 @@ in {
         with_argument = true
 
         [[modules]]
+        description = "calendar"
+        prefix = "cal"
+        cmd = "cal -n 9 -S -w --color=always | less"
+        with_argument = true
+
+        [[modules]]
+        description = "calendar current year"
+        prefix = "calcy"
+        cmd = "cal -y -w --color=always | less"
+        with_argument = true
+
+        [[modules]]
+        description = "calendar next year"
+        prefix = "calny"
+        cmd = "cal -Y -w --color=always | less"
+        with_argument = true
+
+        [[modules]]
         description = "power menu"
         prefix = "po"
         cmd = """
