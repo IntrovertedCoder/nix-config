@@ -21,20 +21,38 @@
       (writeShellScriptBin "gmgsmh" /*bash*/ ''
         GAMESCOPE_FLAGS="''${GAMESCOPE_FLAGS:--f}"
 
+        OBS_PREFIX=""
+        if [ "$OBS_CAP" = "1" ]; then
+          OBS_PREFIX="${pkgs.obs-studio-plugins.obs-vkcapture}/bin/obs-gamecapture"
+        fi
+
         exec ${pkgs.uwsm}/bin/uwsm app -s app-games.slice -- \
           ${pkgs.gamemode}/bin/gamemoderun \
           ${pkgs.gamescope}/bin/gamescope $GAMESCOPE_FLAGS -- \
+          $OBS_PREFIX \
           ${pkgs.mangohud}/bin/mangohud "$@"
         '')
 
       (writeShellScriptBin "gmmh" /*bash*/ ''
+        OBS_PREFIX=""
+        if [ "$OBS_CAP" = "1" ]; then
+          OBS_PREFIX="${pkgs.obs-studio-plugins.obs-vkcapture}/bin/obs-gamecapture"
+        fi
+
         exec ${pkgs.uwsm}/bin/uwsm app -s app-games.slice -- \
           ${pkgs.gamemode}/bin/gamemoderun \
+          $OBS_PREFIX \
           ${pkgs.mangohud}/bin/mangohud "$@"
         '')
 
       (writeShellScriptBin "mh" /*bash*/ ''
+        OBS_PREFIX=""
+        if [ "$OBS_CAP" = "1" ]; then
+          OBS_PREFIX="${pkgs.obs-studio-plugins.obs-vkcapture}/bin/obs-gamecapture"
+        fi
+
         exec ${pkgs.uwsm}/bin/uwsm app -s app-games.slice -- \
+          $OBS_PREFIX \
           ${pkgs.mangohud}/bin/mangohud "$@"
         '')
     ];
