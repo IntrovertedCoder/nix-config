@@ -3,6 +3,7 @@
     imports = [
       inputs.home-manager.nixosModules.home-manager
       self.nixosModules.steam
+      self.nixosModules.heroic
       self.nixosModules.mangohud
       self.nixosModules.gamescope
       self.nixosModules.gamemode
