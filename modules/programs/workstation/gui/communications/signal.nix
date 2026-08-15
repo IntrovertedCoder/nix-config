@@ -1,15 +1,22 @@
 { self, inputs, ... }: {
-  flake.nixosModules.communications = { pkgs, ...}: {
+  flake.nixosModules.signal = { pkgs, ...}: {
     imports = [
       inputs.home-manager.nixosModules.home-manager
-      self.nixosModules.vesktop
-      self.nixosModules.signal
     ];
+
+    preservation.preserveAt."/persistent" = {
+      users.shot = {
+        directories = [
+          ".config/Signal"
+        ];
+      };
+    };
+
     environment.systemPackages = with pkgs; [
     ];
     home-manager.users.shot = {
-      xdg.mimeApps.enable = true;
       home.packages = with pkgs; [
+        signal-desktop
       ];
     };
   };
