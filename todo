@@ -15,8 +15,6 @@ workstation:
     gammastep
     mpd
       rmpc
-    games:
-      prism
     image previewer
     video player (not vlc)
     eventually:
