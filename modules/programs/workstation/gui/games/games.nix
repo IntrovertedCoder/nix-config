@@ -23,7 +23,11 @@
 
         OBS_PREFIX=""
         if [ "$OBS_CAP" = "1" ]; then
-          OBS_PREFIX="${pkgs.obs-studio-plugins.obs-vkcapture}/bin/obs-gamecapture"
+          if command -v obs-gamecapture >/dev/null 2>&1; then
+            OBS_PREFIX="obs-gamecapture"
+          else
+            echo "Warning: OBS_CAP=1 but obs-gamecapture is not installed. Skipping capture." >&2
+          fi
         fi
 
         exec ${pkgs.uwsm}/bin/uwsm app -s app-games.slice -- \
@@ -36,7 +40,11 @@
       (writeShellScriptBin "gmmh" /*bash*/ ''
         OBS_PREFIX=""
         if [ "$OBS_CAP" = "1" ]; then
-          OBS_PREFIX="${pkgs.obs-studio-plugins.obs-vkcapture}/bin/obs-gamecapture"
+          if command -v obs-gamecapture >/dev/null 2>&1; then
+            OBS_PREFIX="obs-gamecapture"
+          else
+            echo "Warning: OBS_CAP=1 but obs-gamecapture is not installed. Skipping capture." >&2
+          fi
         fi
 
         exec ${pkgs.uwsm}/bin/uwsm app -s app-games.slice -- \
@@ -48,7 +56,11 @@
       (writeShellScriptBin "mh" /*bash*/ ''
         OBS_PREFIX=""
         if [ "$OBS_CAP" = "1" ]; then
-          OBS_PREFIX="${pkgs.obs-studio-plugins.obs-vkcapture}/bin/obs-gamecapture"
+          if command -v obs-gamecapture >/dev/null 2>&1; then
+            OBS_PREFIX="obs-gamecapture"
+          else
+            echo "Warning: OBS_CAP=1 but obs-gamecapture is not installed. Skipping capture." >&2
+          fi
         fi
 
         exec ${pkgs.uwsm}/bin/uwsm app -s app-games.slice -- \
