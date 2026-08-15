@@ -6,6 +6,10 @@
     environment.systemPackages = with pkgs; [
     ];
     home-manager.users.shot = {
+      wayland.windowManager.mango.settings.bind = [
+        "NONE,Print,spawn,uwsm app flameshot gui"
+        "ALT,Print,spawn,uwsm app -- sh -c 'hyprpicker | wl-copy; sleep 0.3'"
+      ];
       services.flameshot = {
         enable = true;
         settings = {

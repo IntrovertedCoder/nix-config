@@ -185,6 +185,9 @@ in {
         place_holder_color = "\u001B[90m"
         hint_color = "\u001B[90m"
       '';
+      wayland.windowManager.mango.settings.bind = [
+        "ALT,d,spawn,uwsm app -- foot -a launcher -e otter-launcher"
+      ];
     };
   };
 }

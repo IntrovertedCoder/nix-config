@@ -24,6 +24,9 @@ in {
       programs.hyprlock.enable = true;
 
       home-manager.users.shot = {
+        wayland.windowManager.mango.settings.bind = [
+          "ALT+SHIFT+CTRL,l,spawn_shell,${config.var.lockCommand}"
+        ];
         programs.hyprlock = {
           enable = true;
           settings = {

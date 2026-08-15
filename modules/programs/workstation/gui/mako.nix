@@ -45,6 +45,10 @@ in {
 
       home.packages = with pkgs; [
       ];
+      wayland.windowManager.mango.settings.bind = [
+        "ALT,m,spawn_shell,makoctl dismiss"
+        "ALT+SHIFT,m,spawn_shell, makoctl dismiss -a"
+      ];
     };
   };
 }

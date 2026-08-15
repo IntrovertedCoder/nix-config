@@ -84,19 +84,11 @@ in {
           bind = [
             # Launch Apps
             "Alt,Return,spawn,uwsm app foot"
-            "ALT,d,spawn,uwsm app -- foot -a launcher -e otter-launcher"
-
-            "NONE,Print,spawn,uwsm app flameshot gui"
-            "ALT,Print,spawn,uwsm app -- sh -c 'hyprpicker | wl-copy; sleep 0.3'"
 
             "ALT+SHIFT+CTRL,r,reload_config"
-            "ALT+SHIFT+CTRL,l,spawn_shell,${config.var.lockCommand}"
             "ALT+SHIFT,q,killclient"
             "ALT,n,switch_layout"
             "ALT,tab,togglejump"
-
-            "ALT,m,spawn_shell,makoctl dismiss"
-            "ALT+SHIF,m,spawn_shell, makoctl dismiss -a"
 
             # Scroller keybinds
             "ALT,x,switch_proportion_preset"
