@@ -23,6 +23,7 @@
       self.nixosModules.radaromega
       self.nixosModules.gammastep
       self.nixosModules.Vial
+      self.nixosModules.imv
     ];
     environment.systemPackages = with pkgs; [
     ];
