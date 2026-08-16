@@ -45,6 +45,18 @@ in {
             show_hidden   = true;
           };
 
+          opener = {
+            open = [
+              { run = ''uwsm app -- xdg-open "$@"''; orphan = true; desc = "Open (uwsm)"; }
+            ];
+            play = [
+              { run = ''uwsm app -- xdg-open "$@"''; orphan = true; desc = "Play (uwsm)"; }
+            ];
+            reveal = [
+              { run = ''uwsm app -- xdg-open "$(dirname "$1")"''; orphan = true; desc = "Reveal (uwsm)"; }
+            ];
+          };
+
           plugin = {
             prepend_previewers = [
               # Archive extraction previews with ouch
