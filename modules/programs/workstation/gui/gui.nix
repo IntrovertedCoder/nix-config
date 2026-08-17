@@ -24,6 +24,7 @@
       self.nixosModules.gammastep
       self.nixosModules.Vial
       self.nixosModules.imv
+      self.nixosModules.mpv
     ];
     environment.systemPackages = with pkgs; [
     ];

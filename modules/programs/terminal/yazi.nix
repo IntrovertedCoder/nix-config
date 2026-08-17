@@ -83,9 +83,14 @@ in {
           mgr.prepend_keymap = [
             { on = [ "g" "n" ]; run = "cd ~/nix-config"; desc = "Go to Nixos config"; }
             { on = [ "g" "d" ]; run = "cd ~/Downloads";  desc = "Go to Downloads"; }
-            { on = [ "r" "b" ]; run = "shell 'nh os switch' --block";    desc = "Rebuild nix system"; }
+            { on = [ "n" "h" ]; run = "shell 'nh os switch' --block";    desc = "Rebuild nix system"; }
             { on = [ "v" "s" ]; run = "shell 'vs' --block";    desc = "Find files to edit with vim"; }
             { on = [ "M" ]; run = "plugin mount"; desc = "Mount plugin"; }
+            { 
+              on = [ "P" ]; 
+              run = ''shell 'uwsm app -- mpv --shuffle --image-display-duration=15 --keep-open=no --pause=no --loop-playlist=inf "$@"' --orphan''; 
+              desc = "Play selected media in shuffled playlist"; 
+            }
           ];
         };
 
