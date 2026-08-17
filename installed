@@ -5,7 +5,7 @@ Terminal & Shell Environment
     Core Utils & Syncing: coreutils (mv, id, sleep), util-linux (logger), procps (pidof), eza, xcp, rsync, progress, unar
     Search & Data: fzf, ripgrep, fd, bat, jq, gnugrep
     Git & Nix: git, gitui, nh, nix-index, comma
-    Utilities & System: btop, fend, doggo, tealdeer, systemctl-tui
+    Utilities & System: btop, fend, doggo, tealdeer, systemctl-tui, delta
     Aesthetics: figlet, lolcat
     Custom Bash Wrappers: vs.nix, fileManagement.nix
 
@@ -30,6 +30,7 @@ Audio, Video & Media
     Screen/Image Capture: flameshot, grim, slurp
     Media Viewers & Displays: mpv, imv, wshowkeys, hyprpicker, brightnessctl, gammastep
     Recording: obs-studio
+    Creative: audacity, blender, gimp, inkscape, kdenlive
 
 Gaming
     Launchers: steam, heroic, prismlauncher, jdk8, jdk21, jdk17

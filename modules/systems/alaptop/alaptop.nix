@@ -16,6 +16,7 @@
 
       self.nixosModules.games
       self.nixosModules.recording
+      self.nixosModules.creative
       { nixpkgs.hostPlatform = "x86_64-linux"; }
     ];
   };

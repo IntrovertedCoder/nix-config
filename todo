@@ -11,14 +11,9 @@ workstation:
   gui:
     mpd
       rmpc
-    video player (not vlc)
     eventually:
       ratbagctl (gui version)
       vial (for keyboard)
-      davinci resolve
-      gimp
-      audacity
-      blender
       zathura
       theme gnome-polkit (or another auth polkit)
 
