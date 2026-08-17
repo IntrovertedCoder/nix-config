@@ -7,6 +7,7 @@
       self.nixosModules.gimp
       self.nixosModules.kdenlive
       self.nixosModules.inkscape
+      self.nixosModules.onlyoffice
     ];
     environment.systemPackages = with pkgs; [
     ];
