@@ -1,0 +1,42 @@
+Terminal & Shell Environment
+    Shell & Prompt: fish, bash, starship
+    Editor: neovim, vim
+    File Management: yazi, zoxide, fsel, dua, disktui
+    Core Utils & Syncing: coreutils (mv, id, sleep), util-linux (logger), procps (pidof), eza, xcp, rsync, progress, unar
+    Search & Data: fzf, ripgrep, fd, bat, jq, gnugrep
+    Git & Nix: git, gitui, nh, nix-index, comma
+    Utilities & System: btop, fend, doggo, tealdeer, systemctl-tui
+    Aesthetics: figlet, lolcat
+    Custom Bash Wrappers: vs.nix, fileManagement.nix
+
+Desktop Environment (Wayland)
+    Compositor & Session: mangowc, uwsm
+    xdg-portals: xdg-desktop-portal-termfilechooser, xdg-desktop-portal-wlr, xdg-desktop-portal-gtk, xdg-desktop-portal
+    Terminal Emulator: foot
+    Locking & Idle: hyprlock, hypridle
+    App Launcher: otter-launcher
+    Clipboard Management: stash, stash-clipboard, wl-clipboard-rs, wl-clip-persist
+    UI & Notification: mako, libnotify, nordzy-cursor-theme
+    Wayland Utilities: wlay, wlopm, wtype, polkit-gnome, pinentry-gnome3
+
+System & Networking Services
+    Networking: tailscale, mullvad-vpn, sshd, openssh
+    Security & Display Manager: fail2ban, greetd, tuigreet
+    Hardware/Daemons: acpid, udisks2, samba
+
+Audio, Video & Media
+    Audio Pipeline: pipewire, wireplumber, pipewire-pulse
+    Audio Control: easyeffects, pulsemixer
+    Screen/Image Capture: flameshot, grim, slurp
+    Media Viewers & Displays: imv, wshowkeys, hyprpicker, brightnessctl, gammastep
+    Recording: obs-studio
+
+Gaming
+    Launchers: steam, heroic, prismlauncher
+    Performance & Sandboxing: gamemode, gamescope, mangohud
+    Streaming: sunshine
+
+Applications & Hardware Config
+    Web & Comms: firefox, signal-desktop, vesktop
+    Misc GUI: radaromega, rbw, vial
+

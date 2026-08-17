@@ -25,6 +25,9 @@
         prefix = "ch"
         cmd = "stash list | fsel --dmenu | stash decode > /tmp/wl-copy-data && uwsm app -t service -- sh -c 'wl-copy < /tmp/wl-copy-data'"
       '';
+      services.wl-clip-persist = {
+        enable = true;
+      };
       home.packages = with pkgs; [
       ];
     };
