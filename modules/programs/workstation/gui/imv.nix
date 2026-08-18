@@ -10,14 +10,14 @@ in {
     ];
     home-manager.users.shot = {
       xdg.mimeApps = {
-          enable = true;
-          defaultApplications = {
-            "image/png" = [ "imv-dir.desktop" ];
-            "image/jpeg" = [ "imv-dir.desktop" ];
-            "image/gif" = [ "imv-dir.desktop" ];
-            "image/webp" = [ "imv-dir.desktop" ];
-          };
+        enable = true;
+        defaultApplications = {
+          "image/png" = [ "imv-dir.desktop" ];
+          "image/jpeg" = [ "imv-dir.desktop" ];
+          "image/gif" = [ "imv-dir.desktop" ];
+          "image/webp" = [ "imv-dir.desktop" ];
         };
+      };
       programs.imv = {
         enable = true;
         settings = {

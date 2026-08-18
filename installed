@@ -28,7 +28,7 @@ Audio, Video & Media
     Audio Pipeline: pipewire, wireplumber, pipewire-pulse
     Audio Control: easyeffects, pulsemixer
     Screen/Image Capture: flameshot, grim, slurp
-    Media Viewers & Displays: mpv, imv, wshowkeys, hyprpicker, brightnessctl, gammastep
+    Media Viewers & Displays: mpv, imv, wshowkeys, hyprpicker, brightnessctl, gammastep, zathura
     Recording: obs-studio
     Creative: audacity, blender, gimp, inkscape, kdenlive, onlyoffice
 

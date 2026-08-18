@@ -25,6 +25,7 @@
       self.nixosModules.Vial
       self.nixosModules.imv
       self.nixosModules.mpv
+      self.nixosModules.zathura
     ];
     environment.systemPackages = with pkgs; [
     ];

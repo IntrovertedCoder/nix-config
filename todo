@@ -14,7 +14,6 @@ workstation:
     eventually:
       ratbagctl (gui version)
       vial (for keyboard)
-      zathura
       theme gnome-polkit (or another auth polkit)
 
 Lynis OpenVAS (network) vulnix (system) sbomnix
