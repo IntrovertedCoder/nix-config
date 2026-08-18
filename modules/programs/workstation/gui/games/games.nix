@@ -9,6 +9,8 @@
       self.nixosModules.mangohud
       self.nixosModules.gamescope
       self.nixosModules.gamemode
+
+      self.nixosModules.piper
     ];
     preservation.preserveAt."/persistent" = {
       users.shot = {
