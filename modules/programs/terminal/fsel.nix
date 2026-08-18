@@ -19,20 +19,11 @@ in {
       # Highlight color for selected items and cursor
       highlight_color = "#${c.green}"
 
-      # Keybinds (optional - uncomment to customize)
-      # See keybinds.toml for examples
-      [keybinds]
-      # up = ["up", { key = "p", modifiers = "ctrl" }]
-      # down = ["down", { key = "n", modifiers = "ctrl" }]
-      # select = ["enter"]
-      exit = ["esc"]
-      # pin = [{ key = "space", modifiers = "ctrl" }]
-
       # Cursor character in search box
       cursor = "█"
 
       # Command to launch terminal apps (apps with Terminal=true). Use "tty" for TTY mode (same as -t/--tty).
-      # terminal_launcher = "echo"
+      terminal_launcher = "uwsm app -- foot"
 
       # Don't wrap around at list ends (false = wrap around)
       hard_stop = false
@@ -215,6 +206,16 @@ in {
 
       # Tags (requires cclip with tag support)
       #
+
+      # Keybinds (optional - uncomment to customize)
+      # See keybinds.toml for examples
+      [keybinds]
+      # up = ["up", { key = "p", modifiers = "ctrl" }]
+      # down = ["down", { key = "n", modifiers = "ctrl" }]
+      # select = ["enter"]
+      exit = ["esc"]
+      # pin = [{ key = "space", modifiers = "ctrl" }]
+
       '';
     };
   };

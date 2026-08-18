@@ -1,19 +1,13 @@
-Secret management
 Firewall block all incoming connections unless allowed I don't care what firewall just securely:
   Yggdrasil
   i2p
   reticulum?
-
-figure out how to open yazi from the launcher since its in the list
-  This works with app, but not search
 
 workstation:
   gui:
     mpd
       rmpc
     eventually:
-      ratbagctl (gui version)
-      vial (for keyboard)
       theme gnome-polkit (or another auth polkit)
 
 Lynis OpenVAS (network) vulnix (system) sbomnix
@@ -27,9 +21,6 @@ edit install.sh to have options for install location and hostname
 
 nvd (nix visual diff, shows differences in packages)
 nix-diff (shows differences in files)
-
-mpd
-put rmpc into scratchpad on alt+m
 
 auto update:
   store current git commit
