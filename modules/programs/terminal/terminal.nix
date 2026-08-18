@@ -30,6 +30,10 @@
       self.nixosModules.fend
       self.nixosModules.dua
       self.nixosModules.tailscale
+      self.nixosModules.smartmontools
+      self.nixosModules.mtr
+      self.nixosModules.nmap
+      self.nixosModules.stui
     ];
     environment.systemPackages = with pkgs; [
     ];

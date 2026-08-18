@@ -8,6 +8,7 @@ Terminal & Shell Environment
     Utilities & System: btop, fend, doggo, tealdeer, systemctl-tui, delta
     Aesthetics: figlet, lolcat
     Custom Bash Wrappers: vs.nix, fileManagement.nix
+    Debugging: mtr, smartmontools, nmap, s-tui
 
 Desktop Environment (Wayland)
     Compositor & Session: mangowc, uwsm
