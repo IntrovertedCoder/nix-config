@@ -3,6 +3,7 @@
     imports = [
       inputs.home-manager.nixosModules.home-manager
       self.nixosModules.tealdeer
+      self.nixosModules.ssh
       self.nixosModules.git
       self.nixosModules.gitui
       self.nixosModules.comma
@@ -36,10 +37,6 @@
       home.packages = with pkgs; [
       ];
       programs.bash.enable = true;
-      programs.ssh = {
-        enable = true;
-        enableDefaultConfig = false;
-      };
     };
   };
 }

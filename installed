@@ -23,6 +23,7 @@ System & Networking Services
     Networking: tailscale, mullvad-vpn, sshd, openssh
     Security & Display Manager: fail2ban, greetd, tuigreet
     Hardware/Daemons: acpid, udisks2, samba
+    Drives/setup: disko, preservation
 
 Audio, Video & Media
     Audio Pipeline: pipewire, wireplumber, pipewire-pulse

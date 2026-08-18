@@ -4,7 +4,6 @@
       self.nixosModules.global
       self.nixosModules.alaptopSettings
       self.nixosModules.alaptopDisko
-      self.nixosModules.alaptopPreservation
       self.nixosModules.user-shot
       self.nixosModules.sshd
       self.nixosModules.customFirewall
