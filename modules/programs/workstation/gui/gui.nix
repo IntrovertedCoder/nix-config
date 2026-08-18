@@ -26,6 +26,7 @@
       self.nixosModules.imv
       self.nixosModules.mpv
       self.nixosModules.zathura
+      self.nixosModules.moonlight
     ];
     environment.systemPackages = with pkgs; [
     ];
