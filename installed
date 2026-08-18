@@ -20,14 +20,14 @@ Desktop Environment (Wayland)
     Wayland Utilities: wlay, wlopm, wtype, polkit-gnome, pinentry-gnome3
 
 System & Networking Services
-    Networking: tailscale, mullvad-vpn, sshd, openssh
+    Networking: tailscale, mullvad-vpn, sshd, openssh, sshfs
     Security & Display Manager: fail2ban, greetd, tuigreet
     Hardware/Daemons: acpid, udisks2, samba
     Drives/setup: disko, preservation
 
 Audio, Video & Media
     Audio Pipeline: pipewire, wireplumber, pipewire-pulse
-    Audio Control: easyeffects, pulsemixer
+    Audio Control: easyeffects, pulsemixer, bluetuith
     Screen/Image Capture: flameshot, grim, slurp
     Media Viewers & Displays: mpv, imv, wshowkeys, hyprpicker, brightnessctl, gammastep, zathura
     Recording: obs-studio
@@ -37,6 +37,7 @@ Gaming
     Launchers: steam, heroic, prismlauncher, jdk8, jdk21, jdk17
     Performance & Sandboxing: gamemode, gamescope, mangohud
     Streaming: sunshine
+    Peripheral control: piper/ratbagd
 
 Applications & Hardware Config
     Web & Comms: firefox, signal-desktop, vesktop

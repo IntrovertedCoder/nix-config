@@ -117,6 +117,7 @@ in {
           C_RED=$(hex_to_ansi "${c.red}")
           C_GREEN=$(hex_to_ansi "${c.green}")
           C_CYAN=$(hex_to_ansi "${c.cyan}")
+          C_BLUE=$(hex_to_ansi "${c.blue}")
           C_MAG=$(hex_to_ansi "${c.magenta}")
           C_RESET="\033[0m"
 
@@ -145,6 +146,12 @@ in {
             SL=""
           fi
 
+          if bluetoothctl show | grep -q 'Powered: yes'; then
+            BT="''${C_BLUE}''${C_RESET}"
+          else
+            BT=""
+          fi
+
           BAT=$(cat /sys/class/power_supply/BAT*/capacity 2>/dev/null | head -1)
           if [ -n "$BAT" ]; then
             BAT_STR="  ''${C_GREEN}''${C_RESET} $BAT%"
@@ -152,7 +159,7 @@ in {
             BAT_STR=""
           fi
 
-          RIGHT="$RAM   $TS$BAT_STR $SL \n"
+          RIGHT="$RAM   $TS$BAT_STR $BT $SL \n"
 
           # 7. Measure visible lengths (stripping ANSI color codes)
           STRIP_ANSI="s/\x1B\[[0-9;]*[a-zA-Z]//g"
