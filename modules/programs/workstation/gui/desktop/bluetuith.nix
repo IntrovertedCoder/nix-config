@@ -1,16 +1,15 @@
- self, inputs, ... }: {
+{self, inputs, ... }: {
   flake.nixosModules.bluetuith = { pkgs, ...}: {
     imports = [
       inputs.home-manager.nixosModules.home-manager
     ];
     environment.systemPackages = with pkgs; [
     ];
-    preservation = {
-      preserveAt."/persistent" = {
-        directories = [
-          "/var/lib/bluetooth"
-        ];
-      };
+
+    preservation.preserveAt."/persistent" = {
+      directories = [
+        "/var/lib/bluetooth"
+      ];
     };
 
     hardware.bluetooth = {
