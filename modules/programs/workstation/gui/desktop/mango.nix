@@ -81,6 +81,9 @@ in {
           scroller_ignore_proportion_single = 0;
           scroller_proportion_preset = "0.2,0.4,0.6,0.8,1.0";
 
+          hotarea_size = 2;
+          enable_hotarea = 1;
+
           bind = [
             # Launch Apps
             "Alt,Return,spawn,uwsm app foot"
