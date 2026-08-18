@@ -8,6 +8,15 @@ in {
     ];
     environment.systemPackages = with pkgs; [
     ];
+
+    preservation.preserveAt."/persistent" = {
+      users.shot = {
+        files = [
+          ".local/share/fish/fish_history"
+        ];
+      };
+    };
+
     programs.fish.enable = true;
     users.users.shot.shell = pkgs.fish;
     home-manager.users.shot = {
