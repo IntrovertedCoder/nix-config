@@ -181,14 +181,14 @@ in {
           echo -e "$LEFT$SPACES_L$CENTER$SPACES_R$RIGHT $ "
         ''})"
         list_prefix = "  "
-        selection_prefix = "\u001B[31;1m> "
+        selection_prefix = "\u001B[38;2;${toString c.redrd};${toString c.redgd};${toString c.redbd}m> "
         place_holder = "type & search"
-        default_module_message = " \u001B[33mOpen\u001B[0m"
+        default_module_message = " \u001B[38;2;${toString c.greenrd};${toString c.greengd};${toString c.greenbd}mOpen\u001B[0m"
         suggestion_mode = "list"
-        suggestion_lines = 20
-        prefix_padding = 3
-        prefix_color = "\u001B[33m"
-        description_color = "\u001B[39m"
+        suggestion_lines = 24
+        prefix_padding = 5
+        prefix_color = "\u001B[38;2;${toString c.cyanrd};${toString c.cyangd};${toString c.cyanbd}m"
+        description_color = "\u001B[38;2;${toString c.white2rd};${toString c.white2gd};${toString c.white2bd}m"
         place_holder_color = "\u001B[90m"
         hint_color = "\u001B[90m"
       '';
