@@ -47,6 +47,13 @@ auto update:
 https://github.com/mat-1/metasearch2
 
 
+possible steam deck todo:
+  Add controller launcher
+  Auto sign in, and start steam big picture
+    https://wiki.nixos.org/wiki/Steam/en#Gamescope_Compositor_/_%22Boot_to_Steam_Deck%22
+  add Plex HTPC app with controller support
+
+
 test on desktop:
   Confirm flameshot works on multiple monitors
   Confirm epic games work

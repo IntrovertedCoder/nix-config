@@ -13,6 +13,9 @@
     };
 
     home-manager.users.shot = {
+      home.packages = with pkgs; [
+        sshfs
+      ];
       programs.ssh = {
         enable = true;
         enableDefaultConfig = false;
