@@ -36,11 +36,13 @@ Audio, Video & Media
 
 Gaming
     Launchers: steam, heroic, prismlauncher, jdk8, jdk21, jdk17
-    Performance & Sandboxing: gamemode, gamescope, mangohud
+    Performance & Sandboxing: gamemode, gamescope, mangohud, proton-ge
     Streaming: sunshine, moonlight
     Peripheral control: piper/ratbagd
 
 Applications & Hardware Config
     Web & Comms: firefox, signal-desktop, vesktop
+    Meetings: zoom
+    Firefox extensions: ublock-origin, bitwarden, darkreader, auto-tab-discard, firefox-color, tridactyl, videospeed, sponsorblock, sideberry
     Misc GUI: radaromega, rbw, vial
 

@@ -17,7 +17,7 @@
     environment.systemPackages = with pkgs; [
     ];
 
-    nixpkgs.config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [
+    custom.allowedUnfree = [
       "steam"
       "steam-unwrapped"
     ];

@@ -1,16 +1,16 @@
 { self, inputs, ... }: {
-  flake.nixosModules.communications = { pkgs, ...}: {
+  flake.nixosModules.zoom = { pkgs, lib, ...}: {
     imports = [
       inputs.home-manager.nixosModules.home-manager
-      self.nixosModules.vesktop
-      self.nixosModules.signal
-      self.nixosModules.zoom
     ];
     environment.systemPackages = with pkgs; [
     ];
+    custom.allowedUnfree = [
+      "zoom"
+    ];
     home-manager.users.shot = {
-      xdg.mimeApps.enable = true;
       home.packages = with pkgs; [
+        zoom-us
       ];
     };
   };

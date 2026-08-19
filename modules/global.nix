@@ -1,39 +1,52 @@
 { self, inputs, ... }: {
-  flake.nixosModules.global = { pkgs, lib, ...}: {
+  flake.nixosModules.global = { config, pkgs, lib, ...}: {
+
     imports = [
       inputs.preservation.nixosModules.default
       self.nixosModules.fail2ban
     ];
-    nix = {
-      settings.experimental-features = [ "nix-command" "flakes"];
-      nixPath = [ "nixpkgs=${inputs.nixpkgs}" ];
-      registry.nixpkgs.flake = inputs.nixpkgs;
+
+    options.custom.allowedUnfree = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [];
+      description = "List of unfree packages allowed to be installed.";
     };
 
-    preservation = {
-      enable = lib.mkDefault true;
+    config = {
 
-      preserveAt."/persistent" = {
-        directories = [
-          "/etc/nixos"
-          "/var/lib/bluetooth"
-          "/var/lib/nixos"
-          "/etc/NetworkManager/system-connections"
-        ];
+      nixpkgs.config.allowUnfreePredicate = pkg:
+        builtins.elem (lib.getName pkg) config.custom.allowedUnfree;
 
-        files = [
-          {
-            file = "/etc/machine-id";
-            inInitrd = true;
-            how = "symlink";
-          }
-        ];
+      nix = {
+        settings.experimental-features = [ "nix-command" "flakes"];
+        nixPath = [ "nixpkgs=${inputs.nixpkgs}" ];
+        registry.nixpkgs.flake = inputs.nixpkgs;
+      };
 
-        # Preserve user files
-        users.shot = {
+      preservation = {
+        enable = lib.mkDefault true;
+
+        preserveAt."/persistent" = {
           directories = [
-            "nix-config"
+            "/etc/nixos"
+            "/var/lib/bluetooth"
+            "/var/lib/nixos"
+            "/etc/NetworkManager/system-connections"
           ];
+
+          files = [
+            {
+              file = "/etc/machine-id";
+              inInitrd = true;
+              how = "symlink";
+            }
+          ];
+
+          users.shot = {
+            directories = [
+              "nix-config"
+            ];
+          };
         };
       };
     };
