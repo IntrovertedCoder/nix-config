@@ -8,11 +8,12 @@
       self.nixosModules.sshd
       self.nixosModules.customFirewall
       self.nixosModules.workstation
-      self.nixosModules.communications
       self.nixosModules.hypridlesuspend
       self.nixosModules.mullvad
 
 
+      self.nixosModules.communications
+      self.nixosModules.meeting
       self.nixosModules.games
       self.nixosModules.recording
       self.nixosModules.creative
