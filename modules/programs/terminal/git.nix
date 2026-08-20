@@ -21,7 +21,7 @@
       };
       home.activation.git = /* bash */''
         if [ ! -f ~/.ssh/github ]; then
-          ${pkgs.openssh}/bin/ssh-keygen -t ed25519 -C "NATrotinc@gmail.com" -f ~/.ssh/github
+          ${pkgs.openssh}/bin/ssh-keygen -t ed25519 -C "NATrotnic@gmail.com" -f ~/.ssh/github
         fi
       '';
       programs.ssh.settings = {

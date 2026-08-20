@@ -118,14 +118,16 @@
               '') ifaceCfg.generalAllowedUDPPortRanges);
 
               generalTCPRangeRules = lib.concatStringsSep "\n" (map (range: ''
-                iptables  -A untrusted-ifaces -i ${iface} -p udp --dport ${toString range.from}:${toString range.to} -j nixos-fw-accept
-                ip6tables -A untrusted-ifaces -i ${iface} -p udp --dport ${toString range.from}:${toString range.to} -j nixos-fw-accept
-              '') ifaceCfg.generalAllowedPortRanges);
+                iptables  -A untrusted-ifaces -i ${iface} -p tcp --dport ${toString range.from}:${toString range.to} -j nixos-fw-accept
+                ip6tables -A untrusted-ifaces -i ${iface} -p tcp --dport ${toString range.from}:${toString range.to} -j nixos-fw-accept
+              '') ifaceCfg.generalAllowedTCPPortRanges);
             in ''
               # === Untrusted interface: ${iface} ===
               ${groupRules}
               ${generalTCPRules}
               ${generalUDPRules}
+              ${generalTCPRangeRules}
+              ${generalUDPRangeRules}
               # DROP catch-all — everything else on ${iface} is denied
               iptables  -A untrusted-ifaces -i ${iface} -j DROP
               ip6tables -A untrusted-ifaces -i ${iface} -j DROP
