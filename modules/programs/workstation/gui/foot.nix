@@ -21,6 +21,7 @@ in {
 
           colors-dark = {
             flash-alpha=0.0;
+            alpha = 0.75;
             background = c.black;
             foreground = c.white;
 

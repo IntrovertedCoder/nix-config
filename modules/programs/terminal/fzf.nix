@@ -17,9 +17,9 @@ in {
         enableBashIntegration = true;
         colors = {
           "fg" = "#${c.white}";
-          "bg" = "#${c.black}";
+          "bg" = "-1";
           "preview-fg" = "#${c.white}";
-          "preview-bg" = "#${c.black}";
+          "preview-bg" = "-1";
           "hl" = "#${c.green}";
           "fg+" = "#${c.white1}";
           "bg+" = "#${c.black2}";

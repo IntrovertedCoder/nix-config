@@ -231,6 +231,38 @@ in {
             bg = "#${c.black1}",
           })
 
+
+          ---------------------------------------------------------------------
+          -- Transparent background (match terminal opacity)
+          ---------------------------------------------------------------------
+          local transparent_groups = {
+            "Normal",
+            "NormalNC",
+            "NormalFloat",
+            "FloatBorder",
+            "SignColumn",
+            "LineNr",
+            "CursorLineNr",
+            "EndOfBuffer",
+            "MsgArea",
+            "TabLine",
+            "TabLineFill",
+            "TabLineSel",
+            "WinSeparator",
+          }
+          for _, group in ipairs(transparent_groups) do
+            vim.api.nvim_set_hl(0, group, { bg = "none" })
+          end
+
+          -- Re-apply after any future colorscheme change
+          vim.api.nvim_create_autocmd("ColorScheme", {
+            callback = function()
+              for _, group in ipairs(transparent_groups) do
+                vim.api.nvim_set_hl(0, group, { bg = "none" })
+              end
+            end,
+          })
+
           ---------------------------------------------------------------------
           -- Dynamic Nix Color Highlighting (Standalone Color Names)
           ---------------------------------------------------------------------
