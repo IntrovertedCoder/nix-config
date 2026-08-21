@@ -21,6 +21,16 @@
     networking.hostName = "vmtest";
     networking.networkmanager.enable = true;
 
+    # Example two-monitor layout for the not-yet-built desktop: a 1440p
+    # ultrawide with a 1080p monitor rotated vertical to its right, bottom
+    # edges aligned. Output names (DP-1/DP-2) and refresh rates are
+    # placeholders -- check the real ones with `wlr-randr` once it exists
+    # and update to match.
+    var.monitors = [
+      { name = "DP-1"; width = 3440; height = 1440; refresh = 144; x = 0; y = 0; scale = 1.0; primary = true; }
+      { name = "DP-2"; width = 1080; height = 1920; refresh = 60; x = 3440; y = -480; scale = 1.0; }
+    ];
+
     fileSystems."/mnt/tv" = {
       device = "10.123.123.10:/mnt/share";
       fsType = "nfs";
