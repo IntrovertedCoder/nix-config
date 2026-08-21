@@ -1,0 +1,101 @@
+# Setting up a new host
+# This flake uses flake-parts + import-tree (modules/parts.nix, flake.nix):
+# every *.nix under modules/ is auto-imported, so a new file just has to
+# define flake.nixosModules.<name> or flake.nixosConfigurations.<name> and
+# it becomes available -- nothing to register by hand in flake.nix itself.
+#
+# Look at modules/systems/alaptop/ (real laptop, LUKS root) and
+# modules/systems/vmtest/ (throwaway VM, whole-disk GPT) as the two
+# reference hosts. Copy whichever is the closer shape.
+
+1. Create modules/systems/<host>/<host>.nix
+    - flake.nixosConfigurations.<host> = inputs.nixpkgs.lib.nixosSystem { modules = [ ... ]; };
+    - Always include: self.nixosModules.global, self.nixosModules.<host>Settings,
+      self.nixosModules.<host>Disko, self.nixosModules.user-shot, self.nixosModules.sshd,
+      self.nixosModules.customFirewall, { nixpkgs.hostPlatform = "x86_64-linux"; }
+    - Add self.nixosModules.workstation for a full GUI desktop, plus whichever
+      of communications/meeting/games/recording/creative/mullvad/hypridlesuspend/sunshine
+      apply to this machine (see alaptop.nix for the full-workstation laptop example,
+      vmtest.nix for a minimal headless-ish box that only adds sunshine).
+    - flake.nixosModules.<host>Settings = { pkgs, ... }: { ... } holds the
+      machine-specific bits:
+        boot.loader.systemd-boot.enable / efi.canTouchEfiVariables
+        boot.kernelModules / boot.initrd.kernelModules / boot.initrd.availableKernelModules
+          (copy from the host whose hardware is closest, then fix up after
+          `lspci`/`nixos-generate-config` on the real machine)
+        networking.hostName, networking.networkmanager.enable
+        var.monitors = [ { name = "..."; width = ...; height = ...; refresh = ...;
+          x = ...; y = ...; scale = ...; primary = true; } ... ]
+          -- output names are placeholders until you can run `wlr-randr` on the
+          booted host; this same list drives both mango's monitor layout and the
+          per-monitor wallpaper crop (modules/theme/wallpaper.nix), so there's
+          nothing else to configure for wallpaper.
+        var.firewall.untrustedInterfaces.<iface> = { ... } if this host has an
+          interface that should default-deny (see firewall.nix + alaptop/vmtest
+          for the ipGroups/generalAllowed*Ports shape)
+        environment.systemPackages = [ pkgs.vim ] (rescue editor before the
+          terminal module pulls in neovim)
+        home-manager.users.shot.home.stateVersion / system.stateVersion --
+          pin to the release this repo currently targets (currently "26.05",
+          see flake.nix's nixpkgs input), never bump on later hosts without
+          also bumping the existing ones
+
+2. Create modules/systems/<host>/disko.nix
+    - flake.nixosModules.<host>Disko = { ... }: { imports = [ inputs.disko.nixosModules.disko ]; ... }
+    - fileSystems."/nix".neededForBoot / "/persistent".neededForBoot = true
+    - disko.devices.nodev."/" = tmpfs root (both existing hosts use an
+      impermanence-style tmpfs root with /persistent + /nix as real subvolumes)
+    - Two disk layouts to choose from:
+        Whole disk, disko partitions it (vmtest-style): disko.devices.disk.main
+          with content.type = "gpt" and boot/esp/swap/root partitions defined
+          inline. Good for VMs or a fresh drive disko can wipe.
+        Pre-partitioned / LUKS (alaptop-style): disko.devices.disk.esp/swap/root
+          point at fixed existing device paths (/dev/nvme0n1pN) and disko only
+          formats+mounts, it doesn't partition. Use this when dual-booting or
+          when the partition table already exists; partition by hand first
+          (parted/fdisk/gdisk) to match the device paths you reference, and
+          for LUKS set content.type = "luks" with a passwordFile (disko-install
+          reads /tmp/luks.txt -- have that file in place, e.g. from an
+          interactive `read` prompt, before running disko-install).
+    - btrfs subvolumes in both: /persistent, /nix, /tmp (+ /var/log on alaptop)
+
+3. Install
+    - Boot a NixOS installer with network + this repo reachable (clone it, or
+      have it already checked out).
+    - install.sh is a one-liner: adjust `--flake .#<host>` and `--disk <device>`
+      (only meaningful for the whole-disk/disko-partitions case) and run it --
+      it shells out to `disko-install` against the flake's nixosConfigurations.<host>.
+    - For the pre-partitioned/LUKS case, partition the disk yourself first and
+      make sure the LUKS password file disko-install expects is in place, then
+      run disko-install the same way.
+    - SSH host keys are generated automatically by openssh on first boot and
+      then kept across reboots by preservation (sshd.nix preserves
+      /etc/ssh/ssh_host_*); nothing to pre-seed. If this host needs to accept
+      SSH from a particular pubkey, add it to
+      modules/programs/services/sshd.nix's users.users.shot.openssh.authorizedKeys.keys.
+
+4. First boot / manual sign-ins
+    - Run post_install.sh -- it walks through everything that can't be
+      declared in Nix: adding the GitHub SSH key, tailscale login, Bitwarden
+      security-key registration (rbw register), enabling Firefox extensions,
+      and signing into Mullvad / Vesktop / RadarOmega / Steam / Heroic /
+      Signal / Prism Launcher. Follow it top to bottom.
+    - Firefox: the extension list is declared (firefox.nix), but the
+      tridactyl *config* lives at the repo root (./tridactyl) and isn't wired
+      up through home-manager -- copy it to ~/.config/tridactyl/tridactylrc
+      by hand.
+    - Games: Steam -> Settings -> Storage -> add ~/Games/Steam as default;
+      Heroic -> Settings -> Game Defaults -> Advanced -> wrapper command `gmmh`.
+
+5. Ongoing rebuilds
+    - Once terminal.nix's modules are active, use `nh os switch` (wraps
+      nixos-rebuild, adds generation cleanup per modules/programs/terminal/nh.nix)
+      instead of nixos-rebuild directly.
+
+6. Template stub
+    - template.nix defines flake.nixosModules.template, a blank
+      environment.systemPackages / home.packages module meant as a scratch
+      starting point -- it isn't imported by any host by default. Copy its
+      shape (or just add self.nixosModules.template to a host's module list)
+      if you want a place to stash host-specific one-off packages instead of
+      growing <host>Settings.

@@ -1,28 +1,30 @@
 Terminal & Shell Environment
     Shell & Prompt: fish, bash, starship
     Editor: neovim, vim
-    File Management: yazi, zoxide, fsel, dua, disktui
-    Core Utils & Syncing: coreutils, util-linux, eza, xcp, rsync, progress, unar
+    AI Tools: claude-code
+    File Management: yazi (+ duckdb, ouch, rich-cli previewers), zoxide, fsel, eza, dua, disktui
+    Core Utils & Syncing: coreutils, util-linux, xcp, rsync, progress, unar
     Search & Data: fzf, ripgrep, fd, bat, jq, gnugrep
-    Git & Nix: git, gitui, nh, nix-index, comma
-    Utilities & System: btop, fend, doggo, tealdeer, systemctl-tui, delta
+    Git & Nix: git, gitui, delta, nh, nix-index, comma
+    Utilities & System: btop, fend, doggo, tealdeer, systemctl-tui
     Aesthetics: figlet, lolcat
-    Custom Bash Wrappers: vs.nix, fileManagement.nix
+    Custom Bash Wrappers: vs.nix, fileManagement.nix, doggo.nix, ex.nix, ls.nix, rgf.nix
     Debugging: mtr, smartmontools, nmap, s-tui
 
 Desktop Environment (Wayland)
     Compositor & Session: mangowc, uwsm, swaybg
-    xdg-portals: xdg-desktop-portal-termfilechooser, xdg-desktop-portal-wlr, xdg-desktop-portal-gtk, xdg-desktop-portal
     Terminal Emulator: foot
-    Locking & Idle: hyprlock, hypridle
     App Launcher: otter-launcher
+    Locking & Idle: hyprlock, hypridle
     Clipboard Management: stash, stash-clipboard, wl-clipboard-rs, wl-clip-persist
     UI & Notification: mako, libnotify, nordzy-cursor-theme
     Wayland Utilities: wlay, wlopm, wtype, polkit-gnome, pinentry-gnome3
+    xdg-portals: xdg-desktop-portal-termfilechooser, xdg-desktop-portal-wlr, xdg-desktop-portal-gtk, xdg-desktop-portal
 
 System & Networking Services
     Networking: tailscale, mullvad-vpn, sshd, openssh, sshfs
-    Security & Display Manager: fail2ban, greetd, tuigreet
+    Login/Display Manager: greetd, tuigreet
+    Security: fail2ban
     Hardware/Daemons: acpid, udisks2, samba
     Drives/setup: disko, preservation
 
@@ -30,9 +32,10 @@ Audio, Video & Media
     Audio Pipeline: pipewire, wireplumber, pipewire-pulse
     Audio Control: easyeffects, pulsemixer, bluetuith
     Music: mpd (main + background instances), mpc, rmpc
-    Screen/Image Capture: flameshot, grim, slurp
-    Media Viewers & Displays: mpv, imv, wshowkeys, hyprpicker, brightnessctl, gammastep, zathura
-    Recording: obs-studio
+    Media Viewers: mpv, imv, zathura
+    Screen/Image Capture: flameshot, grim, slurp, hyprpicker
+    Display Utilities: wshowkeys, brightnessctl, gammastep
+    Recording: obs-studio (+ obs-pipewire-audio-capture, obs-vkcapture, wlrobs plugins)
     Creative: audacity, blender, gimp, inkscape, kdenlive, onlyoffice
 
 Gaming
@@ -43,7 +46,7 @@ Gaming
 
 Applications & Hardware Config
     Web & Comms: firefox, signal-desktop, vesktop
+    Firefox extensions: ublock-origin, bitwarden, darkreader, auto-tab-discard, firefox-color, tridactyl, videospeed, sponsorblock, sidebery
     Meetings: zoom, teams-for-linux
-    Firefox extensions: ublock-origin, bitwarden, darkreader, auto-tab-discard, firefox-color, tridactyl, videospeed, sponsorblock, sideberry
-    Misc GUI: radaromega, rbw, vial
-
+    Misc GUI: radaromega, rbw
+    Keyboard Hardware: vial, qmk, qmk-udev-rules
