@@ -4,7 +4,6 @@
       self.nixosModules.global
       self.nixosModules.vmtestSettings
       self.nixosModules.vmtestDisko
-      self.nixosModules.vmtestPreservation
       self.nixosModules.user-shot
       self.nixosModules.sshd
       self.nixosModules.customFirewall
