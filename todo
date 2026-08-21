@@ -17,22 +17,8 @@ Lynis OpenVAS (network) vulnix (system) sbomnix
 
 add "auto login sunshine" file
 
-edit install.sh to have options for install location and hostname
-
 nvd (nix visual diff, shows differences in packages)
 nix-diff (shows differences in files)
-
-auto update:
-  store current git commit
-  git pull
-  nh os switch --update (update gets done on one machine [probably a vm] which gets ran a day early for time to debug issues)
-  if failed:
-    restore to saved git commit, try nh os switch --update
-    if failed:
-      send notification through unifiedpush (or discord channel) saying update failed (maybe provide error message)
-  if succeeded:
-    send notification saying update on hostname succeded
-
 
 
 https://github.com/mat-1/metasearch2
