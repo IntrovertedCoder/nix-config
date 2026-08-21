@@ -8,7 +8,7 @@ What it does
     usual openFirewall / allowedTCPPorts rules apply as normal). This is
     meant for untrusted networks (open wifi, an overlay net) where you want
     "drop it unless I said so", without locking down every interface on the
-    box (todo still lists doing that properly for Yggdrasil/i2p/reticulum).
+    box.
 
 How it works
     - Only runs at all if var.firewall.untrustedInterfaces is non-empty.
@@ -42,10 +42,6 @@ Current per-host rules
 
     vmtest (modules/systems/vmtest/vmtest.nix): ygg0 (a Yggdrasil-style
     overlay interface) is untrusted. One IPv6 address is allowed TCP 22.
-    NOTE: this looks stale/WIP -- sshd.nix runs SSH on 20530 everywhere,
-    not 22, so as written this rule doesn't actually open SSH access on
-    that interface. Worth fixing to 20530 (or intentionally leaving closed)
-    before relying on it; matches the still-open Yggdrasil item in `todo`.
 
 Other security-relevant pieces (not part of customFirewall, but adjacent)
     fail2ban (modules/programs/services/fail2ban.nix, wired up per-host in
