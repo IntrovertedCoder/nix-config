@@ -34,6 +34,7 @@
       self.nixosModules.mtr
       self.nixosModules.nmap
       self.nixosModules.stui
+      self.nixosModules.claude-code
     ];
     environment.systemPackages = with pkgs; [
     ];
