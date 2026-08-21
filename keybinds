@@ -1,0 +1,94 @@
+# Keybind quick reference
+# Mod key throughout is ALT unless noted. Source of truth is always the
+# .nix file named in parens -- if a bind changes there, update it here too.
+
+Mango (compositor) -- modules/programs/workstation/gui/desktop/mango.nix
+    Alt+Return              Launch a terminal (foot)
+    Alt+d                   Open app launcher (otter-launcher, see below)
+    Alt+Shift+Ctrl+r        Reload mango config
+    Alt+Shift+q             Kill focused client
+    Alt+n                   Switch layout
+    Alt+Tab                 Toggle jump mode (label every window, type to focus)
+    Alt+x                   Cycle scroller proportion preset (0.2/0.4/0.6/0.8/1.0)
+    Alt+h/j/k/l             Focus window left/down/up/right
+    Alt+Shift+h/j/k/l       Move (exchange) window left/down/up/right
+    Alt+f                   Toggle fullscreen
+    Alt+Shift+f             Toggle floating
+    Alt+i                   Minimize
+    Alt+Shift+i             Restore minimized
+    Alt+1..9                Switch to tag 1-9
+    Alt+Shift+1..9          Send focused window to tag 1-9 (silent)
+    Alt+LeftClick drag      Move window
+    Alt+RightClick drag     Resize window
+
+Screenshots & color picker -- gui/flameshot.nix
+    Print                   Flameshot GUI screenshot
+    Alt+Print               hyprpicker: pick a color, copies hex to clipboard
+
+Screen lock -- gui/hyprlock.nix
+    Alt+Shift+Ctrl+l        Lock screen (hyprlock)
+
+Notifications -- gui/mako.nix
+    Alt+m                   Dismiss latest notification
+    Alt+Shift+m             Dismiss all notifications
+
+Brightness & color temperature -- gui/gammastep.nix (custom gamma-control script)
+    Alt+Up / Alt+Down       Brightness up/down (0.2-1.0)
+    Alt+Right / Alt+Left    Color temp up/down (1500K-10000K)
+    Alt+Home                Reset brightness/temp to default
+
+Music -- gui/music.nix (mpd + mpc + rmpc)
+    Alt+,                   Previous track (main mpd instance)
+    Alt+.                   Next track (main mpd instance)
+    Alt+/                   Play/pause (main mpd instance)
+    Alt+`                   Open rmpc TUI player (main mpd instance)
+    Alt+Shift+,/./ //`      Same four, but for the background mpd instance
+
+otter-launcher (Alt+d, then type) -- gui/launcher.nix and prefixes registered
+by other modules' xdg.configFile."otter-launcher/config.toml" blocks
+    (bare text)             Fuzzy-search and switch to a running app window
+    <name>+Enter            Instantly launch app by .desktop name
+    =<expr>                 Calculator (fend)
+    cal / calcy / calny     Calendar: this month / this year / next year
+    po                      Power menu: logout/suspend/hibernate/reboot/shutdown/lock
+    nm                      nmtui (NetworkManager TUI)
+    st                      systemctl-tui
+    ts                      Toggle tailscale up/down
+    bt                      Open bluetuith TUI
+    btt                     Toggle bluetooth power on/off
+    ch                      Clipboard history (stash)
+    nh                      Notification history (mako)
+    keys                    Toggle on-screen keystroke overlay (wshowkeys)
+    sl                      Toggle suspend-lock (blocks auto-suspend/lid-suspend)
+    fz / th                 Freeze / thaw a running user systemd scope or service
+    <cmd>                   Run shell command in background
+    ><cmd>                  Run shell command in a foreground foot window
+
+Per-application binds (home-manager `programs.*` config, not mango binds)
+    mpv (gui/mpv.nix):        w/s seek +-5s, y/m volume +-5, p pause, t show progress
+    imv (gui/imv.nix):        w/s next/prev, y/m/p/t slideshow controls
+    Neovim (terminal/nvim.nix), leader = Space:
+        <leader>u              Toggle Undotree
+        ,                       Repeat last macro (@@)
+        <leader>r               Find/replace word under cursor
+        <leader>o / <leader>O   Insert blank line below/above
+        <leader>vs              Run `vs` (fzf+vim picker) in a new tab
+        <leader>lg               Run `lg` (gitui wrapper) in a vsplit
+        <leader>rb               Run `nh os switch` in a vsplit
+        <leader>yz                Open yazi in a vsplit
+        <leader>t                Toggle word under cursor (true/false, etc.)
+        <leader>cc               Print closest theme palette color to hex under cursor
+    Yazi (terminal/yazi.nix):
+        gn                      cd ~/nix-config
+        gd                      cd ~/Downloads
+        nh                      Run `nh os switch`
+        vs                      Run `vs`
+        M                       Mount plugin
+        P                       Play selection as a shuffled mpv playlist
+
+Firefox / tridactyl -- ./tridactyl (repo root; NOT yet wired into firefox.nix,
+drop it in manually as ~/.config/tridactyl/tridactylrc on a new host)
+    unbound: p (clipboard open), Ctrl+f (page down), F (open bg tab)
+    pf                      Hint mode: open in new window
+    nf                      Hint mode: open in background tab
+    hintchars = "spnt,.aeoihjkl" (ordered for a split keyboard layout)

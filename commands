@@ -1,0 +1,65 @@
+# Custom shell commands
+# These are wrapper scripts this repo generates via writeShellScriptBin (not
+# upstream packages) -- source file named in parens. See `installed`'s
+# "Custom Bash Wrappers" line for the full file list.
+
+File finding & editing
+    vs                      Fuzzy-find a file (fd + fsel) and open it in vim
+                             (modules/programs/terminal/custom/vs.nix)
+    rgf                     Live ripgrep search through fzf with a bat
+                             preview pane; Enter opens the match in nvim at
+                             that line (modules/programs/terminal/custom/rgf.nix)
+
+File management (impermanence-aware)
+    mv                      Wraps coreutils mv: runs it in the background and
+                             pops a progress bar (via `progress`) if it's
+                             still running after 0.2s -- useful for large or
+                             cross-disk moves that would otherwise look hung
+                             (modules/programs/terminal/custom/fileManagement.nix)
+    mvd                     Move across disks via rsync --remove-source-files
+                             instead of mv, for when moving between
+                             filesystems (same file as above)
+    ex                      Extract any archive: `unar -d "$@"`
+                             (modules/programs/terminal/custom/ex.nix)
+    lsp [dir]                eza long-listing of dir's mirror under
+                             /persistent -- i.e. what IS preserved across a
+                             reboot (modules/programs/terminal/custom/ls.nix)
+    treep [dir]              Same as lsp, but as a tree view
+    lst [dir]                eza long-listing of dir itself, with anything
+                             already under /persistent filtered out -- i.e.
+                             what is NOT yet persisted and would be lost on
+                             reboot
+    treet [dir]              Same as lst, but as a tree view
+
+DNS
+    dogs                    `doggo --short "$@"` -- terser doggo output
+                             (modules/programs/terminal/custom/doggo.nix)
+    dogprop <domain>        Propagation check: queries a domain against
+                             8.8.8.8, 9.9.9.9, 1.1.1.1, and its own
+                             authoritative nameserver, side by side
+
+Git
+    lg                      Loads an ssh-agent with the GitHub deploy key,
+                             launches gitui, kills the agent on exit
+                             (modules/programs/terminal/gitui.nix)
+
+Docs
+    tldr                    Wraps tealdeer: refreshes the local cheat-sheet
+                             cache first if it's missing or >7 days old, then
+                             shows the page (modules/programs/terminal/tealdeer.nix)
+
+Gaming (all run inside the app-games systemd slice for memory containment;
+set OBS_CAP=1 to wrap with obs-gamecapture if OBS is running -- see `info`)
+    gmgsmh                  gamescope + gamemode + mangohud -- full dedicated-
+                             resolution session (modules/programs/workstation/gui/games/games.nix)
+    gmmh                    gamemode + mangohud, no gamescope -- windowed/
+                             borderless games
+    mh                      mangohud only -- lightweight overlay, no
+                             gamemode/gamescope wrapping
+
+Display
+    gamma-control {temp-up|temp-down|bright-up|bright-down|reset}
+                             Manual driver behind the Alt+Arrows brightness/
+                             color-temp keybinds (see `keybinds`); tracks
+                             state in /tmp/gamma_state so repeated calls step
+                             from the last value (modules/programs/workstation/gui/gammastep.nix)

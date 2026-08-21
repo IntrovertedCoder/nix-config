@@ -1,0 +1,52 @@
+# Firewall rules
+# Custom module: modules/network/firewall.nix (flake.nixosModules.customFirewall)
+
+What it does
+    Layers a default-deny-unless-allowed chain on top of NixOS's normal
+    firewall, scoped to specific interfaces only -- everything not named
+    here still behaves like a stock NixOS firewall (networking.firewall's
+    usual openFirewall / allowedTCPPorts rules apply as normal). This is
+    meant for untrusted networks (open wifi, an overlay net) where you want
+    "drop it unless I said so", without locking down every interface on the
+    box.
+
+How it works
+    - Only runs at all if var.firewall.untrustedInterfaces is non-empty.
+    - Builds an `untrusted-ifaces` iptables/ip6tables chain and inserts a
+      jump to it at position 1 in nixos-fw, ahead of any of the normal
+      global allow rules.
+    - Always allows RELATED,ESTABLISHED traffic first (so replies to
+      connections *this* machine opened still work).
+    - Per declared interface: allows whatever's configured, then a
+      catch-all DROP for anything else on that interface.
+    - extraStopCommands tears the chain and jump back down cleanly when the
+      firewall service stops, so no stale rules linger.
+
+Config shape (var.firewall.untrustedInterfaces.<iface>)
+    ipGroups.<name> = { ips = [...]; allowedTCPPorts = [...];
+      allowedUDPPorts = [...]; allowedTCPPortRanges = [{from=...;to=...;}];
+      allowedUDPPortRanges = [...]; }
+        Per-source-IP allow rules (v4 and v6 both supported, mixed in the
+        same group) -- e.g. "only these two known devices can reach SSH".
+    generalAllowedTCPPorts / generalAllowedUDPPorts /
+    generalAllowed{TCP,UDP}PortRanges = [...]
+        Opened to *all* traffic on that interface regardless of source --
+        e.g. DHCP client traffic (UDP 68), or a public-facing service.
+
+Current per-host rules
+    alaptop (modules/systems/alaptop/alaptop.nix): wlp2s0 (wifi) is
+    untrusted. Two home-network IPs (192.168.10.219, 192.168.10.107) are
+    allowed TCP 20530 -- the custom SSH port set in
+    modules/programs/services/sshd.nix. UDP 68 (DHCP) is open to the whole
+    interface so the laptop can still get an address.
+
+    vmtest (modules/systems/vmtest/vmtest.nix): ygg0 (a Yggdrasil-style
+    overlay interface) is untrusted. One IPv6 address is allowed TCP 22.
+
+Other security-relevant pieces (not part of customFirewall, but adjacent)
+    fail2ban (modules/programs/services/fail2ban.nix, wired up per-host in
+    sshd.nix's jails.sshd) bans repeat auth failures against the SSH port
+    regardless of interface -- 3 tries, 1h ban, doubling up to a week.
+    sshd itself (sshd.nix) already disables password auth, agent
+    forwarding, and TCP forwarding, and caps sessions/auth tries, so the
+    interface-level firewall above is a second layer, not the only one.
