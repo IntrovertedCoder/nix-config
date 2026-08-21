@@ -8,7 +8,7 @@ Terminal & Shell Environment
     Git & Nix: git, gitui, delta, nh, nix-index, comma
     Utilities & System: btop, fend, doggo, tealdeer, systemctl-tui
     Aesthetics: figlet, lolcat
-    Custom Bash Wrappers: vs.nix, fileManagement.nix, doggo.nix, ex.nix, ls.nix, rgf.nix
+    Custom Bash Wrappers: vs.nix, fileManagement.nix, doggo.nix, ex.nix, ls.nix, rgf.nix (see `commands` for what each one does)
     Debugging: mtr, smartmontools, nmap, s-tui
 
 Desktop Environment (Wayland)
