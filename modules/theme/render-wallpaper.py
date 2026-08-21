@@ -4,6 +4,14 @@ variables so it can run unattended inside a Nix derivation:
 
   WALLPAPER_COLORS  comma-separated hex colors (no '#'), evenly spaced
                      left-to-right across the ramp, e.g. "353535,a33a45,..."
+  WALLPAPER_BG      hex color (no '#') for Material.001's Principled BSDF
+                     Base Color -- flat backing material behind the ramp,
+                     one of the Circle mesh's other material slots
+  WALLPAPER_WORLD   hex color (no '#') for the World's Background shader --
+                     confirmed live via render diff (unlike the file's other
+                     leftover colors, e.g. Material.001/.002's Emission
+                     Color, the Mix node's unused RGBA default, and the
+                     orphaned "Dots Stroke" material)
   WALLPAPER_WIDTH   output width in pixels
   WALLPAPER_HEIGHT  output height in pixels
   WALLPAPER_OUT     output PNG path
@@ -11,9 +19,10 @@ variables so it can run unattended inside a Nix derivation:
 
 Targets the "Color Ramp.001" node in the "Material.002" material -- the
 ramp actually wired into the rendered output (see Material.001's ramp,
-which is unused/orphaned in the current file). Drives Cycles on CPU only:
-EEVEE needs a GL context that a sandboxed Nix build never has, on any
-machine, regardless of GPU.
+which is unused/orphaned in the current file; its Principled BSDF Base
+Color is still live, though, so that's driven separately via WALLPAPER_BG).
+Drives Cycles on CPU only: EEVEE needs a GL context that a sandboxed Nix
+build never has, on any machine, regardless of GPU.
 """
 import os
 import bpy
@@ -59,6 +68,14 @@ def main():
     mat = bpy.data.materials["Material.002"]
     node = mat.node_tree.nodes["Color Ramp.001"]
     set_ramp(node, colors)
+
+    bg = os.environ["WALLPAPER_BG"]
+    bg_mat = bpy.data.materials["Material.001"]
+    bg_mat.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = hex_to_linear_rgba(bg)
+
+    world_bg = os.environ["WALLPAPER_WORLD"]
+    world = bpy.data.worlds["World"]
+    world.node_tree.nodes["Background"].inputs["Color"].default_value = hex_to_linear_rgba(world_bg)
 
     scene = bpy.data.scenes["Scene"]
     scene.render.engine = "CYCLES"

@@ -19,6 +19,28 @@ in {
       '';
     };
 
+    options.var.wallpaperBackgroundColor = lib.mkOption {
+      type = lib.types.str;
+      default = c.black;
+      description = ''
+        Hex color (no leading #) for wallpaper.blend's Material.001 --
+        the flat backing material behind the gradient ramp.
+      '';
+    };
+
+    options.var.wallpaperWorldColor = lib.mkOption {
+      type = lib.types.str;
+      default = c.black2;
+      description = ''
+        Hex color (no leading #) for wallpaper.blend's World Background
+        shader. Confirmed live via render diff -- shows through at the
+        Circle mesh's edges and tints lighting -- unlike the file's other
+        unwired colors (Emission Color, the Mix node's unused RGBA
+        default, the orphaned "Dots Stroke" material), which are leftovers
+        with no visual effect.
+      '';
+    };
+
     options.var.wallpaperCanvas = lib.mkOption {
       type = lib.types.path;
       description = ''
@@ -67,6 +89,8 @@ in {
       canvas = pkgs.runCommand "wallpaper-canvas" {
         nativeBuildInputs = [ pkgs.blender ];
         WALLPAPER_COLORS = lib.concatStringsSep "," colors;
+        WALLPAPER_BG = config.var.wallpaperBackgroundColor;
+        WALLPAPER_WORLD = config.var.wallpaperWorldColor;
         WALLPAPER_WIDTH = toString canvasWidth;
         WALLPAPER_HEIGHT = toString canvasHeight;
       } ''
