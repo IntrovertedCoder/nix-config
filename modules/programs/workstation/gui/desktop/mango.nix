@@ -2,10 +2,11 @@
 let
   c = config.var.colors;
 in {
-  flake.nixosModules.mango = { pkgs, config, ...}: {
+  flake.nixosModules.mango = { pkgs, config, lib, ...}: {
     imports = [
       inputs.home-manager.nixosModules.home-manager
       inputs.mangowm.nixosModules.mango
+      self.nixosModules.monitors
     ];
     environment.systemPackages = with pkgs; [
     ];
@@ -25,6 +26,10 @@ in {
           windowrule=appid:launcher,isfloating:1
         '';
         settings = {
+          monitorrule = map (m:
+            "name:^${m.name}$,width:${toString m.width},height:${toString m.height},refresh:${toString m.refresh},x:${toString m.x},y:${toString m.y},scale:${toString m.scale}"
+          ) config.var.monitors;
+
           circle_layout = "scroller,vertical_scroller,center_tile";
 
           # Gaps/border

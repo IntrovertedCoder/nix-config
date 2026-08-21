@@ -6,6 +6,7 @@ in {
     imports = [
       inputs.home-manager.nixosModules.home-manager
       self.nixosModules.wallpaper
+      self.nixosModules.monitors
     ];
 
     options.var.lockCommand = lib.mkOption {
@@ -36,12 +37,10 @@ in {
               grace = 0;
               no_fade_in = false;
             };
-            background = [
-              {
-                monitor = "";
-                path = "${config.var.wallpaper}";
-              }
-            ];
+            background = map (m: {
+              monitor = m.name;
+              path = "${config.var.wallpapers.${m.name}}";
+            }) config.var.monitors;
             input-field = [
               {
                 monitor = "";

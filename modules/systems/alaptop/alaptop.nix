@@ -45,6 +45,12 @@
     networking.hostName = "alaptop";
     networking.networkmanager.enable = true;
 
+    # Built-in laptop panel. Check the actual output name with `wlr-randr`
+    # once booted (eDP-1 is the common default) and adjust if it differs.
+    var.monitors = [
+      { name = "eDP-1"; width = 1920; height = 1080; refresh = 60; x = 0; y = 0; scale = 1.0; primary = true; }
+    ];
+
     boot.initrd.availableKernelModules = [
       "nvme"
       "xhci_pci"
