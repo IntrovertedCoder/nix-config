@@ -28,6 +28,7 @@
       self.nixosModules.mpv
       self.nixosModules.zathura
       self.nixosModules.moonlight
+      self.nixosModules.music
     ];
     environment.systemPackages = with pkgs; [
     ];

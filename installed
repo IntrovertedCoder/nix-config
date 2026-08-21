@@ -11,7 +11,7 @@ Terminal & Shell Environment
     Debugging: mtr, smartmontools, nmap, s-tui
 
 Desktop Environment (Wayland)
-    Compositor & Session: mangowc, uwsm
+    Compositor & Session: mangowc, uwsm, swaybg
     xdg-portals: xdg-desktop-portal-termfilechooser, xdg-desktop-portal-wlr, xdg-desktop-portal-gtk, xdg-desktop-portal
     Terminal Emulator: foot
     Locking & Idle: hyprlock, hypridle
@@ -29,6 +29,7 @@ System & Networking Services
 Audio, Video & Media
     Audio Pipeline: pipewire, wireplumber, pipewire-pulse
     Audio Control: easyeffects, pulsemixer, bluetuith
+    Music: mpd (main + background instances), mpc, rmpc
     Screen/Image Capture: flameshot, grim, slurp
     Media Viewers & Displays: mpv, imv, wshowkeys, hyprpicker, brightnessctl, gammastep, zathura
     Recording: obs-studio

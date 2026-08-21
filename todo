@@ -5,8 +5,6 @@ Firewall block all incoming connections unless allowed I don't care what firewal
 
 workstation:
   gui:
-    mpd
-      rmpc
     eventually:
       theme gnome-polkit (or another auth polkit)
 
@@ -20,10 +18,13 @@ add "auto login sunshine" file
 nvd (nix visual diff, shows differences in packages)
 nix-diff (shows differences in files)
 
+<<<<<<< HEAD
 
 https://github.com/mat-1/metasearch2
 
 
+=======
+>>>>>>> 11dfe9d (Adding mpd/mpc/rmpc)
 possible steam deck todo:
   Add controller launcher
   Auto sign in, and start steam big picture
@@ -35,3 +36,4 @@ test on desktop:
   Confirm flameshot works on multiple monitors
   Confirm epic games work
   Confirm wallpaper works fine
+  Confirm the mpd system service doesn't break upon reboot
