@@ -3,6 +3,7 @@
     imports = [
       inputs.home-manager.nixosModules.home-manager
       self.nixosModules.mango
+      self.nixosModules.swaybg
       self.nixosModules.foot
       self.nixosModules.uwsm
       self.nixosModules.tuigreet

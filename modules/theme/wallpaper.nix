@@ -7,6 +7,7 @@ in {
       inputs.home-manager.nixosModules.home-manager
       self.nixosModules.monitors
     ];
+    key = "modules/theme/wallpaper.nix";
 
     options.var.wallpaperColors = lib.mkOption {
       type = lib.types.listOf lib.types.str;
