@@ -18,13 +18,6 @@ add "auto login sunshine" file
 nvd (nix visual diff, shows differences in packages)
 nix-diff (shows differences in files)
 
-<<<<<<< HEAD
-
-https://github.com/mat-1/metasearch2
-
-
-=======
->>>>>>> 11dfe9d (Adding mpd/mpc/rmpc)
 possible steam deck todo:
   Add controller launcher
   Auto sign in, and start steam big picture
