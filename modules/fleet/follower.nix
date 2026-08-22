@@ -27,7 +27,15 @@
         # openssh: `git fetch`/merge over the SSH remote shells out to
         # `ssh` -- see the identical note in vmtest-orchestrator.nix,
         # same bug would hit here too.
-        runtimeInputs = [ pkgs.git pkgs.nh pkgs.sudo pkgs.systemd pkgs.openssh ];
+        #
+        # Deliberately no pkgs.sudo here: that's the unprivileged store
+        # copy, not NixOS's real setuid wrapper at /run/wrappers/bin/sudo
+        # -- including it would actually be worse than omitting it, since
+        # it'd shadow the real one earlier in PATH. Real sudo comes from
+        # the systemd service's Environment=PATH below (unattended path)
+        # or is already on PATH in any normal interactive session (manual
+        # path).
+        runtimeInputs = [ pkgs.git pkgs.nh pkgs.systemd pkgs.openssh ];
         text = ''
           cd /home/shot/nix-config
 
@@ -94,7 +102,13 @@
           Type = "oneshot";
           User = "shot";
           WorkingDirectory = "/home/shot/nix-config";
-          Environment = "HOME=/home/shot";
+          # See the identical note in vmtest-orchestrator.nix -- real setuid
+          # sudo only lives at /run/wrappers/bin, needed both for nh's own
+          # elevation and for the script's explicit `sudo systemctl reboot`.
+          Environment = [
+            "HOME=/home/shot"
+            "PATH=/run/wrappers/bin:/run/current-system/sw/bin"
+          ];
           ExecStart = "${fleetPullUpdate}/bin/fleet-pull-update";
         };
       };

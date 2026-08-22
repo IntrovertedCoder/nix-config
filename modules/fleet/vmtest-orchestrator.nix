@@ -66,7 +66,15 @@
         Type = "oneshot";
         User = "shot";
         WorkingDirectory = "/home/shot/nix-config";
-        Environment = "HOME=/home/shot";
+        # /run/wrappers/bin: NixOS's real *setuid* sudo lives only there --
+        # pkgs.sudo (were it in runtimeInputs) would be the unprivileged
+        # store copy and can never elevate. Without this, nh's elevation
+        # detection can't find sudo at all and falls through to run0,
+        # which needs polkit and fails with no interactive session present.
+        Environment = [
+          "HOME=/home/shot"
+          "PATH=/run/wrappers/bin:/run/current-system/sw/bin"
+        ];
         ExecStart = lib.getExe (pkgs.writeShellApplication {
           name = "fleet-update";
           # openssh: `git fetch`/`push` over the SSH remote shells out to
