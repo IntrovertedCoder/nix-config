@@ -9,15 +9,21 @@
         Run fleet-pull-update unattended on a weekly timer, instead of only
         as a manual command. Off by default -- intended for future headless
         service VMs with nobody around to run it by hand. Leave this false
-        for interactive desktops (manual pull is the primary path there).
+        for interactive desktops (manual pull is the primary path there:
+        you still choose when to run it).
 
-        When true, this also grants the `shot` user narrowly-scoped
-        passwordless sudo for exactly the commands fleet-pull-update needs
-        to run unattended (nh's build/activation step, and the final
-        reboot) -- see security.sudo.extraRules below. `shot` is already in
-        `wheel` (full, password-gated sudo), so this doesn't raise the
-        account's privilege ceiling, it only removes the password prompt
-        for actions it could already perform.
+        This only controls the *timer*. Passwordless sudo for the commands
+        fleet-pull-update needs (see security.sudo.extraRules below) is
+        granted unconditionally to any host that imports fleetFollower at
+        all, regardless of this option -- the whole build/download phase
+        runs unprivileged and can take hours on a slow connection, with
+        sudo only needed once at the very end to activate and reboot; a
+        manual run that then hangs on a password prompt no one's there to
+        answer defeats "start it and walk away," which is the actual
+        point of the manual path, not a reason to require babysitting it.
+        `shot` is already in `wheel` (full, password-gated sudo), so this
+        doesn't raise the account's privilege ceiling, it only removes the
+        prompt for actions it could already perform.
       '';
     };
 
@@ -50,9 +56,9 @@
           # this is a local `nh os boot`, cache-client.nix's substituter
           # kicks in wherever vmtest already built the matching store paths
           # -- normally a full cache hit. nh handles its own privilege
-          # elevation (prompts for the shot password interactively when run
-          # by hand; silently uses the NOPASSWD sudo rule below when
-          # var.fleet.autoUpdate.enable made this run unattended).
+          # elevation, silently via the unconditional NOPASSWD sudo rule
+          # below -- no password prompt at all, whether this run was
+          # triggered manually or by the opt-in unattended timer.
           # Explicit flake path, not relying on NH_FLAKE -- matters for the
           # opt-in unattended timer (var.fleet.autoUpdate.enable), which
           # like any systemd service never sources the interactive shell
@@ -76,7 +82,9 @@
         }
       ];
 
-      security.sudo.extraRules = lib.mkIf config.var.fleet.autoUpdate.enable [{
+      # Unconditional (not gated on autoUpdate.enable) -- see the option
+      # doc above for why the manual path needs this too.
+      security.sudo.extraRules = [{
         users = [ "shot" ];
         commands = [
           { command = "${pkgs.systemd}/bin/systemctl reboot"; options = [ "NOPASSWD" ]; }
