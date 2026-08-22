@@ -107,7 +107,7 @@ in {
       '';
 
       cropScript = lib.concatStrings (map (m: ''
-        convert ${canvas} -crop ${toString m.width}x${toString m.height}+${toString (m.x - minX)}+${toString (m.y - minY)} +repage $out/${m.name}.png
+        magick ${canvas} -crop ${toString m.width}x${toString m.height}+${toString (m.x - minX)}+${toString (m.y - minY)} +repage $out/${m.name}.png
       '') monitors);
 
       wallpaperCrops = pkgs.runCommand "wallpaper-crops" { nativeBuildInputs = [ pkgs.imagemagick ]; } ''
