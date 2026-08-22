@@ -24,7 +24,10 @@
     config = let
       fleetPullUpdate = pkgs.writeShellApplication {
         name = "fleet-pull-update";
-        runtimeInputs = [ pkgs.git pkgs.nh pkgs.sudo pkgs.systemd ];
+        # openssh: `git fetch`/merge over the SSH remote shells out to
+        # `ssh` -- see the identical note in vmtest-orchestrator.nix,
+        # same bug would hit here too.
+        runtimeInputs = [ pkgs.git pkgs.nh pkgs.sudo pkgs.systemd pkgs.openssh ];
         text = ''
           cd /home/shot/nix-config
 

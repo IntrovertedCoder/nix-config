@@ -57,7 +57,11 @@
         Environment = "HOME=/home/shot";
         ExecStart = lib.getExe (pkgs.writeShellApplication {
           name = "fleet-update";
-          runtimeInputs = [ pkgs.git pkgs.nh pkgs.nix pkgs.systemd ];
+          # openssh: `git fetch`/`push` over the SSH remote shells out to
+          # `ssh`, which writeShellApplication's curated PATH otherwise
+          # omits -- systemd services get essentially none of the normal
+          # interactive PATH, so this has to be explicit.
+          runtimeInputs = [ pkgs.git pkgs.nh pkgs.nix pkgs.systemd pkgs.openssh ];
           text = ''
             # Never let a missing/unconfigured secret take the whole run down --
             # see modules/network/discord-notify.nix, this is a no-op until then.
