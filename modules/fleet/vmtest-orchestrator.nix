@@ -78,7 +78,11 @@
               exit 1
             fi
 
-            if ! nh os boot --update -H vmtest; then
+            # Explicit flake path, not relying on NH_FLAKE: programs.nh.flake
+            # only sets that env var via an interactive shell profile, which
+            # a systemd service never sources (same class of bug as the
+            # missing openssh fix above).
+            if ! nh os boot --update -H vmtest /home/shot/nix-config; then
               notify "vmtest: self-update FAILED (see journalctl -u fleet-update)"
               git checkout -- flake.lock
               exit 1

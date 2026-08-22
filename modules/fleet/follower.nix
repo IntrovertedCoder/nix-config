@@ -45,7 +45,11 @@
           # elevation (prompts for the shot password interactively when run
           # by hand; silently uses the NOPASSWD sudo rule below when
           # var.fleet.autoUpdate.enable made this run unattended).
-          if nh os boot -H ${lib.escapeShellArg config.networking.hostName}; then
+          # Explicit flake path, not relying on NH_FLAKE -- matters for the
+          # opt-in unattended timer (var.fleet.autoUpdate.enable), which
+          # like any systemd service never sources the interactive shell
+          # profile that normally sets it.
+          if nh os boot -H ${lib.escapeShellArg config.networking.hostName} /home/shot/nix-config; then
             sudo systemctl reboot
           else
             echo "fleet-pull-update: build/boot failed" >&2
