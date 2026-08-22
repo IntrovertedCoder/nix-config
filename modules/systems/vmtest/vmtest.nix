@@ -9,6 +9,8 @@
       self.nixosModules.customFirewall
       self.nixosModules.workstation
       self.nixosModules.sunshine
+      self.nixosModules.vmtestOrchestrator
+      self.nixosModules.fleetCacheServer
       { nixpkgs.hostPlatform = "x86_64-linux"; }
     ];
   };
@@ -20,6 +22,10 @@
 
     networking.hostName = "vmtest";
     networking.networkmanager.enable = true;
+
+    # Hosts vmtest builds and caches for every Thursday. Never includes
+    # "vmtest" itself -- see modules/fleet/fleet.nix.
+    var.fleet.hosts = [ "alaptop" ];
 
     # Example two-monitor layout for the not-yet-built desktop: a 1440p
     # ultrawide with a 1080p monitor rotated vertical to its right, bottom

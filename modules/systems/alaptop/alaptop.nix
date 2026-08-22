@@ -20,6 +20,7 @@ in {
       self.nixosModules.games
       self.nixosModules.recording
       self.nixosModules.creative
+      self.nixosModules.fleetFollower
       { nixpkgs.hostPlatform = "x86_64-linux"; }
     ];
   };

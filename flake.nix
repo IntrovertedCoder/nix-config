@@ -18,6 +18,10 @@
     preservation = {
       url = "github:nix-community/preservation";
     };
+    agenix = {
+      url = "github:ryantm/agenix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     flake-parts = {
       url = "github:hercules-ci/flake-parts";
     };
