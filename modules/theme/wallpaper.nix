@@ -1,12 +1,63 @@
-{ self, inputs, config, ... }:
+{ self, inputs, config, lib, ... }:
 let
   c = config.var.colors;
+
+  # Same 7-stop shape the original static default used: two accent colors
+  # bookended and separated by black2, each repeated to give it a wider
+  # flat band.
+  bandedRamp = primary: secondary:
+    [ c.black2 primary primary c.black2 secondary secondary c.black2 ];
+
+  # ISO week -> seasonal banded ramp. Winter wraps the year boundary
+  # (weeks 50-52 and 1-9); the rest are contiguous, so all 52 weeks land
+  # in exactly one season.
+  seasonColors = week:
+    if week >= 50 || week <= 9 then bandedRamp c.dred c.dgreen      # winter
+    else if week <= 22 then bandedRamp c.dgreen c.lyellow           # spring
+    else if week <= 35 then bandedRamp c.dblue c.dcyan              # summer
+    else bandedRamp c.dorange c.dyellow;                            # fall
+
+  # Calendar events, checked before the season default -- first match
+  # wins. Weeks are approximate (a holiday's exact date shifts year to
+  # year; ISO week precision is close enough for a wallpaper). Add more
+  # the same way.
+  events = [
+    { weeks = [ 7 ]; colors = bandedRamp c.dpink c.lred; } # Valentine's Day
+    { # Pride Month (June): a full rainbow gradient instead of a banded pair
+      weeks = [ 22 23 24 25 26 ];
+      colors = [ c.red c.orange c.yellow c.green c.blue c.magenta ];
+    }
+    { # Thanksgiving (~4th Thu of Nov): brighter/golder than the Fall default
+      weeks = [ 47 ];
+      colors = bandedRamp c.dorange c.lyellow;
+    }
+  ];
+
+  weekColors = week:
+    let event = lib.findFirst (e: builtins.elem week e.weeks) null events;
+    in if event != null then event.colors else seasonColors week;
+
+  # Reads the ISO week from $WALLPAPER_WEEK (set by the `update-wallpaper`
+  # script below) so the seasonal/event palette above can pick a default.
+  # builtins.getEnv throws under Nix's pure-eval mode (the flake default)
+  # unless --impure is passed; tryEval catches that so any other build --
+  # `nix flake check`, CI, a plain rebuild -- still succeeds and just
+  # falls back to the static default below instead of erroring.
+  currentWeek =
+    let raw = builtins.tryEval (builtins.getEnv "WALLPAPER_WEEK");
+    in if raw.success && raw.value != "" then lib.toInt raw.value else null;
 
   # Shared with perSystem's render-wallpaper CLI below, so a bare
   # `nix run .#render-wallpaper` uses the same palette as the NixOS
   # wallpaper module without depending on any host's evaluated config
-  # (wallpaperColors et al. only exist per-nixosConfiguration).
-  defaultColors = [ c.black2 c.dred c.dred c.black2 c.dcyan c.dcyan c.black2 ];
+  # (wallpaperColors et al. only exist per-nixosConfiguration). Rotates
+  # seasonally when WALLPAPER_WEEK/--impure are available (see
+  # `update-wallpaper` below); otherwise falls back to this literal, same
+  # as before this rotation existed.
+  defaultColors =
+    if currentWeek == null
+    then [ c.black2 c.dred c.dred c.black2 c.dcyan c.dcyan c.black2 ]
+    else weekColors currentWeek;
   defaultBg = c.black;
   defaultWorld = c.black2;
 in {
@@ -116,6 +167,33 @@ in {
       '';
 
       primaryMonitor = lib.findFirst (m: m.primary) (builtins.head monitors) monitors;
+
+      # Rebuilds with the current ISO week wired in, so the seasonal/event
+      # palette above (see defaultColors) picks up whichever band the
+      # current week falls in. A plain `nh os switch` wouldn't do this --
+      # WALLPAPER_WEEK has to be set and --impure has to be passed, since
+      # Nix flakes evaluate purely by default. This can't just re-render
+      # the image in place either: swaybg's systemd unit (see
+      # modules/programs/workstation/gui/desktop/swaybg.nix) has the
+      # wallpaper store path baked into its ExecStart at activation time,
+      # so a real `nh os switch` is what actually picks up the new
+      # palette and restarts it.
+      updateWallpaperScript = pkgs.writeShellApplication {
+        name = "update-wallpaper";
+        runtimeInputs = [ pkgs.nh ];
+        text = ''
+          usage() {
+            echo "Usage: update-wallpaper [WEEK]" >&2
+            echo "  WEEK: ISO week (1-53) to force; defaults to the current week." >&2
+          }
+          case "''${1:-}" in -h|--help) usage; exit 0 ;; esac
+
+          # 10#... forces base-10 parsing so date's zero-padded "08"/"09"
+          # aren't misread as invalid octal.
+          week="''${1:-$(( 10#$(date +%V) ))}"
+          WALLPAPER_WEEK="$week" nh os switch -- --impure
+        '';
+      };
     in {
       var.wallpaperCanvas = canvas;
       var.wallpapers = builtins.listToAttrs (map (m: {
@@ -124,7 +202,8 @@ in {
       }) monitors);
       var.wallpaper = config.var.wallpapers.${primaryMonitor.name};
 
-      environment.systemPackages = with pkgs; [
+      environment.systemPackages = [
+        updateWallpaperScript
       ];
     };
   };
