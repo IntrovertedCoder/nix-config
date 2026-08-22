@@ -1,0 +1,40 @@
+# Wallpaper generation
+# Custom module: modules/theme/wallpaper.nix (flake.nixosModules.wallpaper)
+# Blend file + renderer: modules/theme/wallpaper.blend, render-wallpaper.py
+
+Customizable colors (all hex, no leading #)
+    var.wallpaperColors        list of stops fed into the gradient ramp,
+                                 evenly spaced left to right (duplicate an
+                                 entry for a wider flat band). Default:
+                                 [ c.black2 c.dred c.dred c.black2 c.dcyan
+                                   c.dcyan c.black2 ]
+    var.wallpaperBackgroundColor  Material.001's Principled BSDF Base
+                                 Color -- the flat backing material behind
+                                 the ramp (visible via the Wireframe
+                                 modifier's line/grid geometry, ~7% of
+                                 rendered faces). Default: c.black
+    var.wallpaperWorldColor    the World's Background shader color.
+                                 Default: c.black2
+    All three feed render-wallpaper.py as WALLPAPER_COLORS / WALLPAPER_BG /
+    WALLPAPER_WORLD. Their defaults are hoisted into a shared
+    defaultColors/defaultBg/defaultWorld let-binding in wallpaper.nix, also
+    used by the standalone CLI below, so the two can't drift apart.
+
+Standalone render CLI (for devices with no var.monitors entry -- phones,
+tablets, etc, or anything not NixOS)
+    nix run .#render-wallpaper -- [--width W --height H]
+      [--colors c1,c2,...] [--bg HEX] [--world HEX] [--out PATH]
+      [--samples N]
+        --width/--height   must be given together; omit both to keep
+                            whatever resolution is saved in wallpaper.blend
+                            (currently 7680x4320)
+        --colors/--bg/--world   default to the same theme values
+                            wallpaperColors/wallpaperBackgroundColor/
+                            wallpaperWorldColor default to above
+        --out               defaults to ./wallpaper-render.png
+        --samples           defaults to 64
+    Example: nix run .#render-wallpaper -- --width 1170 --height 2532
+      --out ~/phone.png
+    Then copy the PNG over however suits the device (adb push, syncthing,
+    airdrop...). Defined as packages.<system>.render-wallpaper in
+    wallpaper.nix's perSystem block.

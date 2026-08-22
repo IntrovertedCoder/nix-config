@@ -12,8 +12,11 @@ variables so it can run unattended inside a Nix derivation:
                      leftover colors, e.g. Material.001/.002's Emission
                      Color, the Mix node's unused RGBA default, and the
                      orphaned "Dots Stroke" material)
-  WALLPAPER_WIDTH   output width in pixels
-  WALLPAPER_HEIGHT  output height in pixels
+  WALLPAPER_WIDTH   optional, output width in pixels -- must be given
+                     together with WALLPAPER_HEIGHT, or not at all
+  WALLPAPER_HEIGHT  optional, output height in pixels -- see above. If
+                     either is omitted, the render keeps whatever
+                     resolution is already saved in the .blend file
   WALLPAPER_OUT     output PNG path
   WALLPAPER_SAMPLES optional, Cycles sample count (default 64)
 
@@ -60,8 +63,8 @@ def set_ramp(node, colors):
 
 def main():
     colors = os.environ["WALLPAPER_COLORS"].split(",")
-    width = int(os.environ["WALLPAPER_WIDTH"])
-    height = int(os.environ["WALLPAPER_HEIGHT"])
+    width = os.environ.get("WALLPAPER_WIDTH")
+    height = os.environ.get("WALLPAPER_HEIGHT")
     out_path = os.environ["WALLPAPER_OUT"]
     samples = int(os.environ.get("WALLPAPER_SAMPLES", "64"))
 
@@ -82,8 +85,9 @@ def main():
     scene.cycles.device = "CPU"
     scene.cycles.samples = samples
     scene.cycles.use_denoising = True
-    scene.render.resolution_x = width
-    scene.render.resolution_y = height
+    if width and height:
+        scene.render.resolution_x = int(width)
+        scene.render.resolution_y = int(height)
     scene.render.resolution_percentage = 100
     scene.render.image_settings.file_format = "PNG"
 
