@@ -130,7 +130,10 @@
               git push
             fi
 
-            systemctl reboot
+            # sudo: this script runs as `shot`, not root -- same reason
+            # follower.nix's fleet-pull-update needs it for its own final
+            # reboot. wheelNeedsPassword=false above covers this already.
+            sudo systemctl reboot
           '';
         });
       };
