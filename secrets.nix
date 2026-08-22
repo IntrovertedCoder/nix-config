@@ -10,7 +10,7 @@
 # the placeholder below with vmtest's actual host key:
 #   ssh vmtest cat /etc/ssh/ssh_host_ed25519_key.pub
 let
-  vmtest = "ssh-ed25519 REPLACE-WITH-VMTEST-SSH-HOST-PUBKEY";
+  vmtest = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGXL4eFZvGU76IWAQFGax7+CQgGBmtXkdayHXp92227w root@vmtest";
 in
 {
   "secrets/discord-webhook.age".publicKeys = [ vmtest ];
