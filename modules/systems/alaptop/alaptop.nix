@@ -1,4 +1,7 @@
-{ self, inputs, ... }: {
+{ self, inputs, config, ... }:
+let
+  c = config.var.colors;
+in {
   flake.nixosConfigurations.alaptop = inputs.nixpkgs.lib.nixosSystem {
     modules = [
       self.nixosModules.global
@@ -23,6 +26,7 @@
 
   flake.nixosModules.alaptopSettings = { pkgs, ... }: {
 
+    var.wallpaperColors = [ c.magenta c.black2 c.cyan ];
     systemd.user.slices.app-games = {
       sliceConfig = {
         Description = "Resource-constrained slice for games";
