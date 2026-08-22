@@ -13,6 +13,11 @@
       self.nixosModules.fleetRegistry
     ];
 
+    # The agenix *CLI* (for `agenix -e secrets/foo.age`), distinct from
+    # inputs.agenix.nixosModules.default above (which only decrypts at
+    # boot). Only vmtest ever edits secrets, so only vmtest needs this.
+    environment.systemPackages = [ inputs.agenix.packages.${pkgs.system}.default ];
+
     # TODO: once secrets/discord-webhook.age and secrets/healthchecks-ping-url.age
     # exist for real (see secrets.nix and the plan's Sequencing steps 1-2),
     # this block starts wiring them up automatically -- nothing else to change.
@@ -79,7 +84,11 @@
             # build breakage early. A failure here is per-host and doesn't
             # block the reboot or the flake.lock push below -- it might just
             # mean that host's own config broke, unrelated to this update.
-            for host in ${lib.concatStringsSep " " config.var.fleet.hosts}; do
+            # (Array form, not a bare word-split loop, so this stays correct
+            # -- and shellcheck-clean -- whether var.fleet.hosts has one
+            # entry or many.)
+            hosts=(${lib.concatMapStringsSep " " lib.escapeShellArg config.var.fleet.hosts})
+            for host in "''${hosts[@]}"; do
               if nix build ".#nixosConfigurations.$host.config.system.build.toplevel" --no-link; then
                 notify "fleet: $host built OK, cache warmed"
               else
