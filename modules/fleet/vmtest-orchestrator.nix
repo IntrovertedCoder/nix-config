@@ -18,6 +18,18 @@
     # boot). Only vmtest ever edits secrets, so only vmtest needs this.
     environment.systemPackages = [ inputs.agenix.packages.${pkgs.system}.default ];
 
+    # fleet-update.service runs unattended (as `shot`, who's already in
+    # `wheel` -- see modules/users/shot.nix) with no TTY and no polkit
+    # agent present, so `nh os boot`'s privilege elevation has nothing to
+    # authenticate against: plain `sudo` fails immediately (no password
+    # can be prompted), and nh's "auto" strategy falls through to `run0`,
+    # which needs polkit and fails the same way. This doesn't raise what
+    # `shot` can already do (full password-gated sudo) -- it only drops
+    # the prompt, and only on vmtest, a disposable dev VM whose whole
+    # purpose here is running this unattended. Kept scoped to this module
+    # (imported only by vmtest.nix) rather than applied fleet-wide.
+    security.sudo.wheelNeedsPassword = false;
+
     # TODO: once secrets/discord-webhook.age and secrets/healthchecks-ping-url.age
     # exist for real (see secrets.nix and the plan's Sequencing steps 1-2),
     # this block starts wiring them up automatically -- nothing else to change.
