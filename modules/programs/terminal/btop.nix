@@ -16,6 +16,7 @@ in {
 
         settings = {
           color_theme = "/home/shot/.config/btop/themes/guildmaster.theme";
+          theme_background = false; # match terminal opacity (var.opacity), same trick as foot/fzf/nvim
           vim_keys = true;
           proc_sorting = "memory";
           proc_tree = true;

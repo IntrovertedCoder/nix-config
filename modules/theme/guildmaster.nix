@@ -81,5 +81,31 @@ in {
     description = "Base16 color theme";
   };
 
+  options.var.opacity = lib.mkOption {
+    type = lib.types.float;
+    default = 0.75;
+    description = "Shared background opacity (0-1) for translucent surfaces, e.g. foot and vesktop";
+  };
+
+  options.var.opacityByte = lib.mkOption {
+    type = lib.types.int;
+    description = "var.opacity expressed as a 0-255 byte, derived from var.opacity";
+  };
+
+  options.var.opacityHex = lib.mkOption {
+    type = lib.types.str;
+    description = "var.opacity expressed as a 2-char lowercase hex string (for #RRGGBBAA CSS), derived from var.opacity";
+  };
+
   config.var.colors = expandColors rawPalette;
+
+  config.var.opacityByte = builtins.floor (config.var.opacity * 255 + 0.5);
+
+  config.var.opacityHex =
+    let
+      hexDigits = "0123456789abcdef";
+      byte = config.var.opacityByte;
+      high = byte / 16;
+      low = byte - (high * 16);
+    in (builtins.substring high 1 hexDigits) + (builtins.substring low 1 hexDigits);
 }

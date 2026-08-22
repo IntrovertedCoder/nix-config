@@ -1,6 +1,7 @@
-{ config, self, inputs, ... }: 
+{ config, self, inputs, ... }:
 let
   c = config.var.colors;
+  opacity = config.var.opacity;
 in {
   flake.nixosModules.foot = { pkgs, ...}: {
     imports = [
@@ -21,7 +22,7 @@ in {
 
           colors-dark = {
             flash-alpha=0.0;
-            alpha = 0.75;
+            alpha = opacity;
             background = c.black;
             foreground = c.white;
 

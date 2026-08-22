@@ -1,6 +1,7 @@
 { self, inputs, config, ... }:
 let
   c = config.var.colors;
+  opacity = config.var.opacity;
 in {
   flake.nixosModules.vesktop = { pkgs, lib, ...}: {
     imports = [
@@ -23,6 +24,10 @@ in {
     environment.systemPackages = with pkgs; [
     ];
     home-manager.users.shot = { lib, ... }: {
+      wayland.windowManager.mango.settings.windowrule = [
+        "appid:[Vv]esktop,focused_opacity:${toString opacity},unfocused_opacity:${toString opacity}"
+      ];
+
       home.packages = with pkgs; [
         vesktop
       ];
