@@ -12,18 +12,21 @@
         for interactive desktops (manual pull is the primary path there:
         you still choose when to run it).
 
-        This only controls the *timer*. Passwordless sudo for the commands
-        fleet-pull-update needs (see security.sudo.extraRules below) is
-        granted unconditionally to any host that imports fleetFollower at
-        all, regardless of this option -- the whole build/download phase
-        runs unprivileged and can take hours on a slow connection, with
-        sudo only needed once at the very end to activate and reboot; a
-        manual run that then hangs on a password prompt no one's there to
-        answer defeats "start it and walk away," which is the actual
-        point of the manual path, not a reason to require babysitting it.
-        `shot` is already in `wheel` (full, password-gated sudo), so this
-        doesn't raise the account's privilege ceiling, it only removes the
-        prompt for actions it could already perform.
+        This also gates the passwordless sudo rule below
+        (security.sudo.extraRules): nixos-rebuild/switch-to-configuration
+        with unrestricted arguments is realistically root-equivalent, since
+        sudoers has no way to further restrict what flags get passed, so
+        that carve-out is only granted to hosts that actually run this
+        unattended with nobody there to type a password. `shot` is already
+        in `wheel` (full, password-gated sudo) on every host regardless --
+        this option only ever controls whether the *prompt* is skipped, not
+        whether the account can do the thing at all.
+
+        Interactive/manual runs don't need this: fleet-pull-update primes
+        `sudo -v` up front (prompts once, immediately, while you're still
+        there) and keeps the credential alive in the background for the
+        duration of the build, so the real elevation at the end -- after a
+        build that can take hours -- doesn't need to prompt again.
       '';
     };
 
@@ -45,6 +48,22 @@
         text = ''
           cd /home/shot/nix-config
 
+          # Only when there's a real terminal to prompt in (the manual/yazi
+          # path): authenticate sudo immediately, before the potentially
+          # hours-long build, and keep the credential refreshed in the
+          # background so the real elevation at the very end -- reboot, and
+          # whatever nh needs internally -- doesn't hit an unanswerable
+          # password prompt after you've walked away. The unattended timer
+          # (var.fleet.autoUpdate.enable) has no TTY for this to work with
+          # at all, and doesn't need it: it relies on the NOPASSWD sudoers
+          # rule below instead, gated to hosts that opted in.
+          if [ -t 0 ]; then
+            sudo -v
+            ( while sleep 60; do sudo -n true || true; done ) &
+            keepalive_pid=$!
+            trap 'kill "$keepalive_pid" 2>/dev/null || true' EXIT
+          fi
+
           if ! git fetch origin || ! git merge --ff-only origin/main; then
             echo "fleet-pull-update: git pull failed (diverged checkout?)" >&2
             git checkout -- flake.lock
@@ -55,10 +74,7 @@
           # validated and pushed, never independently newer inputs. Since
           # this is a local `nh os boot`, cache-client.nix's substituter
           # kicks in wherever vmtest already built the matching store paths
-          # -- normally a full cache hit. nh handles its own privilege
-          # elevation, silently via the unconditional NOPASSWD sudo rule
-          # below -- no password prompt at all, whether this run was
-          # triggered manually or by the opt-in unattended timer.
+          # -- normally a full cache hit.
           # Explicit flake path, not relying on NH_FLAKE -- matters for the
           # opt-in unattended timer (var.fleet.autoUpdate.enable), which
           # like any systemd service never sources the interactive shell
@@ -82,15 +98,19 @@
         }
       ];
 
-      # Unconditional (not gated on autoUpdate.enable) -- see the option
-      # doc above for why the manual path needs this too.
-      security.sudo.extraRules = [{
+      # Gated on autoUpdate.enable -- see the option doc above. Unrestricted
+      # arguments on nixos-rebuild/switch-to-configuration make this
+      # realistically root-equivalent (no way to further narrow it in
+      # sudoers), so it's only granted to hosts that actually run this
+      # unattended; the manual path uses the sudo -v keep-alive above
+      # instead and keeps the normal password-gated sudo.
+      security.sudo.extraRules = lib.mkIf config.var.fleet.autoUpdate.enable [{
         users = [ "shot" ];
         commands = [
           { command = "${pkgs.systemd}/bin/systemctl reboot"; options = [ "NOPASSWD" ]; }
           # Wildcard on the store path is unavoidable -- it changes per
-          # build. Narrower than root, not perfect; same tradeoff most
-          # unattended nixos-rebuild setups (deploy-rs, colmena) accept.
+          # build. Same tradeoff most unattended nixos-rebuild setups
+          # (deploy-rs, colmena) accept.
           { command = "/nix/store/*/bin/switch-to-configuration"; options = [ "NOPASSWD" ]; }
           { command = "/nix/store/*/bin/nixos-rebuild"; options = [ "NOPASSWD" ]; }
         ];
