@@ -31,8 +31,12 @@
     };
 
     config = let
-      fleetPullUpdate = pkgs.writeShellApplication {
-        name = "fleet-pull-update";
+      # Shared by the manual reboot/shutdown commands and the opt-in
+      # unattended timer (which always uses the reboot variant -- see
+      # ExecStart below). powerCmd is the only thing that differs between
+      # the two manual variants.
+      mkFleetPullUpdate = { name, powerCmd }: pkgs.writeShellApplication {
+        inherit name;
         # openssh: `git fetch`/merge over the SSH remote shells out to
         # `ssh` -- see the identical note in vmtest-orchestrator.nix,
         # same bug would hit here too.
@@ -48,14 +52,15 @@
         text = ''
           cd /home/shot/nix-config
 
-          # Only when there's a real terminal to prompt in (the manual/yazi
-          # path): authenticate sudo immediately, before the potentially
-          # hours-long build, and keep the credential refreshed in the
-          # background. `nh os boot` builds unprivileged and only elevates
-          # separately (its own internal sudo call) for the final
-          # switch-to-configuration/set-profile step -- that's the one that
-          # can hit an unanswerable password prompt after a long build with
-          # nobody there to answer it. The unattended timer
+          # Only when there's a real terminal to prompt in (the manual/yazi/
+          # otter-launcher path): authenticate sudo immediately, before the
+          # potentially hours-long build, and keep the credential refreshed
+          # in the background. `nh os boot` builds unprivileged and only
+          # elevates separately (its own internal sudo call) for the final
+          # switch-to-configuration/set-profile step, and the final
+          # `sudo systemctl ${powerCmd}` below needs it too -- both can hit
+          # an unanswerable password prompt after a long build with nobody
+          # there to answer it. The unattended timer
           # (var.fleet.autoUpdate.enable) has no TTY for this to work with
           # at all, and doesn't need it: it relies on the NOPASSWD sudoers
           # rule below instead, gated to hosts that opted in.
@@ -67,7 +72,7 @@
           fi
 
           if ! git fetch origin || ! git merge --ff-only origin/main; then
-            echo "fleet-pull-update: git pull failed (diverged checkout?)" >&2
+            echo "${name}: git pull failed (diverged checkout?)" >&2
             git checkout -- flake.lock
             exit 1
           fi
@@ -82,28 +87,56 @@
           # like any systemd service never sources the interactive shell
           # profile that normally sets it.
           if nh os boot -H ${lib.escapeShellArg config.networking.hostName} /home/shot/nix-config; then
-            # No sudo needed here: systemd-logind's default polkit rule
-            # allows the sole active local session to reboot/power-off
-            # without authentication -- unrelated to (and doesn't need) the
-            # sudoers rule below, which only exists for the unattended
-            # timer's non-interactive service context.
-            systemctl reboot
+            # sudo here (not bare systemctl): the interactive/active-session
+            # case would work without it via logind's default polkit rule,
+            # but this same script also backs the unattended timer, which
+            # has no active session for polkit to cover -- it needs the
+            # NOPASSWD sudoers rule below instead. The sudo -v keep-alive
+            # above makes this silent for manual runs either way.
+            sudo systemctl ${powerCmd}
           else
-            echo "fleet-pull-update: build/boot failed" >&2
+            echo "${name}: build/boot failed" >&2
             exit 1
           fi
         '';
       };
-    in {
-      environment.systemPackages = [ fleetPullUpdate ];
 
-      home-manager.users.shot.programs.yazi.settings.keymap.mgr.prepend_keymap = [
-        {
-          on = [ "n" "p" ];
-          run = "shell 'fleet-pull-update' --block";
-          desc = "Pull + apply the latest fleet update and reboot";
-        }
-      ];
+      fleetPullUpdate = mkFleetPullUpdate { name = "fleet-pull-update"; powerCmd = "reboot"; };
+      fleetPullUpdateShutdown = mkFleetPullUpdate { name = "fleet-pull-update-shutdown"; powerCmd = "poweroff"; };
+    in {
+      environment.systemPackages = [ fleetPullUpdate fleetPullUpdateShutdown ];
+
+      home-manager.users.shot = {
+        programs.yazi.settings.keymap.mgr.prepend_keymap = [
+          {
+            on = [ "n" "p" ];
+            run = "shell 'fleet-pull-update' --block";
+            desc = "Pull + apply the latest fleet update and reboot";
+          }
+        ];
+
+        # Appended to launcher.nix's config text rather than editing that
+        # file directly -- same reasoning as not touching yazi.nix above:
+        # launcher.nix is imported unconditionally by every workstation
+        # host, including ones that never import fleetFollower, so these
+        # two commands belong here instead. Unwrapped `cmd` (no `uwsm app`/
+        # new-foot-window wrapping), same as the existing "nmtui"/
+        # "systemctl-tui" modules in launcher.nix -- it runs directly in
+        # otter-launcher's own terminal, so all of git/nh/nixos-rebuild's
+        # output stays visible instead of vanishing into a background unit.
+        xdg.configFile."otter-launcher/config.toml".text = lib.mkAfter ''
+
+          [[modules]]
+          description = "fleet pull update (reboot)"
+          prefix = "fpr"
+          cmd = "fleet-pull-update"
+
+          [[modules]]
+          description = "fleet pull update (shutdown)"
+          prefix = "fps"
+          cmd = "fleet-pull-update-shutdown"
+        '';
+      };
 
       # Gated on autoUpdate.enable -- see the option doc above. Unrestricted
       # arguments on nixos-rebuild/switch-to-configuration make this
@@ -115,6 +148,7 @@
         users = [ "shot" ];
         commands = [
           { command = "${pkgs.systemd}/bin/systemctl reboot"; options = [ "NOPASSWD" ]; }
+          { command = "${pkgs.systemd}/bin/systemctl poweroff"; options = [ "NOPASSWD" ]; }
           # Wildcard on the store path is unavoidable -- it changes per
           # build. Same tradeoff most unattended nixos-rebuild setups
           # (deploy-rs, colmena) accept.
@@ -144,6 +178,9 @@
             "HOME=/home/shot"
             "PATH=/run/wrappers/bin:/run/current-system/sw/bin"
           ];
+          # Always the reboot variant -- an unattended update should come
+          # back up on its own; the shutdown variant is a manual-only
+          # convenience for "update, then leave it off".
           ExecStart = "${fleetPullUpdate}/bin/fleet-pull-update";
         };
       };
