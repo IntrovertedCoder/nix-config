@@ -108,13 +108,28 @@
               exit 1
             fi
 
+            # Committed *before* the cache-warm loop below, not after: the
+            # seasonal wallpaper (modules/theme/wallpaper-seasonal.nix)
+            # picks its default color week from self.lastModifiedDate --
+            # the last commit's date -- purely, with no env var/--impure
+            # plumbing between vmtest and a follower. That only actually
+            # lands on the same week for both sides if this commit (the
+            # one a Friday `fleet-pull-update` will pull) already exists
+            # *before* the loop below evaluates it -- committing after
+            # would warm the cache against last week's commit instead,
+            # a cache miss for that one derivation every single cycle.
+            if ! git diff --quiet -- flake.lock; then
+              git add flake.lock
+              git commit -m "flake.lock: automated update $(date -Idate)"
+              git push
+            fi
+
             # Warm the cache for the rest of the fleet, and catch host-specific
             # build breakage early. A failure here is per-host and doesn't
-            # block the reboot or the flake.lock push below -- it might just
-            # mean that host's own config broke, unrelated to this update.
-            # (Array form, not a bare word-split loop, so this stays correct
-            # -- and shellcheck-clean -- whether var.fleet.hosts has one
-            # entry or many.)
+            # block the reboot -- it might just mean that host's own config
+            # broke, unrelated to this update. (Array form, not a bare
+            # word-split loop, so this stays correct -- and shellcheck-clean
+            # -- whether var.fleet.hosts has one entry or many.)
             hosts=(${lib.concatMapStringsSep " " lib.escapeShellArg config.var.fleet.hosts})
             for host in "''${hosts[@]}"; do
               if nix build ".#nixosConfigurations.$host.config.system.build.toplevel" --no-link; then
@@ -123,12 +138,6 @@
                 notify "fleet: build for $host FAILED"
               fi
             done
-
-            if ! git diff --quiet -- flake.lock; then
-              git add flake.lock
-              git commit -m "flake.lock: automated update $(date -Idate)"
-              git push
-            fi
 
             # sudo: this script runs as `shot`, not root -- same reason
             # follower.nix's fleet-pull-update needs it for its own final
