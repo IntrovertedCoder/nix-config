@@ -27,7 +27,7 @@ in {
 
   flake.nixosModules.alaptopSettings = { pkgs, ... }: {
 
-    var.wallpaperColors = [ c.magenta c.black2 c.cyan ];
+    # var.wallpaperColors = [ c.magenta c.black2 c.cyan ];
     systemd.user.slices.app-games = {
       sliceConfig = {
         Description = "Resource-constrained slice for games";
