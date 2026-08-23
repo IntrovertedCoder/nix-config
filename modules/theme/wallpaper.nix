@@ -1,87 +1,16 @@
-{ self, inputs, config, lib, ... }:
+{ self, inputs, config, ... }:
 let
   c = config.var.colors;
-
-  # Ordered list of { weeks; colors; } entries -- see _wallpaper-seasonal.nix
-  # for the actual table and how to edit/extend it. Leading underscore:
-  # flake.nix auto-imports every .nix file under modules/ as a flake-parts
-  # module (see inputs.import-tree) except paths containing "/_" -- this
-  # file is plain data (week -> color list), not a module, so it needs
-  # that exclusion to avoid being double-imported and called with the
-  # wrong (module) arguments.
-  weeklyPalette = import ./_wallpaper-seasonal.nix { inherit c lib; };
-
-  # Used when a week isn't covered by any entry in _wallpaper-seasonal.nix.
-  # Same shape the original (pre-rotation) static default used.
-  fallbackColors = [ c.black2 c.dred c.dred c.black2 c.dcyan c.dcyan c.black2 ];
-
-  weekColors = week:
-    let entry = lib.findFirst (e: builtins.elem week e.weeks) null weeklyPalette;
-    in if entry != null then entry.colors else fallbackColors;
-
-  # Pure ISO week, no --impure needed: Sakamoto's algorithm (day of week)
-  # plus the standard ISO-8601 ordinal-day week formula, both closed-form
-  # integer arithmetic -- self.lastModifiedDate already comes pre-split
-  # into Y/M/D so no epoch/calendar-library conversion is needed. Not
-  # exact right at the Dec31/Jan1 boundary (may resolve to week 0 or 53
-  # instead of the "correct" 52/1) -- unnecessary here, since every one of
-  # those boundary days already falls in this module's "winter" bucket
-  # (week >= 50 || week <= 9) regardless of which of those three numbers
-  # it resolves to.
-  isoWeekOfDate = y: m: d:
-    let
-      isLeap = lib.mod y 4 == 0 && (lib.mod y 100 != 0 || lib.mod y 400 == 0);
-      monthDays = [ 31 (if isLeap then 29 else 28) 31 30 31 30 31 31 30 31 30 31 ];
-      ordinalDay = d + lib.foldl' lib.add 0 (lib.take (m - 1) monthDays);
-
-      t = [ 0 3 2 5 0 3 5 1 4 6 2 4 ];
-      yy = if m < 3 then y - 1 else y;
-      dow0Sun = lib.mod (yy + yy / 4 - yy / 100 + yy / 400 + builtins.elemAt t (m - 1) + d) 7;
-      isoWeekday = if dow0Sun == 0 then 7 else dow0Sun; # Monday=1..Sunday=7
-    in
-      (ordinalDay - isoWeekday + 10) / 7;
-
-  # lib.toInt refuses zero-padded strings ("08") outright -- it won't
-  # silently misparse them as octal, it just errors, calling the reading
-  # "ambiguous". Same footgun update-wallpaper's bash `10#$(date +%V)`
-  # sidesteps, just with no bash-style base-prefix equivalent in Nix;
-  # stripping a single leading zero first is enough since month/day here
-  # are always exactly 2 digits (01-12/01-31, never "00").
-  toIntNoLeadingZero = s:
-    lib.toInt (if lib.hasPrefix "0" s then builtins.substring 1 (builtins.stringLength s - 1) s else s);
-
-  # self.lastModifiedDate ("YYYYMMDDHHMMSS", UTC) is the last commit's
-  # date, available under plain pure evaluation for a clean git checkout
-  # -- the same well-established mechanism version-stamp flakes use (e.g.
-  # "unstable-${builtins.substring 0 8 self.lastModifiedDate}"). Since
-  # both vmtest's Thursday cache-warm build and a follower's Friday
-  # `fleet-pull-update` pull build from the exact same commit (both do a
-  # `git merge --ff-only origin/main` first), they always compute the same
-  # week here with zero env-var plumbing between them -- no --impure
-  # needed anywhere in that path, and no risk of the two machines
-  # disagreeing about "today".
-  pureCurrentWeek =
-    let s = self.lastModifiedDate;
-    in isoWeekOfDate
-      (toIntNoLeadingZero (builtins.substring 0 4 s))
-      (toIntNoLeadingZero (builtins.substring 4 2 s))
-      (toIntNoLeadingZero (builtins.substring 6 2 s));
-
-  # Explicit override for previewing a specific week (see the
-  # `update-wallpaper` script below, e.g. `update-wallpaper 24` to check
-  # Pride month's rainbow before June) -- still needs --impure, since
-  # builtins.getEnv throws under Nix's pure-eval mode otherwise; tryEval
-  # catches that so any build that doesn't set WALLPAPER_WEEK just falls
-  # through to the always-available pure value above instead of erroring.
-  currentWeek =
-    let raw = builtins.tryEval (builtins.getEnv "WALLPAPER_WEEK");
-    in if raw.success && raw.value != "" then lib.toInt raw.value else pureCurrentWeek;
 
   # Shared with perSystem's render-wallpaper CLI below, so a bare
   # `nix run .#render-wallpaper` uses the same palette as the NixOS
   # wallpaper module without depending on any host's evaluated config
-  # (wallpaperColors et al. only exist per-nixosConfiguration).
-  defaultColors = weekColors currentWeek;
+  # (wallpaperColors et al. only exist per-nixosConfiguration). Plain and
+  # static on purpose: seasonal/holiday rotation is opt-in per host, see
+  # wallpaper-seasonal.nix's wallpaperSeasonal module (imported alongside
+  # this one, not instead of it -- it overrides var.wallpaperColors via
+  # lib.mkDefault).
+  defaultColors = [ c.black2 c.dred c.dred c.black2 c.dcyan c.dcyan c.black2 ];
   defaultBg = c.black;
   defaultWorld = c.black2;
 in {
@@ -191,33 +120,6 @@ in {
       '';
 
       primaryMonitor = lib.findFirst (m: m.primary) (builtins.head monitors) monitors;
-
-      # Rebuilds with the current ISO week wired in, so the seasonal/event
-      # palette above (see defaultColors) picks up whichever band the
-      # current week falls in. A plain `nh os switch` wouldn't do this --
-      # WALLPAPER_WEEK has to be set and --impure has to be passed, since
-      # Nix flakes evaluate purely by default. This can't just re-render
-      # the image in place either: swaybg's systemd unit (see
-      # modules/programs/workstation/gui/desktop/swaybg.nix) has the
-      # wallpaper store path baked into its ExecStart at activation time,
-      # so a real `nh os switch` is what actually picks up the new
-      # palette and restarts it.
-      updateWallpaperScript = pkgs.writeShellApplication {
-        name = "update-wallpaper";
-        runtimeInputs = [ pkgs.nh ];
-        text = ''
-          usage() {
-            echo "Usage: update-wallpaper [WEEK]" >&2
-            echo "  WEEK: ISO week (1-53) to force; defaults to the current week." >&2
-          }
-          case "''${1:-}" in -h|--help) usage; exit 0 ;; esac
-
-          # 10#... forces base-10 parsing so date's zero-padded "08"/"09"
-          # aren't misread as invalid octal.
-          week="''${1:-$(( 10#$(date +%V) ))}"
-          WALLPAPER_WEEK="$week" nh os switch -- --impure
-        '';
-      };
     in {
       var.wallpaperCanvas = canvas;
       var.wallpapers = builtins.listToAttrs (map (m: {
@@ -226,8 +128,7 @@ in {
       }) monitors);
       var.wallpaper = config.var.wallpapers.${primaryMonitor.name};
 
-      environment.systemPackages = [
-        updateWallpaperScript
+      environment.systemPackages = with pkgs; [
       ];
     };
   };
