@@ -31,6 +31,7 @@ in {
           };
           options = {
             background = "${c.black}";
+            overlay = true;
             overlay_text_color = "${c.white}";
             overlay_background_color = "${c.black1}";
             overlay_font = "Hack Nerd Font Mono:12";
