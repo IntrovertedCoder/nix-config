@@ -51,9 +51,11 @@
           # Only when there's a real terminal to prompt in (the manual/yazi
           # path): authenticate sudo immediately, before the potentially
           # hours-long build, and keep the credential refreshed in the
-          # background so the real elevation at the very end -- reboot, and
-          # whatever nh needs internally -- doesn't hit an unanswerable
-          # password prompt after you've walked away. The unattended timer
+          # background. `nh os boot` builds unprivileged and only elevates
+          # separately (its own internal sudo call) for the final
+          # switch-to-configuration/set-profile step -- that's the one that
+          # can hit an unanswerable password prompt after a long build with
+          # nobody there to answer it. The unattended timer
           # (var.fleet.autoUpdate.enable) has no TTY for this to work with
           # at all, and doesn't need it: it relies on the NOPASSWD sudoers
           # rule below instead, gated to hosts that opted in.
@@ -80,7 +82,12 @@
           # like any systemd service never sources the interactive shell
           # profile that normally sets it.
           if nh os boot -H ${lib.escapeShellArg config.networking.hostName} /home/shot/nix-config; then
-            sudo systemctl reboot
+            # No sudo needed here: systemd-logind's default polkit rule
+            # allows the sole active local session to reboot/power-off
+            # without authentication -- unrelated to (and doesn't need) the
+            # sudoers rule below, which only exists for the unattended
+            # timer's non-interactive service context.
+            systemctl reboot
           else
             echo "fleet-pull-update: build/boot failed" >&2
             exit 1
