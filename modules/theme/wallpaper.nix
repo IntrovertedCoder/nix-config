@@ -2,40 +2,22 @@
 let
   c = config.var.colors;
 
-  # Same 7-stop shape the original static default used: two accent colors
-  # bookended and separated by black2, each repeated to give it a wider
-  # flat band.
-  bandedRamp = primary: secondary:
-    [ c.black2 primary primary c.black2 secondary secondary c.black2 ];
+  # Ordered list of { weeks; colors; } entries -- see _wallpaper-seasonal.nix
+  # for the actual table and how to edit/extend it. Leading underscore:
+  # flake.nix auto-imports every .nix file under modules/ as a flake-parts
+  # module (see inputs.import-tree) except paths containing "/_" -- this
+  # file is plain data (week -> color list), not a module, so it needs
+  # that exclusion to avoid being double-imported and called with the
+  # wrong (module) arguments.
+  weeklyPalette = import ./_wallpaper-seasonal.nix { inherit c lib; };
 
-  # ISO week -> seasonal banded ramp. Winter wraps the year boundary
-  # (weeks 50-52 and 1-9); the rest are contiguous, so all 52 weeks land
-  # in exactly one season.
-  seasonColors = week:
-    if week >= 50 || week <= 9 then bandedRamp c.dred c.dgreen      # winter
-    else if week <= 22 then bandedRamp c.dgreen c.lyellow           # spring
-    else if week <= 35 then bandedRamp c.dblue c.dcyan              # summer
-    else bandedRamp c.dorange c.dyellow;                            # fall
-
-  # Calendar events, checked before the season default -- first match
-  # wins. Weeks are approximate (a holiday's exact date shifts year to
-  # year; ISO week precision is close enough for a wallpaper). Add more
-  # the same way.
-  events = [
-    { weeks = [ 7 ]; colors = bandedRamp c.dpink c.lred; } # Valentine's Day
-    { # Pride Month (June): a full rainbow gradient instead of a banded pair
-      weeks = [ 22 23 24 25 26 ];
-      colors = [ c.red c.orange c.yellow c.green c.blue c.magenta ];
-    }
-    { # Thanksgiving (~4th Thu of Nov): brighter/golder than the Fall default
-      weeks = [ 47 ];
-      colors = bandedRamp c.dorange c.lyellow;
-    }
-  ];
+  # Used when a week isn't covered by any entry in _wallpaper-seasonal.nix.
+  # Same shape the original (pre-rotation) static default used.
+  fallbackColors = [ c.black2 c.dred c.dred c.black2 c.dcyan c.dcyan c.black2 ];
 
   weekColors = week:
-    let event = lib.findFirst (e: builtins.elem week e.weeks) null events;
-    in if event != null then event.colors else seasonColors week;
+    let entry = lib.findFirst (e: builtins.elem week e.weeks) null weeklyPalette;
+    in if entry != null then entry.colors else fallbackColors;
 
   # Pure ISO week, no --impure needed: Sakamoto's algorithm (day of week)
   # plus the standard ISO-8601 ordinal-day week formula, both closed-form
