@@ -30,3 +30,4 @@ test on desktop:
   Confirm epic games work
   Confirm wallpaper works fine
   Confirm the mpd system service doesn't break upon reboot
+  Confirm the wallpaper changes correctly on thursday
