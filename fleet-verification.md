@@ -129,13 +129,15 @@ systemctl list-timers fleet-update.timer      # on vmtest
 ## 6. Follower pull — manual trigger
 
 16. On `alaptop`, since `var.fleet.autoUpdate.enable` is off by default,
-    there's no systemd service to start — just run the command directly
-    (or use the `n p` yazi keybind):
+    there's no systemd service to start — just run the command directly:
     ```
-    fleet-pull-update
+    fleet-pull-update-reboot
     ```
     Since vmtest already built alaptop's config in step 13, this should
-    pull fast (cache hit) and reboot into the right generation.
+    pull fast (cache hit) and reboot into the right generation. (Plain
+    `fleet-pull-update` pulls/builds/caches only and leaves the reboot to
+    you — use that instead if you don't want the machine to reboot right
+    now.)
 
 ## 7. Retention
 
@@ -154,7 +156,7 @@ systemctl list-timers fleet-update.timer      # on vmtest
     unattended for the first time and watching it.
 19. Leave `var.fleet.autoUpdate.enable` off on both hosts for now —
     it has no use until a headless server exists. Keep using
-    `fleet-pull-update` manually on `alaptop`.
+    `fleet-pull-update-reboot` manually on `alaptop`.
 20. Let it run a few weekly cycles before fully trusting it — watch
     Discord for the Thursday heartbeat and per-host cache-warm messages
     each week.

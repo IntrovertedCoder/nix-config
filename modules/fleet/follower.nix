@@ -6,8 +6,8 @@
       type = lib.types.bool;
       default = false;
       description = ''
-        Run fleet-pull-update unattended on a weekly timer, instead of only
-        as a manual command. Off by default -- intended for future headless
+        Run fleet-pull-update-reboot unattended on a weekly timer, instead of
+        only as a manual command. Off by default -- intended for future headless
         service VMs with nobody around to run it by hand. Leave this false
         for interactive desktops (manual pull is the primary path there:
         you still choose when to run it).
@@ -31,10 +31,11 @@
     };
 
     config = let
-      # Shared by the manual reboot/shutdown commands and the opt-in
-      # unattended timer (which always uses the reboot variant -- see
-      # ExecStart below). powerCmd is the only thing that differs between
-      # the two manual variants.
+      # Shared by the manual reboot/shutdown/cache-only commands and the
+      # opt-in unattended timer (which always uses the reboot variant --
+      # see ExecStart below). powerCmd is the only thing that differs
+      # between the three manual variants; null means "build and cache
+      # only, don't reboot or shut down -- leave that decision to me".
       mkFleetPullUpdate = { name, powerCmd }: pkgs.writeShellApplication {
         inherit name;
         # openssh: `git fetch`/merge over the SSH remote shells out to
@@ -52,15 +53,15 @@
         text = ''
           cd /home/shot/nix-config
 
-          # Only when there's a real terminal to prompt in (the manual/yazi/
+          # Only when there's a real terminal to prompt in (the manual/
           # otter-launcher path): authenticate sudo immediately, before the
           # potentially hours-long build, and keep the credential refreshed
           # in the background. `nh os boot` builds unprivileged and only
           # elevates separately (its own internal sudo call) for the final
-          # switch-to-configuration/set-profile step, and the final
-          # `sudo systemctl ${powerCmd}` below needs it too -- both can hit
-          # an unanswerable password prompt after a long build with nobody
-          # there to answer it. The unattended timer
+          # switch-to-configuration/set-profile step, and (for the reboot/
+          # shutdown variants) the final `sudo systemctl` call below needs
+          # it too -- both can hit an unanswerable password prompt after a
+          # long build with nobody there to answer it. The unattended timer
           # (var.fleet.autoUpdate.enable) has no TTY for this to work with
           # at all, and doesn't need it: it relies on the NOPASSWD sudoers
           # rule below instead, gated to hosts that opted in.
@@ -86,40 +87,39 @@
           # opt-in unattended timer (var.fleet.autoUpdate.enable), which
           # like any systemd service never sources the interactive shell
           # profile that normally sets it.
-          if nh os boot -H ${lib.escapeShellArg config.networking.hostName} /home/shot/nix-config; then
-            # sudo here (not bare systemctl): the interactive/active-session
-            # case would work without it via logind's default polkit rule,
-            # but this same script also backs the unattended timer, which
-            # has no active session for polkit to cover -- it needs the
-            # NOPASSWD sudoers rule below instead. The sudo -v keep-alive
-            # above makes this silent for manual runs either way.
-            sudo systemctl ${powerCmd}
-          else
+          if ! nh os boot -H ${lib.escapeShellArg config.networking.hostName} /home/shot/nix-config; then
             echo "${name}: build/boot failed" >&2
             exit 1
           fi
+          ${if powerCmd == null then ''
+          echo "${name}: built and cached -- run 'sudo systemctl reboot' (or 'poweroff') whenever you're ready."
+          '' else ''
+          # sudo here (not bare systemctl): the interactive/active-session
+          # case would work without it via logind's default polkit rule,
+          # but this same script also backs the unattended timer, which
+          # has no active session for polkit to cover -- it needs the
+          # NOPASSWD sudoers rule below instead. The sudo -v keep-alive
+          # above makes this silent for manual runs either way.
+          sudo systemctl ${powerCmd}
+          ''}
         '';
       };
 
-      fleetPullUpdate = mkFleetPullUpdate { name = "fleet-pull-update"; powerCmd = "reboot"; };
+      # Plain fleet-pull-update: pull + build + cache only, no reboot or
+      # shutdown -- leaves the "when" up to whoever runs it by hand. The
+      # reboot/shutdown variants are the explicit opt-in ones.
+      fleetPullUpdate = mkFleetPullUpdate { name = "fleet-pull-update"; powerCmd = null; };
+      fleetPullUpdateReboot = mkFleetPullUpdate { name = "fleet-pull-update-reboot"; powerCmd = "reboot"; };
       fleetPullUpdateShutdown = mkFleetPullUpdate { name = "fleet-pull-update-shutdown"; powerCmd = "poweroff"; };
     in {
-      environment.systemPackages = [ fleetPullUpdate fleetPullUpdateShutdown ];
+      environment.systemPackages = [ fleetPullUpdate fleetPullUpdateReboot fleetPullUpdateShutdown ];
 
       home-manager.users.shot = {
-        programs.yazi.settings.keymap.mgr.prepend_keymap = [
-          {
-            on = [ "n" "p" ];
-            run = "shell 'fleet-pull-update' --block";
-            desc = "Pull + apply the latest fleet update and reboot";
-          }
-        ];
-
         # Appended to launcher.nix's config text rather than editing that
         # file directly -- same reasoning as not touching yazi.nix above:
         # launcher.nix is imported unconditionally by every workstation
         # host, including ones that never import fleetFollower, so these
-        # two commands belong here instead. Unwrapped `cmd` (no `uwsm app`/
+        # commands belong here instead. Unwrapped `cmd` (no `uwsm app`/
         # new-foot-window wrapping), same as the existing "nmtui"/
         # "systemctl-tui" modules in launcher.nix -- it runs directly in
         # otter-launcher's own terminal, so all of git/nh/nixos-rebuild's
@@ -127,9 +127,14 @@
         xdg.configFile."otter-launcher/config.toml".text = lib.mkAfter ''
 
           [[modules]]
+          description = "fleet pull update (cache only, no reboot)"
+          prefix = "fpc"
+          cmd = "fleet-pull-update"
+
+          [[modules]]
           description = "fleet pull update (reboot)"
           prefix = "fpr"
-          cmd = "fleet-pull-update"
+          cmd = "fleet-pull-update-reboot"
 
           [[modules]]
           description = "fleet pull update (shutdown)"
@@ -179,9 +184,9 @@
             "PATH=/run/wrappers/bin:/run/current-system/sw/bin"
           ];
           # Always the reboot variant -- an unattended update should come
-          # back up on its own; the shutdown variant is a manual-only
-          # convenience for "update, then leave it off".
-          ExecStart = "${fleetPullUpdate}/bin/fleet-pull-update";
+          # back up on its own; the plain cache-only and shutdown variants
+          # are manual-only conveniences.
+          ExecStart = "${fleetPullUpdateReboot}/bin/fleet-pull-update-reboot";
         };
       };
     };
