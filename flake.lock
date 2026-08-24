@@ -265,11 +265,11 @@
         "scenefx": "scenefx"
       },
       "locked": {
-        "lastModified": 1787407518,
-        "narHash": "sha256-BdKbZsmgyPn8u2cpbNfGVfFBbicUMxC7yKKjAyrSaVM=",
+        "lastModified": 1787475228,
+        "narHash": "sha256-kLF2PMUS6XnUZm/Fv39l5pNG+cwmiV4ET9mLlnqDDEY=",
         "owner": "mangowm",
         "repo": "mango",
-        "rev": "024eb016aa3edb115cd76e7201347907cd3a756f",
+        "rev": "ab3102f6428ac723ddc54ba311563e5a7d33629b",
         "type": "github"
       },
       "original": {
@@ -285,11 +285,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1786852476,
-        "narHash": "sha256-IM5CYtf86W4w8eUPpKcY/LpdHElmVBtJhaKnoTKxZEA=",
+        "lastModified": 1787457452,
+        "narHash": "sha256-FJh4esFS3zqNNuKwvN3t6wrJGewqp1AUF9DAEvoKPD8=",
         "owner": "nix-community",
         "repo": "nix-index-database",
-        "rev": "c7962dc97b45129df8d751bedaf37beb5a17706e",
+        "rev": "c51d5c2ba69c907a34e90c9b6b80cd2b93811745",
         "type": "github"
       },
       "original": {
@@ -361,11 +361,11 @@
     },
     "nixpkgs_2": {
       "locked": {
-        "lastModified": 1787204541,
-        "narHash": "sha256-OURZPknrTjQrlNyxPdqzyqmU/81Wes1CUP/Ft1Rv/YI=",
+        "lastModified": 1787414105,
+        "narHash": "sha256-WncT27+3BOkgTaJZLnCsf3LcYf9RXMuR9ONSN4rzQ7s=",
         "owner": "nixos",
         "repo": "nixpkgs",
-        "rev": "5880666fd9eb563038431edb35c2d0aa595884e6",
+        "rev": "a9e6d84f9c2f9012f5fe7d964a7851352300e61a",
         "type": "github"
       },
       "original": {
@@ -397,11 +397,11 @@
         "nixpkgs": "nixpkgs_3"
       },
       "locked": {
-        "lastModified": 1787442747,
-        "narHash": "sha256-2tFNnAhDkSSHNTIgEM26EEJn07mybQITepNoyd390e0=",
+        "lastModified": 1787522848,
+        "narHash": "sha256-Etr6UNS9iyF9jkkHwcnSXBwU18a0VYC+eNO6N0anJZ8=",
         "owner": "nix-community",
         "repo": "NUR",
-        "rev": "594b3d83ab4411419d6aadf9a0e9dc64f9d8ce6f",
+        "rev": "377f0d2c80714f333ea0c643827d40ca451ebee9",
         "type": "github"
       },
       "original": {
@@ -420,11 +420,11 @@
         "systems": "systems_3"
       },
       "locked": {
-        "lastModified": 1783875707,
-        "narHash": "sha256-Ryg3PqFcGydelQpgPF0j8GMaXaGDrNTSesEy6fDw/eg=",
+        "lastModified": 1787483422,
+        "narHash": "sha256-/1dN67dKM0CGRgtq0n1k/SDDB4Agaf10eFSohzY8teE=",
         "owner": "kuokuo123",
         "repo": "otter-launcher",
-        "rev": "242e5da4f0acc0b4301be7b4546f5afb3e4b23d6",
+        "rev": "4a7e85fcea777012cf14acb1f4a57fd221f0378c",
         "type": "github"
       },
       "original": {
