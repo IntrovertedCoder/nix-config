@@ -9,31 +9,59 @@ let
   # stops, left to right -- any number of colors, in any order; repeat one
   # to give it a wider band.
   weeklyPalette = [
-    { weeks = [ 7 ]; colors = [ c.black2 c.dpink c.dpink c.black2 c.lred c.lred c.black2 ]; } # Valentine's Day
-    { # Pride Month (June): a full rainbow gradient
-      weeks = lib.range 22 26;
-      colors = [ c.red c.orange c.yellow c.green c.blue c.magenta ];
-    }
-    { # Thanksgiving (~4th Thu of Nov): brighter/golder than the general Fall entry below
-      weeks = [ 47 ];
-      colors = [ c.black2 c.dorange c.dorange c.black2 c.lyellow c.lyellow c.black2 ];
-    }
-    { # Winter: wraps the year boundary (weeks 50-53 and 1-9)
-      weeks = lib.range 50 53 ++ lib.range 1 9;
-      colors = [ c.black2 c.dred c.dred c.black2 c.dgreen c.dgreen c.black2 ];
-    }
-    { # Spring
-      weeks = lib.range 10 22;
-      colors = [ c.black2 c.dgreen c.dgreen c.black2 c.lyellow c.lyellow c.black2 ];
-    }
-    { # Summer
-      weeks = lib.range 23 35;
-      colors = [ c.black2 c.dblue c.dblue c.black2 c.dcyan c.dcyan c.black2 ];
-    }
-    { # Fall
-      weeks = lib.range 36 49;
-      colors = [ c.black2 c.dorange c.dorange c.black2 c.dyellow c.dyellow c.black2 ];
-    }
+    { weeks = [  1 ]; colors = [ c.dmagenta c.dyellow c.yellow ]; } # New Years
+    { weeks = [  2 ]; colors = [ c.dblue c.lblue c.dpink ]; } # Mid Winter Frost
+    { weeks = [  3 ]; colors = [ c.black1 c.dblue c.dmagenta ]; } # Deep Space
+    { weeks = [  4 ]; colors = [ c.dblue c.dred c.dyellow ]; } # Lunar Eve
+    { weeks = [  5 ]; colors = [ c.dgreen c.dred c.dyellow ]; } # Lunar New Year
+    { weeks = [  6 ]; colors = [ c.dmagenta c.dpink c.pink ]; } # Pre-Valentine
+    { weeks = [  7 ]; colors = [ c.dred c.dpink c.pink c.lpink ]; } # Valentines
+    { weeks = [  8 ]; colors = [ c.dmagenta c.dyellow c.dgreen ]; } # MardiGras
+    { weeks = [  9 ]; colors = [ c.grey1 c.dgrey c.dblue c.dmagenta ]; } # Late Winter Dusk
+    { weeks = [ 10 ]; colors = [ c.dgrey c.cyan c.green ]; } # Early Thaw
+    { weeks = [ 11 ]; colors = [ c.dgreen c.dgrey c.orange ]; } # St. Patrick's
+    { weeks = [ 12 ]; colors = [ c.dgreen c.lcyan c.dblue ]; } # Vernal Equinox
+    { weeks = [ 13 ]; colors = [ c.dmagenta c.orange c.cyan ]; } # April Fools
+    { weeks = [ 14 ]; colors = [ c.dgrey c.grey2 c.dcyan ]; } # Rain and Mist
+    { weeks = [ 15 ]; colors = [ c.dpink c.lpink c.lcyan c.lmagenta ]; } # Spring Pastel
+    { weeks = [ 16 ]; colors = [ c.dblue c.dgreen c.green ]; } # Earth Day
+    { weeks = [ 17 ]; colors = [ c.dorange c.dgreen c.green ]; } # Arbor Day
+    { weeks = [ 18 ]; colors = [ c.dblue c.dred c.green ]; } # May the 4th
+    { weeks = [ 19 ]; colors = [ c.dgreen c.grey2 c.dred ]; } # Cinco de Mayo
+    { weeks = [ 20 ]; colors = [ c.dcyan c.blue c.dmagenta ]; } # Synth
+    { weeks = [ 21 ]; colors = [ c.dred c.white c.dblue ]; } # Memorial Day
+    { weeks = [ 22 ]; colors = [ c.dblue c.dorange c.yellow ]; } # Pre Summer Sun
+    { weeks = [ 23 ]; colors = [ c.dred c.orange c.yellow c.dmagenta ]; } # Pride Month Warm
+    { weeks = [ 24 ]; colors = [ c.green c.dcyan c.blue c.dmagenta ]; } # Pride Month Cool
+    { weeks = [ 25 ]; colors = [ c.dyellow c.orange c.dmagenta ]; } # Summer Solstice
+    { weeks = [ 26 ]; colors = [ c.dred c.orange c.yellow c.green c.dblue c.dmagenta ]; } # Pride Month Rainbow
+    { weeks = [ 27 ]; colors = [ c.dblue c.dgrey c.dred ]; } # Forth of July
+    { weeks = [ 28 ]; colors = [ c.dred c.red c.dblue c.blue ]; } # Independence Day
+    { weeks = [ 29 ]; colors = [ c.dblue c.dcyan c.cyan ]; } # Mid Summer Coast
+    { weeks = [ 30 ]; colors = [ c.dmagenta c.dpink c.orange ]; } # Neon Sunset
+    { weeks = [ 31 ]; colors = [ c.black1 c.dblue c.lblue ]; } # Persid Meteor Shower
+    { weeks = [ 32 ]; colors = [ c.dorange c.dgreen c.dblue ]; } # Late Summer Dusk
+    { weeks = [ 33 ]; colors = [ c.dcyan c.cyan c.dmagenta ]; } # Tropical Dusk
+    { weeks = [ 34 ]; colors = [ c.dorange c.dyellow c.dgreen ]; } # Earthy Fade
+    { weeks = [ 35 ]; colors = [ c.dorange c.lorange c.dblue ]; } # Labor Day
+    { weeks = [ 36 ]; colors = [ c.grey1 c.dorange c.dmagenta ]; } # Early Autumn
+    { weeks = [ 37 ]; colors = [ c.dblue c.dmagenta c.orange ]; } # Harvest Moon
+    { weeks = [ 38 ]; colors = [ c.grey1 c.dgrey c.dred c.dyellow ]; } # Priate Day
+    { weeks = [ 39 ]; colors = [ c.dblue c.dorange c.dyellow ]; } # Oktoberfest
+    { weeks = [ 40 ]; colors = [ c.dmagenta c.dpink c.magenta ]; } # Spooky Season Twilight
+    { weeks = [ 41 ]; colors = [ c.dmagenta c.dpink c.orange ]; } # Spooky Season Warm
+    { weeks = [ 42 ]; colors = [ c.dgreen c.dmagenta c.magenta ]; } # Spooky Season Witching Hour
+    { weeks = [ 43 ]; colors = [ c.black1 c.dmagenta c.orange c.lorange ]; } # Halloween
+    { weeks = [ 44 ]; colors = [ c.dmagenta c.orange c.lorange ]; } # Halloween
+    { weeks = [ 45 ]; colors = [ c.dblue c.dgreen c.cyan c.dmagenta ]; } # Northern Lights
+    { weeks = [ 46 ]; colors = [ c.grey1 c.grey2 c.dblue ]; } # Late Fall Frost
+    { weeks = [ 47 ]; colors = [ c.dred c.dorange c.dgreen ]; } # Thanksgiving
+    { weeks = [ 48 ]; colors = [ c.dgrey c.dred c.dyellow ]; } # Dark Ember
+    { weeks = [ 49 ]; colors = [ c.grey2 c.dblue c.cyan ]; } # Winter Onset
+    { weeks = [ 50 ]; colors = [ c.black1 c.dgrey c.dcyan c.dblue ]; } # Deep December Solstice
+    { weeks = [ 51 ]; colors = [ c.dblue c.dcyan c.cyan ]; } # Winter Solstice
+    { weeks = [ 52 ]; colors = [ c.dred c.red c.dgreen c.green ]; } # Christmas
+    { weeks = [ 53 ]; colors = [ c.dblue c.dmagenta c.dyellow ]; } # Midnight Count Down
   ];
 
   # Used when a week isn't covered by any entry above (currently none: the
