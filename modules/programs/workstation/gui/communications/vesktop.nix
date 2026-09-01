@@ -108,9 +108,6 @@ in {
         "AlwaysTrust": {
             "enabled": false
         },
-        "AnonymiseFileNames": {
-            "enabled": true
-        },
         "AppleMusicRichPresence": {
             "enabled": false
         },
