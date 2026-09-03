@@ -174,6 +174,7 @@
                     "network.file.disable_unc_paths" =                             true;
                     "permissions.manager.defaultsUrl" =                            "\"\"";
                     "network.IDN_show_punycode" =                                  true;
+                    "network.dns.disablePrefetchFromHTTPS" =                       true;
                   # Search Bar
                     "browser.search.suggest.enabled" =                             false;
                     "browser.urlbar.suggest.searches" =                            false;
@@ -190,6 +191,16 @@
                     "browser.urlbar.quicksuggest.enabled" =                        false;
                     "browser.urlbar.suggest.quicksuggest.nonsponsored" =           false;
                     "browser.urlbar.suggest.quicksuggest.sponsored" =              false;
+                    "browser.urlbar.addons.featureGate" =                          false;
+                    "browser.urlbar.amp.featureGate" =                             false;
+                    "browser.urlbar.importantDates.featureGate" =                  false;
+                    "browser.urlbar.market.featureGate" =                          false;
+                    "browser.urlbar.mdn.featureGate" =                             false;
+                    "browser.urlbar.trending.featureGate" =                        false;
+                    "browser.urlbar.weather.featureGate" =                         false;
+                    "browser.urlbar.wikipedia.featureGate" =                       false;
+                    "browser.urlbar.yelp.featureGate" =                            false;
+                    "browser.urlbar.yelpRealtime.featureGate" =                    false;
                   # Passwords
                     "signon.rememberSignons" =                                     false;
                     "signon.autofillForms" =                                       false;
@@ -209,9 +220,12 @@
                     "security.cert_pinning.enforcement_level" =                    2;
                     "security.remote_settings.crlite_filters.enabled" =            true;
                     "security.pki.crlite_mode" =                                   2;
+                    "security.tls.version.min" =                                   3;
                   # Headers / Referers
                     "network.http.referer.XOriginPolicy" =                         2;
                     "network.http.referer.XOriginTrimmingPolicy" =                 2;
+                    "network.http.referer.disallowCrossSiteRelaxingDefault" =      true;
+                    "network.http.referer.disallowCrossSiteRelaxingDefault.top_navigation" = true;
                   # Audio/Video WebRTC, WebGL, DRM
                     # Might need to modify these for netflix to work
                     "media.peerconnection.enabled" =                               false;
@@ -230,6 +244,8 @@
                     "privacy.partition.serviceWorkers" =                           true;
                     "privacy.partition.always_partition_third_party_non_cookie_storage" = true;
                     "privacy.partition.always_partition_third_party_non_cookie_storage.exempt_sessionstorage" = true;
+                    "privacy.query_stripping.enabled" =                            true;
+                    "privacy.bounceTrackingProtection.mode" =                      1;
                   # UI Features
                     "dom.disable_open_during_load" =                               true;
                     "dom.popup_allowed_events" =                                   "click dblclick mousedown pointerdown";
@@ -246,8 +262,9 @@
                     # I'm not going to touch these since I plan on using this profile as my main
                   # Fingerprinting (RFP)
                     "privacy.resistFingerprinting" =                               true;
-                    # "privacy.window.maxInnerWidth" =                               1600;
-                    # "privacy.window.maxInnerHeight" =                              900;
+                    "privacy.window.maxInnerWidth" =                               1600;
+                    "privacy.window.maxInnerHeight" =                              900;
+                    # "privacy.resistFingerprinting.letterboxing" =                  true;
                     "privacy.resistFingerprinting.block_mozAddonManager" =         true;
                     "browser.display.use_system_colors" =                          false;
                   # Hardware Video Acceleration
@@ -256,7 +273,7 @@
 
 
                     # Replaces Do Not Track with GPC
-                    "privacy.globalprivacycontrol.enable" =                        true;
+                    "privacy.globalprivacycontrol.enabled" =                       true;
               }; # }}}
               search = {
                 force = true;
