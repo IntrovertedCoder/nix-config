@@ -22,6 +22,7 @@ in {
       self.nixosModules.creative
       self.nixosModules.fleetFollower
       self.nixosModules.wallpaperSeasonal
+      self.nixosModules.cups
       { nixpkgs.hostPlatform = "x86_64-linux"; }
     ];
   };
@@ -93,7 +94,8 @@ in {
         # Open a basic landing page or public service to all of interface
         # generalAllowedTCPPorts = [ 80 443 ]; 
         # Allow 68 for DHCP
-        generalAllowedUDPPorts = [ 68 ];
+        # Allow 631/5353 for CUPS
+        generalAllowedUDPPorts = [ 68 631 5353 ];
       };
     };
 
