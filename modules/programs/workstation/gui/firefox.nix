@@ -41,6 +41,15 @@
 
             DontCheckDefaultBrowser = true;
 
+            # Use the system/OS resolver (resolved -- respects Mullvad
+            # taking over DNS when connected, and Tailscale MagicDNS for
+            # the tailnet) instead of Firefox's own built-in DoH. Locked so
+            # it can't be flipped back on from about:preferences.
+            DNSOverHTTPS = {
+              Enabled = false;
+              Locked = true;
+            };
+
           };
           profiles = { # {{{
             email1 = { # {{{
@@ -175,6 +184,11 @@
                     "permissions.manager.defaultsUrl" =                            "\"\"";
                     "network.IDN_show_punycode" =                                  true;
                     "network.dns.disablePrefetchFromHTTPS" =                       true;
+                    # 5, not 0: arkenfox's "explicitly off" -- 0 is Firefox's
+                    # own off-state but isn't sticky against Mozilla's
+                    # server-side DoH rollout controls. Backs up the
+                    # DNSOverHTTPS policy above.
+                    "network.trr.mode" =                                           5;
                   # Search Bar
                     "browser.search.suggest.enabled" =                             false;
                     "browser.urlbar.suggest.searches" =                            false;

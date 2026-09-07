@@ -13,6 +13,7 @@ in {
       self.nixosModules.workstation
       self.nixosModules.hypridlesuspend
       self.nixosModules.mullvad
+      self.nixosModules.networkManager
 
 
       self.nixosModules.communications
@@ -50,7 +51,6 @@ in {
 
 
     networking.hostName = "alaptop";
-    networking.networkmanager.enable = true;
 
     # Built-in laptop panel. Check the actual output name with `wlr-randr`
     # once booted (eDP-1 is the common default) and adjust if it differs.
