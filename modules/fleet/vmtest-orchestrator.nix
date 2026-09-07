@@ -53,7 +53,7 @@
     systemd.timers.fleet-update = {
       wantedBy = [ "timers.target" ];
       timerConfig = {
-        OnCalendar = "Thu *-*-* 03:00:00";
+        OnCalendar = "Mon *-*-* 03:00:00";
         Persistent = true; # catch up if vmtest was off at 03:00
       };
     };

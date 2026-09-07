@@ -165,7 +165,7 @@
       systemd.timers.fleet-pull-update = lib.mkIf config.var.fleet.autoUpdate.enable {
         wantedBy = [ "timers.target" ];
         timerConfig = {
-          OnCalendar = "Fri *-*-* 02:00:00";
+          OnCalendar = "Tue *-*-* 02:00:00";
           Persistent = true;
         };
       };
