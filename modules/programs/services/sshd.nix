@@ -2,15 +2,21 @@
   flake.nixosModules.sshd = { pkgs, lib, config, ...}: {
     preservation.preserveAt."/persistent" = {
       files = [
-        { file = "/etc/ssh/ssh_host_ed25519_key"; mode = "0600"; }
-        { file = "/etc/ssh/ssh_host_ed25519_key.pub"; mode = "0644"; }
-        { file = "/etc/ssh/ssh_host_rsa_key"; mode = "0600"; }
-        { file = "/etc/ssh/ssh_host_rsa_key.pub"; mode = "0644"; }
+        { file = "/etc/ssh/ssh_host_ed25519_key"; mode = "0600"; how = "symlink"; }
+        { file = "/etc/ssh/ssh_host_ed25519_key.pub"; mode = "0644"; how = "symlink";  }
+        { file = "/etc/ssh/ssh_host_rsa_key"; mode = "0600"; how = "symlink";  }
+        { file = "/etc/ssh/ssh_host_rsa_key.pub"; mode = "0644"; how = "symlink";  }
       ];
     };
+
+    systemd.tmpfiles.rules = [
+      "d /persistent/etc/ssh -"
+    ];
+
     users.users.shot.openssh.authorizedKeys.keys = [
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINdnAXOp0q2Ehf9KwXo2KXOD/UDnam7uyezYnUm1WdnA arik"
     ];
+
     services.openssh = {
       enable = true;
       ports = [ 20530 ];
