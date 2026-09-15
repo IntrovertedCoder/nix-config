@@ -27,7 +27,15 @@ in {
         '';
         settings = {
           monitorrule = map (m:
-            "name:^${m.name}$,width:${toString m.width},height:${toString m.height},refresh:${toString m.refresh},x:${toString m.x},y:${toString m.y},scale:${toString m.scale}"
+            let
+              # var.monitors' width/height are the as-displayed (post-rotation)
+              # size, but monitorrule's width/height match against the panel's
+              # native mode -- swap them back for 90/270 (with or without flip).
+              rotated = builtins.elem m.transform [ 1 3 5 7 ];
+              modeWidth = if rotated then m.height else m.width;
+              modeHeight = if rotated then m.width else m.height;
+            in
+            "name:^${m.name}$,width:${toString modeWidth},height:${toString modeHeight},refresh:${toString m.refresh},x:${toString m.x},y:${toString m.y},scale:${toString m.scale},rr:${toString m.transform}"
           ) config.var.monitors;
 
           circle_layout = "scroller,vertical_scroller,center_tile";

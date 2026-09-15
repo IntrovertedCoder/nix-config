@@ -41,6 +41,21 @@
             default = 1.0;
             description = "Output scale factor, passed straight to mango's monitorrule.";
           };
+          transform = lib.mkOption {
+            type = lib.types.ints.between 0 7;
+            default = 0;
+            description = ''
+              Output rotation/flip, using the same encoding as mango's monitorrule
+              `rr` key (`wl_output_transform`): 0 none, 1 90° counter-clockwise,
+              2 180°, 3 270° counter-clockwise, 4 flipped, 5-7 flipped
+              90/180/270° counter-clockwise. Matches `wlr-randr`'s "Transform"
+              field directly, e.g. `wlr-randr`'s "Transform: 90" is `transform = 1`.
+              `width`/`height` above stay the as-displayed (post-rotation) size;
+              mango.nix swaps them back to the panel's native mode when this is
+              90/270 (with or without flip), since that's what monitorrule
+              matches against.
+            '';
+          };
           primary = lib.mkOption {
             type = lib.types.bool;
             default = false;
