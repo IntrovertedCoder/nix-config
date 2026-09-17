@@ -23,6 +23,7 @@
             jdk21 # For Minecraft 1.20.5+ (Latest mods)
             jdk8  # For Minecraft 1.16.5 and older (1.12.2 and 1.7.10 packs)
             jdk17 # Optional: For Minecraft 1.17 -> 1.20.4 transitional packs
+            jdk25 # 1.26.2
           ];
         })
       ];
