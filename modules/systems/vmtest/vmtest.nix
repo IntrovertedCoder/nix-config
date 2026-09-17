@@ -25,7 +25,7 @@
 
     # Hosts vmtest builds and caches for every Thursday. Never includes
     # "vmtest" itself -- see modules/fleet/fleet.nix.
-    var.fleet.hosts = [ "alaptop" ];
+    var.fleet.hosts = [ "alaptop" "antimony" ];
 
     # Example two-monitor layout for the not-yet-built desktop: a 1440p
     # ultrawide with a 1080p monitor rotated vertical to its right, bottom
