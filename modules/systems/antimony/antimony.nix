@@ -21,6 +21,7 @@ in {
       self.nixosModules.games
       self.nixosModules.recording
       self.nixosModules.creative
+      self.nixosModules.goxlr
       self.nixosModules.fleetFollower
       self.nixosModules.wallpaperSeasonal
       { nixpkgs.hostPlatform = "x86_64-linux"; }
