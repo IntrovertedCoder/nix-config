@@ -6,6 +6,8 @@
       # and are stable across reboots as long as that profile doesn't change.
       musicSink = "alsa_output.usb-TC-Helicon_GoXLRMini-00.HiFi__Line2__sink";
       chatSink = "alsa_output.usb-TC-Helicon_GoXLRMini-00.HiFi__Headphones__sink";
+      systemSink = "alsa_output.usb-TC-Helicon_GoXLRMini-00.HiFi__Speaker__sink";
+      chatMicSource = "alsa_input.usb-TC-Helicon_GoXLRMini-00.HiFi__Headset__source";
 
       # Apps routed straight to the GoXLR Music/Chat channels instead of System.
       # `apps` match the PipeWire "application.name" property of the app's
@@ -22,7 +24,7 @@
         { apps = ${luaList r.apps}, sink = "${r.sink}" },
       '') routes;
 
-      goxlrRoutingLua = ''
+      goxlrRoutingLua = /*lua*/ ''
         -- Routes specific apps to fixed GoXLR channel sinks instead of the
         -- default System channel. Generated from `routes` in goxlr.nix.
 
@@ -104,7 +106,42 @@
       # xdg.configFile fails with "Could not locate script".
       xdg.dataFile."wireplumber/scripts/goxlr-routing.lua".text = goxlrRoutingLua;
 
-      xdg.configFile."wireplumber/wireplumber.conf.d/51-goxlr-routing.conf".text = ''
+      # The GoXLR's ALSA HiFi profile gives every one of its playback nodes
+      # (System/Chat/Game/Music/Sample) the same priority.driver/session
+      # (1100), and every capture node (Chat Mic/Stream Mix 1/Sampler) the
+      # same priority (2100) - confirmed live via `pw-dump`. WirePlumber
+      # then breaks that tie on session order rather than anything stable,
+      # so which GoXLR node ends up as the system default sink/source isn't
+      # guaranteed across reboots. Bump System and Chat Mic above their
+      # siblings so they're always picked.
+      xdg.configFile."wireplumber/wireplumber.conf.d/50-goxlr-default-nodes.conf".text = /*json5*/ ''
+        monitor.alsa.rules = [
+          {
+            matches = [
+              { node.name = "${systemSink}" }
+            ]
+            actions = {
+              update-props = {
+                priority.driver = 1150
+                priority.session = 1150
+              }
+            }
+          }
+          {
+            matches = [
+              { node.name = "${chatMicSource}" }
+            ]
+            actions = {
+              update-props = {
+                priority.driver = 2150
+                priority.session = 2150
+              }
+            }
+          }
+        ]
+      '';
+
+      xdg.configFile."wireplumber/wireplumber.conf.d/51-goxlr-routing.conf".text = /*json5*/ ''
         wireplumber.components = [
           {
             name = goxlr-routing.lua
