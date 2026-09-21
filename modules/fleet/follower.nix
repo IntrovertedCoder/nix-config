@@ -50,7 +50,7 @@
         # or is already on PATH in any normal interactive session (manual
         # path).
         runtimeInputs = [ pkgs.git pkgs.nh pkgs.systemd pkgs.openssh ];
-        text = ''
+        text = /* bash */ ''
           cd /home/shot/nix-config
 
           # Only when there's a real terminal to prompt in (the manual/
@@ -124,7 +124,7 @@
         # "systemctl-tui" modules in launcher.nix -- it runs directly in
         # otter-launcher's own terminal, so all of git/nh/nixos-rebuild's
         # output stays visible instead of vanishing into a background unit.
-        xdg.configFile."otter-launcher/config.toml".text = lib.mkAfter ''
+        xdg.configFile."otter-launcher/config.toml".text = lib.mkAfter /* toml */ ''
 
           [[modules]]
           description = "fleet pull update (cache only, no reboot)"

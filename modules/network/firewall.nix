@@ -132,7 +132,7 @@
               iptables  -A untrusted-ifaces -i ${iface} -j DROP
               ip6tables -A untrusted-ifaces -i ${iface} -j DROP
             '';
-        in ''
+        in /* bash */ ''
           # Create (or flush) the untrusted-ifaces chain
           iptables  -N untrusted-ifaces 2>/dev/null || iptables  -F untrusted-ifaces
           ip6tables -N untrusted-ifaces 2>/dev/null || ip6tables -F untrusted-ifaces
@@ -148,7 +148,7 @@
           ${lib.concatStringsSep "\n" (lib.mapAttrsToList ifaceRules cfg.untrustedInterfaces)}
         '';
 
-      networking.firewall.extraStopCommands = ''
+      networking.firewall.extraStopCommands = /* bash */ ''
         iptables  -D nixos-fw -j untrusted-ifaces 2>/dev/null || true
         ip6tables -D nixos-fw -j untrusted-ifaces 2>/dev/null || true
         iptables  -F untrusted-ifaces 2>/dev/null || true

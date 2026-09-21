@@ -70,7 +70,7 @@ in {
 
       programs.rmpc = {
         enable = true;
-        config = ''
+        config = /* ron */ ''
           #![enable(implicit_some)]
           (
               address: "/run/user/1000/mpd-main.sock",
@@ -79,7 +79,7 @@ in {
         '';
       };
 
-      xdg.configFile."rmpc/themes/guildmaster.ron".text = ''
+      xdg.configFile."rmpc/themes/guildmaster.ron".text = /* ron */ ''
         #![enable(implicit_some)]
         #![enable(unwrap_newtypes)]
         #![enable(unwrap_variant_newtypes)]

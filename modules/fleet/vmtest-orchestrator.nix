@@ -82,7 +82,7 @@
           # omits -- systemd services get essentially none of the normal
           # interactive PATH, so this has to be explicit.
           runtimeInputs = [ pkgs.git pkgs.nh pkgs.nix pkgs.systemd pkgs.openssh ];
-          text = ''
+          text = /* bash */ ''
             # Never let a missing/unconfigured secret take the whole run down --
             # see modules/network/discord-notify.nix, this is a no-op until then.
             notify() { command -v notify-discord >/dev/null 2>&1 && notify-discord "$1" || true; }
@@ -161,7 +161,7 @@
         ExecStart = lib.getExe (pkgs.writeShellApplication {
           name = "fleet-boot-confirm";
           runtimeInputs = [ pkgs.curl pkgs.coreutils pkgs.gnugrep ];
-          text = ''
+          text = /* bash */ ''
             notify() { command -v notify-discord >/dev/null 2>&1 && notify-discord "$1" || true; }
             ${lib.optionalString haveHealthchecksSecret ''
               curl -sf "$(cat ${config.age.secrets.healthchecks-ping-url.path})" >/dev/null || true

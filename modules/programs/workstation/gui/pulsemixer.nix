@@ -16,7 +16,7 @@
         cmd = "pulsemixer"
       '';
 
-      xdg.configFile."pulsemixer.cfg".text = ''
+      xdg.configFile."pulsemixer.cfg".text = /* ini */ ''
       ;; Goes into ~/.config/pulsemixer.cfg, $XDG_CONFIG_HOME respected
 ;; Everything that starts with "#" or ";" is a comment
 ;; For the option to take effect simply uncomment it

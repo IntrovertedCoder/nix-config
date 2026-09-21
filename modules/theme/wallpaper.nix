@@ -144,7 +144,7 @@ in {
     packages.render-wallpaper = pkgs.writeShellApplication {
       name = "render-wallpaper";
       runtimeInputs = [ pkgs.blender ];
-      text = ''
+      text = /* bash */ ''
         usage() {
           cat <<'USAGE'
         Usage: render-wallpaper [--width W --height H] [--colors c1,c2,...]

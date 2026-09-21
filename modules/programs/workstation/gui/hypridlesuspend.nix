@@ -18,7 +18,7 @@
       enable = true;
       handlers.lidSuspend = {
         event = "button/lid.*";
-        action = ''
+        action = /* bash */ ''
           if ${pkgs.gnugrep}/bin/grep -q closed /proc/acpi/button/lid/*/state 2>/dev/null; then
             ${pkgs.util-linux}/bin/logger "ACPI: Lid close detected"
 

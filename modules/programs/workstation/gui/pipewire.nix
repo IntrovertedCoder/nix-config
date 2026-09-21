@@ -52,10 +52,10 @@ in {
     };
 
     home-manager.users.shot = {
-      xdg.configFile."xdg-desktop-portal-termfilechooser/config".text = ''
+      xdg.configFile."xdg-desktop-portal-termfilechooser/config".text = /* ini */ ''
         [filechooser]
         # Generate the wrapper script directly in the Nix store
-        cmd=${pkgs.writeShellScript "yazi-wrapper" ''
+        cmd=${pkgs.writeShellScript "yazi-wrapper" /* bash */ ''
           #!/usr/bin/env bash
           # The portal passes these 5 arguments:
           multiple="$1"

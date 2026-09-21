@@ -14,7 +14,7 @@
         pkgs.appimageTools.wrapType2 {
           inherit pname version src;
 
-          extraInstallCommands = ''
+          extraInstallCommands = /* bash */ ''
             # 1. Install the icon (from your original config)
             install -m 444 -D ${appimageContents}/${pname}.png $out/share/icons/hicolor/512x512/apps/${pname}.png
 

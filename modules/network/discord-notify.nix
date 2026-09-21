@@ -16,7 +16,7 @@
         (pkgs.writeShellApplication {
           name = "notify-discord";
           runtimeInputs = [ pkgs.curl pkgs.jq ];
-          text = ''
+          text = /* bash */ ''
             webhook="$(cat ${lib.escapeShellArg config.var.notify.discord.webhookPath})"
             message="''${1:?usage: notify-discord <message>}"
             payload="$(jq -n --arg c "$message" '{content: $c}')"

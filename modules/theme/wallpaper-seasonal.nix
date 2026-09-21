@@ -154,7 +154,7 @@ in {
       updateWallpaperScript = pkgs.writeShellApplication {
         name = "update-wallpaper";
         runtimeInputs = [ pkgs.nh ];
-        text = ''
+        text = /* bash */ ''
           usage() {
             echo "Usage: update-wallpaper [WEEK]" >&2
             echo "  WEEK: ISO week (1-53) to force; defaults to the current week." >&2

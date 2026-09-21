@@ -67,7 +67,7 @@
               id = 0;
               isDefault = true;
               name = "email1";
-              userChrome = ''
+              userChrome = /* css */ ''
                 /*
                 Hides the native TabsToolbar when Sidebery is active.
                 Requires Sidebery setting: "Add preface to the browser window's title if Sidebery sidebar is active"
