@@ -96,6 +96,7 @@ in {
 
           hotarea_size = 2;
           enable_hotarea = 1;
+          focus_cross_monitor = 1;
 
           bind = [
             # Launch Apps
