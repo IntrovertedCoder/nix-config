@@ -23,13 +23,13 @@ in {
       wayland.windowManager.mango = {
         enable = true;
         extraConfig = ''
-          windowrule=appid:launcher,isfloating:1
+          window_rule=app_id:launcher,is_floating:1
         '';
         settings = {
-          monitorrule = map (m:
+          monitor_rule = map (m:
             let
               # var.monitors' width/height are the as-displayed (post-rotation)
-              # size, but monitorrule's width/height match against the panel's
+              # size, but monitor_rule's width/height match against the panel's
               # native mode -- swap them back for 90/270 (with or without flip).
               rotated = builtins.elem m.transform [ 1 3 5 7 ];
               modeWidth = if rotated then m.height else m.width;
@@ -41,23 +41,23 @@ in {
           circle_layout = "scroller,vertical_scroller,center_tile";
 
           # Gaps/border
-          borderpx = 4;
-          gappih = 8;
-          gappiv = 8;
-          gappoh = 8;
-          gappov = 8;
+          border_px = 4;
+          gap_inner_horizontal = 8;
+          gap_inner_vertical = 8;
+          gap_outer_horizontal = 8;
+          gap_outer_vertical = 8;
 
           # Theme
-          rootcolor = "0x${c.black2}ff";
-          bordercolor = "0x${c.grey1}ff";
-          splitcolor = "0x${c.orange}FF";
-          focuscolor = "0x${c.green}ff";
-          urgentcolor = "0x${c.magenta}ff";
-          dropcolor = "0x${c.cyan}bf";
-          maximizescreencolor = "0x${c.orange}ff";
-          scratchpadcolor = "0x${c.lorange}ff";
-          globalcolor = "0x${c.dorange}ff";
-          overlaycolor = "0x${c.lred}ff";
+          root_color = "0x${c.black2}ff";
+          border_color = "0x${c.grey1}ff";
+          split_color = "0x${c.orange}FF";
+          focus_color = "0x${c.green}ff";
+          urgent_color = "0x${c.magenta}ff";
+          drop_color = "0x${c.cyan}bf";
+          maximized_screen_color = "0x${c.orange}ff";
+          scratchpad_color = "0x${c.lorange}ff";
+          global_color = "0x${c.dorange}ff";
+          overlay_color = "0x${c.lred}ff";
           # Jump mode
           jump_label_decorate_fg_color = "0x${c.white}bf"; #c4939d
           jump_label_decorate_bg_color = "0x${c.black}bf"; #201b14
@@ -154,7 +154,7 @@ in {
             "ALT,btn_left,moveresize,curmove"
             "ALT,btn_right,moveresize,curresize"
           ];
-          tagrule = [
+          tag_rule = [
             "id:1,layout_name:scroller"
             "id:2,layout_name:scroller"
             "id:3,layout_name:scroller"

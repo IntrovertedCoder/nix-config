@@ -24,8 +24,8 @@ in {
     environment.systemPackages = with pkgs; [
     ];
     home-manager.users.shot = { lib, ... }: {
-      wayland.windowManager.mango.settings.windowrule = [
-        "appid:[Vv]esktop,focused_opacity:${toString opacity},unfocused_opacity:${toString opacity}"
+      wayland.windowManager.mango.settings.window_rule = [
+        "app_id:[Vv]esktop,focused_opacity:${toString opacity},unfocused_opacity:${toString opacity}"
       ];
 
       home.packages = with pkgs; [
