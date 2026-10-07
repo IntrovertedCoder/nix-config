@@ -641,8 +641,8 @@ in {
     --base00: #${c.black};
     --base01: #${c.black1};
     --base02: #${c.black2};
-    --base03: #${c.dgrey};
-    --base04: #${c.lgrey};
+    --base03: #${c.grey2};
+    --base04: #${c.grey3};
     --base05: #${c.white1};
     --base06: #${c.white2};
     --base07: #${c.white};
