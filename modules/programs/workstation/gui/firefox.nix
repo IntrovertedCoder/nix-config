@@ -68,11 +68,6 @@
               isDefault = true;
               name = "email1";
               userChrome = /* css */ ''
-                /*
-                Hides the native TabsToolbar when Sidebery is active.
-                Requires Sidebery setting: "Add preface to the browser window's title if Sidebery sidebar is active"
-                Preface value must be set to "[Sidebery]" or whatever you use below.
-                */
                 #main-window[titlepreface*="[Sidebery]"] #TabsToolbar {
                   visibility: collapse !important;
                 }
@@ -85,9 +80,22 @@
                   visibility: collapse !important;
                 }
 
-                /* Optional: Hides the sidebar header when Sidebery is open */
-                #main-window[titlepreface*="[Sidebery]"] #sidebar-header {
-                  visibility: collapse !important;
+                #sidebar-header {
+                  display: none !important;
+                }
+
+                #sidebar-box {
+                  border-color: transparent !important;
+                }
+
+                #sidebar-splitter {
+                  border-color: transparent !important;
+                }
+
+                .browserContainer {
+                  border: none !important;
+                  border-start-start-radius: 0 !important;
+                  border-start-end-radius: 0 !important;
                 }
               '';
               settings = { # {{{
