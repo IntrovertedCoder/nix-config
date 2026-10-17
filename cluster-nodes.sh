@@ -28,10 +28,11 @@ SSH_OPTS=(-i "$KEY" -o BatchMode=yes -o "UserKnownHostsFile=$KNOWN_HOSTS"
 on()   { local target=$1; shift; ssh "${SSH_OPTS[@]}" "root@$(ip "$target")" "$@"; }
 
 # ---- Reaching a node that's booted into an installer ------------------------
-# The generic test-lab ISO answers on the management address. A node's rescue
-# installer (installer.nix) only answers on its mesh address, so it's reached
-# through a tunnel: a local port forwarded over a healthy node (as shot, port
-# 20530) to <mesh>:22 -- what node.nix's PermitOpen allows. Installers make a
+# The generic test-lab ISO answers on the management address. So does a node's
+# rescue installer (installer.nix) when the LAN has DHCP; it always answers on
+# its mesh address too, reached through a tunnel: a local port forwarded over a
+# healthy node (as shot, port 20530) to <mesh>:22 -- what node.nix's PermitOpen
+# allows. installer_find tries the LAN first. Installers make a
 # new host key each boot, so theirs isn't checked (throwaway known_hosts).
 INST_SSH=(-i "$KEY" -o BatchMode=yes -o ConnectTimeout=8 -o "UserKnownHostsFile=$_TMP/installer_known_hosts"
           -o StrictHostKeyChecking=no -o LogLevel=ERROR)
