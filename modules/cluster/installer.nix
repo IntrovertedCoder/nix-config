@@ -1,0 +1,143 @@
+{ self, inputs, lib, ... }: let
+  hosts = import ./_hosts.nix;
+in {
+  # Rescue installer image per node, meant to stay plugged in (USB stick)
+  # behind the boot disk in the firmware's boot order: if the boot disk dies
+  # or won't boot, the node falls through to this and waits.
+  #
+  #   nix build .#nixosConfigurations.<node>-installer.config.system.build.isoImage
+  #
+  # Reachable two ways, both root with your key only:
+  # - the LAN (management) port, by DHCP with the node's usual address --
+  #   which also gives it internet when the routers are up;
+  # - the Thunderbolt mesh, at the node's usual mesh address (same FRR config
+  #   as the node, mesh.nix), through a healthy node or osmium's break-glass
+  #   port: ssh -J shot@<healthy-node>:20530 root@fd9a:7af:74af:ff::<id>
+  # The WAN and trunk ports stay unaddressed. No host key is baked in -- it
+  # would sit unencrypted on the stick -- so it makes its own at each boot.
+  # It never touches a disk by itself. `rescue-report` says why a node died.
+  flake.nixosConfigurations = lib.mapAttrs' (name: host:
+    lib.nameValuePair "${name}-installer" (inputs.nixpkgs.lib.nixosSystem {
+      modules = [
+        "${inputs.nixpkgs}/nixos/modules/installer/cd-dvd/installation-cd-minimal.nix"
+        self.nixosModules.clusterMesh
+        self.nixosModules.nftFirewall
+        ({ lib, pkgs, ... }: let
+          # Same derivation as ceph.nix's osdIds: node1 -> 0 1, node2 -> 2 3, ...
+          osdIds = lib.imap0 (i: _: toString ((host.id - 1) * 2 + i)) host.osdDisks;
+
+          # One paste-ready answer to "why did this node die?". Read-only:
+          # the dead boot disk is mounted ro, nothing is changed.
+          rescueReport = pkgs.writeShellApplication {
+            name = "rescue-report";
+            runtimeInputs = with pkgs; [
+              coreutils util-linux gnugrep gawk jq smartmontools nvme-cli lvm2
+              lm_sensors iproute2 frr systemd btrfs-progs
+            ];
+            text = ''
+              c() { echo "\$ $*"; "$@" 2>&1 || true; echo; }
+              mnt=$(mktemp -d)
+              trap 'umount -q "$mnt"/* 2>/dev/null || true; rm -rf "$mnt"' EXIT
+
+              echo "## Rescue report: ${name} ($(date -u '+%F %T UTC'))"
+              echo
+              echo '```'
+
+              echo "### Disks"
+              c lsblk -o NAME,SIZE,MODEL,SERIAL,FSTYPE,PARTLABEL
+              for d in $(smartctl --scan | cut -d' ' -f1); do
+                c smartctl -H -A "$d"
+              done
+              for d in /dev/nvme?; do
+                [ -e "$d" ] || continue
+                c nvme smart-log "$d"
+                c nvme error-log -e 5 "$d"
+              done
+
+              echo "### Ceph OSD volumes (this node should have: ${lib.concatStringsSep " " osdIds})"
+              c lvs -o lv_name,vg_name,lv_size,lv_tags --noheadings
+
+              echo "### The dead system (boot disk ${host.bootDisk})"
+              root=/dev/disk/by-partlabel/disk-main-root
+              if [ -e "$root" ]; then
+                mkdir -p "$mnt/log" "$mnt/persistent"
+                if mount -o ro,subvol=log "$root" "$mnt/log" 2>/dev/null; then
+                  c journalctl --directory="$mnt/log/journal" --list-boots --no-pager
+                  echo "--- last 100 lines of its last boot (a clean shutdown ends with 'Journal stopped'):"
+                  c journalctl --directory="$mnt/log/journal" -b 0 -n 100 --no-pager -o short-iso
+                  echo "--- errors in its last boot:"
+                  c journalctl --directory="$mnt/log/journal" -b 0 -p err -n 40 --no-pager -o short-iso
+                else
+                  echo "couldn't mount its /var/log (subvolume 'log') -- filesystem damaged?"
+                fi
+                if mount -o ro,subvol=persistent "$root" "$mnt/persistent" 2>/dev/null; then
+                  echo "--- kernel crash records (pstore):"
+                  c ls -la "$mnt/persistent/var/lib/systemd/pstore"
+                fi
+              else
+                echo "no root partition (disk-main-root) on the boot disk -- wiped, dead, or never installed"
+              fi
+
+              echo "### Hardware now"
+              c sensors
+              c journalctl -k -b -p err --no-pager -o short-iso
+
+              echo "### Network"
+              c ip -br addr
+              c vtysh -c "show openfabric neighbor"
+              echo '```'
+            '';
+          };
+        in {
+          nixpkgs.hostPlatform = "x86_64-linux";
+          var.cluster = { inherit name host hosts; };
+          networking.hostName = "${name}-installer";
+
+          # Only the LAN port and the mesh: no NetworkManager/wifi from the
+          # installer profile, nothing on the WAN or trunk.
+          networking.networkmanager.enable = lib.mkForce false;
+          networking.wireless.enable = lib.mkForce false;
+          systemd.network.networks."10-mgmt" = {
+            matchConfig.Name = host.mgmt;
+            networkConfig = { DHCP = "ipv4"; IPv6AcceptRA = true; };
+            # Same client ID as the node, so it gets the node's usual address.
+            dhcpV4Config.ClientIdentifier = "mac";
+          };
+
+          boot.kernelModules = [ "thunderbolt" "thunderbolt_net" ];
+
+          services.openssh = {
+            enable = true;
+            settings = {
+              PermitRootLogin = lib.mkForce "prohibit-password";
+              PasswordAuthentication = false;
+              KbdInteractiveAuthentication = false;
+            };
+          };
+          users.users.root.openssh.authorizedKeys.keys =
+            self.nixosConfigurations.${name}.config.users.users.shot.openssh.authorizedKeys.keys;
+
+          # Nothing trusted; SSH and ping on the LAN port and the ring links.
+          var.nftFirewall.trustedInterfaces = [ ];
+          var.nftFirewall.interfaces = lib.genAttrs ([ host.mgmt ] ++ host.ring) (_: {
+            allowedTCPPorts = [ 22 ];
+            allowPing = true;
+          });
+
+          # No internet is guaranteed down here, so `nix shell` can't be
+          # relied on: bring what debugging a dead node needs.
+          environment.systemPackages = with pkgs; [
+            rescueReport
+            smartmontools nvme-cli hdparm fio            # is the disk dying?
+            ddrescue testdisk                            # get data off it
+            pciutils usbutils dmidecode lm_sensors       # what hardware, how hot
+            memtester stress-ng                          # RAM test, reproduce heat
+            ethtool iperf3 tcpdump mtr dnsutils          # links, ring throughput
+            tmux vim htop rsync jq                       # tmux: survive SSH drops
+          ];
+
+          system.stateVersion = "26.05";
+        })
+      ];
+    })) hosts;
+}

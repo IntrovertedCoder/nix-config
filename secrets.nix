@@ -11,8 +11,26 @@
 #   ssh vmtest cat /etc/ssh/ssh_host_ed25519_key.pub
 let
   vmtest = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGXL4eFZvGU76IWAQFGax7+CQgGBmtXkdayHXp92227w root@vmtest";
+
+  # The user key (~/.ssh/nixos), so installs from a workstation can decrypt.
+  arik = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINdnAXOp0q2Ehf9KwXo2KXOD/UDnam7uyezYnUm1WdnA arik";
+
+  clusterHosts = import ./modules/cluster/_hosts.nix;
+  clusterKeys = map (h: h.hostKey) (builtins.attrValues clusterHosts);
 in
 {
   "secrets/discord-webhook.age".publicKeys = [ vmtest ];
   "secrets/healthchecks-ping-url.age".publicKeys = [ vmtest ];
+
+  # Tailscale OAuth client secret (auth keys: write, tag:cluster only) -- lets
+  # a freshly installed node join the tailnet on its own. See
+  # modules/cluster/tailscale.nix.
+  "secrets/tailscale-cluster-oauth.age".publicKeys = [ arik ] ++ clusterKeys;
 }
+# Each cluster node's SSH host private key, shipped by cluster-testlab.sh at
+# install. Every node can decrypt every node's key, so any working node can
+# rebuild a broken one.
+// builtins.listToAttrs (map (name: {
+  name = "secrets/hostkeys/${name}.age";
+  value.publicKeys = [ arik ] ++ clusterKeys;
+}) (builtins.attrNames clusterHosts))
