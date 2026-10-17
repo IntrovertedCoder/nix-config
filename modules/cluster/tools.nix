@@ -255,7 +255,7 @@
       }
 
       cmd_restore() {
-        local node=''${1:-} members st others origin stale ring ups failed inst bl lxcs qemus maps
+        local node=''${1:-} members st others origin stale ring ups failed inst bl lxcs qemus maps rebuilt
         [ -n "$node" ] || die "usage: cluster restore <node>"
         is_node "$node" || die "unknown node $node (known: $(node_names | tr '\n' ' '))"
         echo "== checks before restoring $node"
@@ -263,10 +263,24 @@
         # 1. right node, nothing else down
         members=$(ctl <<<'incus cluster list -f json')
         st=$(jq -r --arg n "$node" '.[] | select(.server_name==$n) | .status' <<<"$members")
-        [ "$st" = Evacuated ] || die "$node is '$st', not Evacuated -- nothing to restore"
+        origin=$(ctl <<<'incus list -f json' | jq -r --arg n "$node" '.[] | select(.config["volatile.evacuate.origin"]==$n) | .name')
+        # A rebuilt node (cluster-rebuild.sh) rejoins Incus as a new, Online
+        # member, so its healed-away instances still name it as their origin
+        # but `incus cluster restore` has nothing to restore. Move those back
+        # by hand instead (step 8).
+        if [ "$st" = Online ] && [ -n "$origin" ]; then
+          rebuilt=1
+        else
+          rebuilt=0
+          [ "$st" = Evacuated ] || die "$node is '$st', not Evacuated, and no instances were evacuated from it -- nothing to restore"
+        fi
         others=$(jq -r --arg n "$node" '.[] | select(.server_name!=$n and .status!="Online") | "\(.server_name)=\(.status)"' <<<"$members")
         [ -z "$others" ] || die "other members aren't Online ($others) -- fix those first; the cluster has no spare"
-        ok "$node is Evacuated, every other member is Online"
+        if [ $rebuilt = 1 ]; then
+          ok "$node is Online (rebuilt) with instances still evacuated from it; every other member is Online"
+        else
+          ok "$node is Evacuated, every other member is Online"
+        fi
 
         reachable "$node" || die "$node isn't reachable over Tailscale SSH"
 
@@ -300,9 +314,19 @@
         ok "no failed units on $node"
 
         # 8. restore
-        origin=$(ctl <<<'incus list -f json' | jq -r --arg n "$node" '.[] | select(.config["volatile.evacuate.origin"]==$n) | .name')
         echo "== restoring $node (moving back: ''${origin:-nothing})"
-        ctl <<<"incus cluster restore $node --force"
+        if [ $rebuilt = 0 ]; then
+          ctl <<<"incus cluster restore $node --force --quiet"
+        else
+          # What `incus cluster restore` does for evacuate mode "migrate":
+          # stop, move (Ceph-backed, so only the database record moves),
+          # start, and drop the origin marker.
+          for inst in $origin; do
+            ctl <<<"incus stop $inst --force 2>/dev/null; incus move $inst --target $node && incus config unset $inst volatile.evacuate.origin && incus start $inst" \
+              || die "moving $inst back to $node failed -- check 'incus list $inst'"
+            ok "$inst moved back to $node"
+          done
+        fi
 
         # 9. everything came back
         echo "== checks after restoring"
@@ -316,10 +340,10 @@
         done
         ceph_wait_healthy || die "ceph unhealthy after restore"
 
-        # 10. leftover blocklist entries (informational; they expire after an hour)
+        # 10. leftover blocklist entries (informational: each names one old client instance, which restarted processes never reuse, and they expire after 24 hours)
         bl=$(ctl <<<'ceph --id status osd blocklist ls 2>/dev/null' | grep -F "[$(mesh_of "$node")]" || true)
         if [ -n "$bl" ]; then
-          echo "== Ceph blocklist entries for $node (from fencing it while it was gone; expire on their own):"
+          echo "== Ceph blocklist entries for $node (from fencing it while it was gone; harmless, expire on their own after 24 h):"
           echo "$bl"
         fi
         echo "restore of $node complete"
