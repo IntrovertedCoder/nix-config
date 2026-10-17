@@ -41,19 +41,6 @@ in {
       };
     };
 
-    systemd.services.seed-persistent-machine-id = {
-      description = "Seed /persistent/etc/machine-id before dbus-broker needs it";
-      wantedBy = [ "sysinit.target" ];
-      before = [ "sysinit.target" "dbus.socket" "dbus-broker.service" ];
-      after = [ "persistent.mount" ];
-      unitConfig.DefaultDependencies = false;
-      serviceConfig = {
-        Type = "oneshot";
-        RemainAfterExit = true;
-        ExecStart = "${pkgs.systemd}/bin/systemd-machine-id-setup --root=/persistent";
-      };
-    };
-
     boot.loader.systemd-boot.enable = true;
     boot.loader.efi.canTouchEfiVariables = true;
 

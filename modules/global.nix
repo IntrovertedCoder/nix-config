@@ -32,6 +32,12 @@
             "/var/lib/bluetooth"
             "/var/lib/nixos"
             "/etc/NetworkManager/system-connections"
+            # Kernel panic records (moved here from the firmware's pstore at
+            # the next boot -- on tmpfs they'd survive exactly one boot),
+            # core dumps, and timer stamps so missed timers catch up.
+            "/var/lib/systemd/pstore"
+            "/var/lib/systemd/coredump"
+            "/var/lib/systemd/timers"
           ];
 
           files = [
@@ -47,6 +53,23 @@
               "nix-config"
             ];
           };
+        };
+      };
+
+      # The machine-id symlink above dangles on a fresh install, which breaks
+      # dbus-broker and networkd's DHCP client ID. Seed it once; a no-op
+      # whenever /persistent/etc/machine-id already exists.
+      systemd.services.seed-persistent-machine-id = {
+        description = "Seed /persistent/etc/machine-id before dbus-broker needs it";
+        wantedBy = [ "sysinit.target" ];
+        before = [ "sysinit.target" "dbus.socket" "dbus-broker.service" "systemd-networkd.service" ];
+        after = [ "persistent.mount" ];
+        unitConfig.DefaultDependencies = false;
+        unitConfig.ConditionPathExists = "!/persistent/etc/machine-id";
+        serviceConfig = {
+          Type = "oneshot";
+          RemainAfterExit = true;
+          ExecStart = "${pkgs.systemd}/bin/systemd-machine-id-setup --root=/persistent";
         };
       };
     };
