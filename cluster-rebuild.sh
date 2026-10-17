@@ -69,7 +69,14 @@ for n in "${others[@]}"; do
 done
 echo "  ok  other nodes healthy, Ceph quorum: $quorum"
 
-stuck=$(on "$CTRL" "incus list -f json | jq -r --arg n $target '.[] | select(.location == \$n) | .name'")
+# pipefail: an empty answer must mean "no instances", never "incus list
+# failed" -- just after a node drops, Incus's database can time out while it
+# picks a new leader (seen in testing). Retry for 2 minutes, then give up.
+start=$(date +%s)
+until stuck=$(on "$CTRL" "set -o pipefail; incus list -f json </dev/null | jq -r --arg n $target '.[] | select(.location == \$n) | .name'" 2>/dev/null); do
+  [ $(( $(date +%s) - start )) -lt 120 ] || die "incus list on $(name "$CTRL") keeps failing -- can't tell whether instances are still registered to $target"
+  sleep 5
+done
 [ -z "$stuck" ] || die "instances still registered to $target: $stuck. Removing the member would delete them. Move or evacuate them first."
 echo "  ok  no instances registered to $target"
 
