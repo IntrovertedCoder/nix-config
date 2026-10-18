@@ -10,8 +10,11 @@
   # The three routers share one WAN MAC address. keepalived (VRRP) picks a
   # master; only the master brings its WAN link up and takes the DHCP lease
   # from upstream, so the upstream network only ever sees one device. The
-  # backups keep their WAN links down. A failover is a WAN reconnect of a
-  # few seconds; the client-side gateway (.1 on each VLAN) moves with it.
+  # backups keep their WAN links down and reach the internet through the
+  # master over the transit VLAN. A failover is a WAN reconnect of a few
+  # seconds; the client-side gateway (.1 / fe80::1 on each VLAN) moves with it.
+  # A master whose WAN link loses carrier (its own cable or port) hands over;
+  # an upstream outage doesn't make them take turns.
   #
   # VRRP runs on the transit VLAN only (routers + OVN's router, never
   # clients), so nothing on a client VLAN can take part in the election.
@@ -21,10 +24,26 @@
   # whose router died keeps its address until the lease runs out, then gets
   # one from another router.
   #
-  #   Trusted 10.1.0.0/24   IoT 10.2.0.0/24   Guest 10.3.0.0/24
-  #   Transit 10.91.0.0/24 (to OVN's services network, 10.90.0.0/24)
-  #   .1 = gateway (VRRP), .<id+1> = the router on node <id>,
+  # DNS: Blocky on :53 (blocklists, cache) in front of Unbound on
+  # 127.0.0.1:5335 (recursive, DNSSEC; no third-party resolver).
+  #
+  # IPv6 is local only (ULA, design doc "IPv6"): the master advertises each
+  # prefix for SLAAC with router lifetime 0 -- "not a default router", so
+  # clients keep using IPv4 for the internet -- plus a route to the whole
+  # /48 through fe80::1. Guest gets no IPv6. IoT's prefix is not on-link, so
+  # even IoT-to-IoT IPv6 goes through the router's firewall.
+  #
+  #             IPv4            IPv6 (ULA)
+  #   Trusted   10.1.0.0/24     fd9a:7af:74af:1::/64
+  #   IoT       10.2.0.0/24     fd9a:7af:74af:2::/64  (not on-link)
+  #   Guest     10.3.0.0/24     --
+  #   Transit   10.91.0.0/24    fd9a:7af:74af:91::/64 (to OVN's services network)
+  #   .1 / ::1 = gateway (VRRP), .<id+1> / ::<id+1> = the router on node <id>,
   #   DHCP .100-.149 / .150-.199 / .200-.249 from routers 1 / 2 / 3.
+  #
+  # Forwarding: every VLAN out to the internet over IPv4 (NAT); nothing
+  # between VLANs over IPv4; locally over IPv6, Trusted may reach anything,
+  # nothing else starts connections.
   #
   # Get a shell on this node's router (as root on the node):  router-ssh
   flake.nixosModules.clusterRouter = { config, lib, pkgs, ... }: let
@@ -38,14 +57,18 @@
     mgmtMac = id: "02:74:af:fe:00:${hex id}";
 
     segments = {
-      trusted = { v4 = "10.1.0"; dhcp = true; };
-      iot     = { v4 = "10.2.0"; dhcp = true; };
-      guest   = { v4 = "10.3.0"; dhcp = true; };
-      transit = { v4 = "10.91.0"; dhcp = false; };
+      trusted = { v4 = "10.1.0";  v6 = "fd9a:7af:74af:1";  dhcp = true;  onLink = true; };
+      iot     = { v4 = "10.2.0";  v6 = "fd9a:7af:74af:2";  dhcp = true;  onLink = false; };
+      guest   = { v4 = "10.3.0";  v6 = null;               dhcp = true;  onLink = true; };
+      transit = { v4 = "10.91.0"; v6 = "fd9a:7af:74af:91"; dhcp = false; onLink = true; };
     };
     clientSegs = lib.filterAttrs (_: s: s.dhcp) segments;
+    v6Segs = lib.filterAttrs (_: s: s.v6 != null) segments;
+    raSegs = lib.filterAttrs (_: s: s.dhcp && s.v6 != null) segments;   # clients that get IPv6
+    segNames = set: lib.concatMapStringsSep ", " (s: ''"${s}"'') (lib.attrNames set);
     routerIp = id: seg: "${segments.${seg}.v4}.${toString (id + 1)}";
     peers = lib.filter (h: h.id != host.id) (lib.attrValues hosts);
+    ula = "fd9a:7af:74af::/48";
 
     poolStart = 100 + (host.id - 1) * 50;
 
@@ -64,11 +87,30 @@
 
     # ------------------------------------------------------------ the router
     routerConfig = { config, lib, pkgs, ... }: let
-      wanUp = pkgs.writeShellScript "router-wan-up" ''
+      # keepalived's transitions. Master: WAN up, start advertising IPv6.
+      # Anything else: stop advertising, WAN down (never two WANs up with the
+      # same MAC). radvd isn't told to withdraw anything on stop, so clients
+      # keep their addresses and the /48 route while the next master (same
+      # fe80::1) takes over.
+      becomeMaster = pkgs.writeShellScript "router-become-master" ''
         ${pkgs.systemd}/bin/networkctl up wan
+        ${pkgs.systemd}/bin/systemctl start radvd.service
       '';
-      wanDown = pkgs.writeShellScript "router-wan-down" ''
+      leaveMaster = pkgs.writeShellScript "router-leave-master" ''
+        ${pkgs.systemd}/bin/systemctl stop radvd.service
         ${pkgs.systemd}/bin/networkctl down wan
+      '';
+      # Fails only on the master with its WAN admin-up and no carrier: this
+      # router's own cable/port is dead, so another router should take over.
+      # No lease or no internet doesn't count -- upstream outages hit every
+      # router alike, and handing over would just flap the WAN between them.
+      # (The test lab's virtio NIC always has carrier; set_link via QMP
+      # simulates a pulled cable.)
+      wanCarrier = pkgs.writeShellScript "router-wan-carrier" ''
+        ${pkgs.iproute2}/bin/ip -4 addr show dev transit | ${pkgs.gnugrep}/bin/grep -q ' 10\.91\.0\.1/' || exit 0
+        # Admin state from IFF_UP: operstate says "down" for a lost carrier too.
+        (( $(cat /sys/class/net/wan/flags) & 1 )) || exit 0   # admin-down: not ours to judge
+        [ "$(cat /sys/class/net/wan/carrier 2>/dev/null)" = 1 ]
       '';
     in {
       imports = [ self.nixosModules.nftFirewall ];
@@ -117,7 +159,7 @@
         vlanConfig.Id = host.vlans.${seg};
       }) segments;
       systemd.network.networks = {
-        # Down until keepalived makes this router master (wanUp/wanDown).
+        # Down until keepalived makes this router master.
         "10-wan" = {
           matchConfig.Name = "wan";
           networkConfig = { DHCP = "ipv4"; LinkLocalAddressing = "no"; IPv6AcceptRA = false; };
@@ -142,18 +184,33 @@
         };
       } // lib.mapAttrs' (seg: s: lib.nameValuePair "20-${seg}" {
         matchConfig.Name = seg;
-        address = [ "${routerIp host.id seg}/24" ];
+        address = [ "${routerIp host.id seg}/24" ]
+          ++ lib.optional (s.v6 != null) "${s.v6}::${toString (host.id + 1)}/64";
         networkConfig = { IPv6AcceptRA = false; ConfigureWithoutCarrier = true; };
         linkConfig.RequiredForOnline = "no";
+        # Backups (WAN down) reach the internet through the master; on the
+        # master its WAN's DHCP route (metric 1024) wins.
+        routes = lib.optional (seg == "transit") { Gateway = "10.91.0.1"; Metric = 2048; };
       }) segments;
 
-      boot.kernel.sysctl."net.ipv4.conf.all.forwarding" = 1;
+      boot.kernel.sysctl = {
+        "net.ipv4.conf.all.forwarding" = 1;
+        "net.ipv6.conf.all.forwarding" = 1;
+        # Never suggest a direct path: on isolated VLANs it would be blocked.
+        "net.ipv4.conf.all.send_redirects" = 0;
+        "net.ipv4.conf.default.send_redirects" = 0;
+      };
 
       # ---------------------------------------------------------- VRRP
       services.keepalived = {
         enable = true;
         enableScriptSecurity = true;
-        extraGlobalDefs = "script_user root";   # networkctl needs root
+        extraGlobalDefs = "script_user root";   # networkctl/systemctl need root
+        vrrpScripts.wan_carrier = {
+          script = "${wanCarrier}";
+          interval = 2; fall = 3; rise = 1;      # 6 s: a real NIC's autonegotiation after link-up
+          user = "nobody";
+        };
         vrrpInstances.gateway = {
           interface = "transit";
           state = "BACKUP";       # all start as backup; nopreempt needs it
@@ -163,14 +220,48 @@
           unicastSrcIp = routerIp host.id "transit";
           unicastPeers = map (h: routerIp h.id "transit") peers;
           virtualIps = lib.mapAttrsToList (seg: s: { addr = "${s.v4}.1/24"; dev = seg; }) segments;
+          trackScripts = [ "wan_carrier" ];
+          # IPv6 gateway addresses move with the IPv4 ones but aren't carried
+          # in the (IPv4) adverts.
           extraConfig = ''
-            notify_master "${wanUp}"
-            notify_backup "${wanDown}"
-            notify_fault "${wanDown}"
-            notify_stop "${wanDown}"
+            virtual_ipaddress_excluded {
+              ${lib.concatStringsSep "\n  " (lib.concatLists (lib.mapAttrsToList (seg: s: [
+                "fe80::1/64 dev ${seg}" "${s.v6}::1/64 dev ${seg}"
+              ]) v6Segs))}
+            }
+            notify_master "${becomeMaster}"
+            notify_backup "${leaveMaster}"
+            notify_fault "${leaveMaster}"
+            notify_stop "${leaveMaster}"
           '';
         };
       };
+
+      # ---------------------------------------------------------- IPv6 adverts
+      # Started and stopped by keepalived: only the master advertises, always
+      # from fe80::1, so clients' routes survive a failover.
+      services.radvd = {
+        enable = true;
+        config = lib.concatStrings (lib.mapAttrsToList (seg: s: ''
+          interface ${seg} {
+            AdvSendAdvert on;
+            AdvDefaultLifetime 0;          # not a default router: internet stays on IPv4
+            AdvRASrcAddress { fe80::1; };
+            MinRtrAdvInterval 30;
+            MaxRtrAdvInterval 100;
+            prefix ${s.v6}::/64 {
+              AdvOnLink ${if s.onLink then "on" else "off"};
+              AdvAutonomous on;
+              DeprecatePrefix off;
+            };
+            route ${ula} {
+              AdvRouteLifetime 1800;
+              RemoveRoute off;
+            };
+          };
+        '') raSegs);
+      };
+      systemd.services.radvd.wantedBy = lib.mkForce [ ];
 
       # ---------------------------------------------------------- DHCP
       services.kea.dhcp4 = {
@@ -202,19 +293,37 @@
       };
 
       # ---------------------------------------------------------- DNS
-      # Recursive resolver for the clients (Blocky goes in front later).
-      # Only the master has internet, and only the master holds .1.
       services.unbound = {
         enable = true;
+        resolveLocalQueries = false;     # the router itself asks Blocky (below)
         settings.server = {
-          interface = [ "0.0.0.0" "::0" ];
-          interface-automatic = true;    # answer from the address that was asked (the VIP)
-          access-control = [
-            "127.0.0.0/8 allow" "::1 allow"
-            "10.0.0.0/8 allow" "fd9a:7af:74af::/48 allow"
-          ];
+          interface = [ "127.0.0.1" ];
+          port = 5335;
+          access-control = [ "127.0.0.0/8 allow" ];
         };
       };
+      services.blocky = {
+        enable = true;
+        settings = {
+          ports.dns = 53;                # every address; the firewall decides who asks
+          upstreams.groups.default = [ "127.0.0.1:5335" ];
+          bootstrapDns = [{ upstream = "127.0.0.1:5335"; }];
+          connectIPVersion = "v4";       # the router's IPv6 is local only: fetch lists over v4
+          queryLog.type = "none";        # not every client's lookups in the journal
+          blocking = {
+            denylists.ads = [ "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts" ];
+            clientGroupsBlock.default = [ "ads" ];
+            # Answer straight away and fetch the lists in the background
+            # (backups fetch through the master), retrying if that fails.
+            loading = {
+              strategy = "fast";
+              refreshPeriod = "4h";
+              downloads = { attempts = 10; cooldown = "30s"; };
+            };
+          };
+        };
+      };
+      networking.nameservers = [ "127.0.0.1" ];
 
       # ---------------------------------------------------------- firewall
       var.nftFirewall.trustedInterfaces = [ ];
@@ -231,20 +340,37 @@
         iifname "transit" ip saddr 10.91.0.0/24 ip protocol vrrp accept
       '';
 
-      # Forwarding policy: every VLAN out to the internet, and replies back.
-      # Nothing between VLANs over v4 (local access is v6, added later).
       networking.nftables.tables.router = {
         family = "inet";
         content = ''
+          # A client VLAN reaches the router only at that VLAN's own
+          # addresses (its gateway and DNS), not at the router's other legs.
+          chain input {
+            type filter hook input priority filter - 10; policy accept;
+            ${lib.concatStrings (lib.mapAttrsToList (seg: s: ''
+              iifname "${seg}" ip daddr 10.0.0.0/8 ip daddr != ${s.v4}.0/24 drop
+              iifname "${seg}" ip6 daddr ${ula} ${lib.optionalString (s.v6 != null) "ip6 daddr != ${s.v6}::/64 "}drop
+            '') clientSegs)}
+          }
+
           chain forward {
             type filter hook forward priority filter; policy drop;
             ct state invalid drop
             ct state { established, related } accept
-            iifname { ${lib.concatMapStringsSep ", " (s: ''"${s}"'') (lib.attrNames segments)} } oifname "wan" accept
+            # IPv4 internet for everything on the LAN side (routers included).
+            meta nfproto ipv4 iifname { ${segNames segments} } oifname "wan" accept
+            # Local IPv6: Trusted may start connections to anything local.
+            iifname "trusted" ip6 daddr ${ula} accept
           }
+
           chain postrouting {
             type nat hook postrouting priority srcnat; policy accept;
             oifname "wan" masquerade
+          }
+
+          chain output {
+            type filter hook output priority filter; policy accept;
+            icmpv6 type nd-redirect drop   # IPv6 has no send_redirects switch
           }
         '';
       };
