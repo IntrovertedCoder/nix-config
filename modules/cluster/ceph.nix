@@ -66,11 +66,18 @@
         ];
         files = lib.optionals cfg.mon.enable [
           { file = "/etc/ceph/ceph.client.admin.keyring"; mode = "0600"; how = "symlink"; }
-          # Read-only (mon/mgr 'allow r'), group wheel -- what the `cluster`
-          # tool uses as shot, so debug/restore never need root.
+          # Read-only (mon/mgr 'allow r'), group cluster-read (tools.nix) --
+          # what the `cluster` tool uses, so debug/restore never need root.
           { file = "/etc/ceph/ceph.client.status.keyring"; mode = "0640"; how = "symlink"; }
         ];
       };
+
+      # The bootstrap and rebuild scripts set the keyring's group when they
+      # create it; this keeps it right on every boot and switch (it was group
+      # wheel before cluster-read existed).
+      systemd.tmpfiles.rules = lib.mkIf (cfg.enable && cfg.mon.enable) [
+        "z /persistent/etc/ceph/ceph.client.status.keyring 0640 root cluster-read - -"
+      ];
 
       # ceph-volume needs lvm on PATH; the OSDs live in LVM volumes it creates.
       environment.systemPackages = [ pkgs.ceph pkgs.lvm2 ];

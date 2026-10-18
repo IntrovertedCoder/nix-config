@@ -122,7 +122,7 @@ on "$FIRST" "ceph auth get-or-create client.status mon 'allow r' mgr 'allow r' \
 for n in "${NODES[@]}"; do
   [ "$n" = "$FIRST" ] || copy "$FIRST" /persistent/etc/ceph/ceph.client.status.keyring \
                               "$n" /persistent/etc/ceph/ceph.client.status.keyring 0640
-  on "$n" "chgrp wheel /persistent/etc/ceph/ceph.client.status.keyring; chmod 0640 /persistent/etc/ceph/ceph.client.status.keyring"
+  on "$n" "chgrp cluster-read /persistent/etc/ceph/ceph.client.status.keyring; chmod 0640 /persistent/etc/ceph/ceph.client.status.keyring"
 done
 
 echo "== pools"

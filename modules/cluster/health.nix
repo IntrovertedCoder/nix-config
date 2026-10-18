@@ -3,8 +3,9 @@
   # throttling, memory errors, kernel hardware errors, disk space, ring links,
   # unclean shutdowns, kernel crash records, clock. Runs as root (SMART needs
   # it) every 15 minutes and writes /run/cluster-health/report.txt for group
-  # wheel, which is what `cluster debug` reads -- so the tool itself never
-  # needs root. (Bash `${...}` is written `''${...}` inside the Nix string.)
+  # cluster-read (tools.nix), which is what `cluster debug` reads -- so the
+  # tool itself never needs root. (Bash `${...}` is written `''${...}`
+  # inside the Nix string.)
   flake.nixosModules.clusterHealth = { config, lib, pkgs, ... }: let
     report = "/run/cluster-health/report.txt";
     hwcheck = pkgs.writeShellApplication {
@@ -18,7 +19,7 @@
 
         # cluster-hwcheck -- hardware health report for one node, run as root by
         # cluster-hwcheck.timer (see health.nix). Writes REPORT, readable by group
-        # wheel, so `cluster debug` can show it without root.
+        # cluster-read, so `cluster debug` can show it without root.
         #
         # First lines are a verdict and an attention list; details follow. A check
         # whose hardware isn't present (VMs have no SMART or sensors) says so instead
@@ -225,7 +226,7 @@
   in {
     environment.systemPackages = [ hwcheck pkgs.lm_sensors ];
 
-    systemd.tmpfiles.rules = [ "d /run/cluster-health 0750 root wheel - -" ];
+    systemd.tmpfiles.rules = [ "d /run/cluster-health 0750 root cluster-read - -" ];
 
     systemd.services.cluster-hwcheck = {
       description = "Hardware health check for cluster debug";
@@ -233,7 +234,7 @@
       serviceConfig = {
         Type = "oneshot";
         ExecStart = lib.getExe hwcheck;
-        ExecStartPost = "${pkgs.coreutils}/bin/chgrp wheel ${report}";
+        ExecStartPost = "${pkgs.coreutils}/bin/chgrp cluster-read ${report}";
         UMask = "0027";
         Nice = 10;
       };

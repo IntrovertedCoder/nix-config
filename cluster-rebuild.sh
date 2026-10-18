@@ -114,7 +114,7 @@ copy "$CTRL" /tmp/rebuild.bootstrap-osd.keyring "$T" /var/lib/ceph/bootstrap-osd
 on "$CTRL" "rm -f /tmp/rebuild.monmap /tmp/rebuild.mon.keyring /tmp/rebuild.bootstrap-osd.keyring"
 
 on "$T" bash -euo pipefail -s <<EOF
-chgrp wheel /persistent/etc/ceph/ceph.client.status.keyring
+chgrp cluster-read /persistent/etc/ceph/ceph.client.status.keyring
 chown ceph:ceph /tmp/rebuild.monmap /tmp/rebuild.mon.keyring
 install -d -o ceph -g ceph /var/lib/ceph/mon
 rm -rf /var/lib/ceph/mon/ceph-$target
