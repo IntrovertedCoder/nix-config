@@ -7,6 +7,11 @@
   # Members talk to each other on the mesh loopbacks, like Ceph.
   flake.nixosModules.clusterIncus = { config, lib, pkgs, ... }: let
     cfg = config.virtualisation.incus;
+    # Seconds a member may be offline before its instances restart elsewhere
+    # (instances were back 95-120s after a node dropped, in the test lab).
+    # 60 for the test lab; the real value waits on measured Thunderbolt
+    # reconvergence (see the design doc's open questions).
+    healingThreshold = 60;
   in {
     virtualisation.incus.enable = true;
 
@@ -26,6 +31,52 @@
     systemd.services.incus = {
       after = [ "mesh-online.service" "ceph.target" ];
       wants = [ "mesh-online.service" ];
+      # Healing guard, part 1. Incus measures a member's downtime from its
+      # last heartbeat, so after a whole-cluster power cut every member looks
+      # long overdue and the first ones up "heal" the rest: in testing, two
+      # still-booting members were marked EVACUATED within seconds. Incus
+      # applies patch.global.sql to the cluster database as it starts,
+      # before healing can run: disable healing on every start, and let
+      # incus-healing-arm turn it back on once the cluster has settled.
+      preStart = ''
+        install -d -m 0700 /var/lib/incus/database
+        echo "UPDATE config SET value = '0' WHERE key = 'cluster.healing_threshold';" \
+          > /var/lib/incus/database/patch.global.sql
+      '';
+    };
+
+    # Healing guard, part 2: re-arm healing (cluster.healing_threshold) once
+    # no member has been Offline for 2 minutes, or 10 minutes after the
+    # cluster first answered, whichever comes first -- so a member that
+    # really is dead still gets its instances moved, just later.
+    systemd.services.incus-healing-arm = {
+      description = "Re-enable Incus healing once the cluster has settled";
+      # started with incus every time: each incus start disables healing again
+      wantedBy = [ "incus.service" "multi-user.target" ];
+      after = [ "incus.service" ];
+      bindsTo = [ "incus.service" ];
+      path = [ cfg.package pkgs.coreutils pkgs.gnugrep ];
+      serviceConfig.Type = "oneshot";
+      serviceConfig.RemainAfterExit = true;
+      # waits as long as it takes (a fresh node joins the cluster later)
+      serviceConfig.TimeoutStartSec = "infinity";
+      script = ''
+        first="" settled=""
+        while :; do
+          if members=$(incus cluster list -f csv -c s 2>/dev/null) && [ -n "$members" ]; then
+            now=$(date +%s)
+            first=''${first:-$now}
+            # EVACUATED members are up (drained); only OFFLINE ones are still booting
+            if grep -qx OFFLINE <<<"$members"; then settled=""; else settled=''${settled:-$now}; fi
+            if { [ -n "$settled" ] && [ $((now - settled)) -ge 120 ]; } || [ $((now - first)) -ge 600 ]; then
+              incus config set cluster.healing_threshold=${toString healingThreshold}
+              echo "healing re-armed: cluster.healing_threshold=${toString healingThreshold}"
+              exit 0
+            fi
+          fi
+          sleep 10
+        done
+      '';
     };
 
     # After a node is healed away from, Incus leaves its stale instance

@@ -7,7 +7,8 @@
 # 1. init the first node as a cluster, join the others with one-time tokens
 # 2. "remote" storage pool on the Ceph `vms` pool
 # 3. incusbr0 NAT bridge (per member) and the default profile
-# 4. cluster.healing_threshold
+# 4. (cluster.healing_threshold is set by incus-healing-arm on the nodes;
+#    see modules/cluster/incus.nix)
 #
 # Safe to re-run: each step skips whatever already exists.
 set -euo pipefail
@@ -15,11 +16,6 @@ cd "$(dirname "$0")"
 source ./cluster-nodes.sh
 
 FIRST=${NODES[0]}
-# Seconds a member stays offline before its instances are restarted
-# elsewhere. 60 for the test lab; the real value waits on measured
-# Thunderbolt reconvergence (see the design doc's open questions).
-HEALING_THRESHOLD=${HEALING_THRESHOLD:-60}
-
 # exclusive-lock is what fences a partitioned node: the member that heals
 # an instance breaks the lock, which blocklists the old node's RBD client,
 # so its stale copy can't write. Incus' default is "layering" only, and
@@ -98,7 +94,8 @@ grep -qx eth0 <<<"\$devices" || incus profile device add default eth0 nic networ
 # CPU-model matching between hosts.
 incus profile set default cluster.evacuate=migrate </dev/null
 
-incus config set cluster.healing_threshold=$HEALING_THRESHOLD </dev/null
+# Healing (cluster.healing_threshold) is switched on by incus-healing-arm on
+# the nodes once no member has been Offline for 2 minutes.
 
 incus cluster list </dev/null
 incus storage show remote </dev/null
