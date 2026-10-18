@@ -37,6 +37,20 @@
     text = ''
       NODES=(${lib.concatStringsSep " " (lib.attrNames hosts)})
       OSD_DISKS=(${lib.escapeShellArgs config.var.cluster.host.osdDisks})
+      # Which node's router holds the gateway, from its MAC in the neighbour
+      # table (router.nix: LAN MACs end in the node id) -- no root, no ping.
+      MGMT_IF=br-trunk.${toString config.var.cluster.host.vlans.trusted}
+      GATEWAY=${(import ./_lan.nix).segments.trusted.v4}.1
+      gateway_router() {
+        local mac id
+        mac=$(ip -4 neigh show "$GATEWAY" dev "$MGMT_IF" | awk '/lladdr/ && !/FAILED|INCOMPLETE/ {print $3}')
+        [ -n "$mac" ] || return 1
+        id=$(( 16#''${mac##*:} ))
+        case $id in
+          ${lib.concatStrings (lib.mapAttrsToList (n: h: "${toString h.id}) echo ${n} ;; ") hosts)}
+          *) echo "unknown ($mac)" ;;
+        esac
+      }
 
       # cluster-agent -- the actions one cluster node may ask another for (see
       # tools.nix). Runs as the cluster-agent user, as the forced command of
@@ -95,12 +109,15 @@
           fi
           for u in $(systemctl --failed --no-legend --plain | cut -d' ' -f1); do echo "FAIL  failed unit: $u"; done
           [ "$(systemctl is-active mesh-online)" = active ] || echo "FAIL  mesh-online is not active"
+          [ "$(systemctl is-active microvm@router)" = active ] || echo "FAIL  this node's router VM (microvm@router) is not running"
+          gateway_router >/dev/null || echo "FAIL  no router answers as the gateway $GATEWAY -- no internet for the LAN or this node"
           ;;
 
         report)
           args 0
           c uptime
-          c systemctl is-active mesh-online frr ceph.target incus tailscaled chronyd
+          c systemctl is-active mesh-online frr ceph.target incus tailscaled chronyd microvm@router
+          echo "\$ gateway $GATEWAY is held by the router on: $(gateway_router || echo "nobody (no router answering)")"; echo
           c ip -br addr
           c vtysh -c "show openfabric neighbor"
           c vtysh -c "show ipv6 route openfabric"
