@@ -26,6 +26,10 @@ in
   # a freshly installed node join the tailnet on its own. See
   # modules/cluster/tailscale.nix.
   "secrets/tailscale-cluster-oauth.age".publicKeys = [ arik ] ++ clusterKeys;
+
+  # SSH key the `cluster` tool uses to reach shot on the other nodes over the
+  # mesh (fd9a:7af:74af:ff::<id>). See modules/cluster/tools.nix.
+  "secrets/cluster-ssh-key.age".publicKeys = [ arik ] ++ clusterKeys;
 }
 # Each cluster node's SSH host private key, shipped by cluster-testlab.sh at
 # install. Every node can decrypt every node's key, so any working node can

@@ -1,5 +1,8 @@
-{ lib, ... }: let
+{ inputs, lib, ... }: let
   hosts = import ./_hosts.nix;
+  meshNet = "fd9a:7af:74af:ff::/64";
+  # Public half of secrets/cluster-ssh-key.age.
+  clusterSshPub = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIH8E4sA4+wHcXXN7kGC+E7kkoVDzp75hFzCspGCETyVP cluster-mesh";
 
   # `cluster` -- debug / restore / replace-osd, installed on every cluster
   # node. It only runs there; from a workstation:
@@ -13,7 +16,8 @@
   # e.g. the incus client always matches the daemon.
   mkCluster = { pkgs, config }: let
     tools = with pkgs; [
-      coreutils gnugrep gawk gnused jq util-linux procps tailscale
+      coreutils gnugrep gawk gnused jq util-linux procps
+      config.programs.ssh.package                # ssh, to the other nodes
       ceph                                       # ceph, rbd, ceph-volume
       config.virtualisation.incus.clientPackage  # incus
       frr                                        # vtysh
@@ -28,6 +32,7 @@
         "'${name}=${toString h.id}=${toString (builtins.length h.ring)}=${lib.concatStringsSep "," h.osdDisks}'"
       ) hosts)})
       TOOL_PATH=${lib.makeBinPath tools}
+      SSH_KEY=${config.age.secrets.cluster-ssh-key.path}
 
       # cluster -- day-to-day operations for the Elements cluster. Runs as shot on
       # any cluster node (from a workstation: ssh -p 20530 shot@<node> cluster ...):
@@ -36,8 +41,10 @@
       #   cluster restore <node>                         bring an evacuated node back, safely
       #   cluster replace-osd <node> <osd-id> <disk>     rebuild an OSD on a replacement disk
       #
-      # Other nodes are reached over Tailscale SSH as shot (the tailnet ACL only
-      # lets tag:cluster nodes do that); anything for this host runs locally.
+      # Other nodes are reached over SSH on the mesh (fd9a:7af:74af:ff::<id>,
+      # port 20530) as shot, with a key only the nodes have and that's only
+      # accepted from mesh addresses; anything for this host runs locally.
+      # No internet or Tailscale needed -- only the ring links.
       # Read-only Ceph access uses client.status (no root); the steps that change
       # Ceph or disks go through sudo and ask for shot's password.
       #
@@ -75,21 +82,24 @@
       on() {
         if [ "$1" = "$SELF" ]; then { echo "export PATH=$TOOL_PATH:\$PATH"; cat; } | bash -s
         else
-          local a; a=$(ts_addr "$1") || return 1
-          { echo "export PATH=$TOOL_PATH:\$PATH"; cat; } | timeout 60 tailscale ssh "shot@$a" bash -s
+          mesh_ssh "$1"
+          { echo "export PATH=$TOOL_PATH:\$PATH"; cat; } | timeout 60 "''${SSH_CMD[@]}" bash -s
         fi
       }
-      # A node's Tailscale IP, found by its real hostname and online state --
-      # not by its tailnet name: after a rebuild that name is "<node>-1" until
-      # renamed in the admin console, and a stale offline entry can still hold
-      # the plain name (plain-name lookup then fell through to a link-local
-      # address in testing).
-      ts_addr() {
-        local a
-        a=$(tailscale status --json 2>/dev/null | jq -r --arg n "$1" \
-          '[.Peer[]? | select(.HostName == $n and .Online)] | first | .TailscaleIPs[0] // empty')
-        [ -n "$a" ] || { echo "cluster: $1 isn't online in the tailnet" >&2; return 1; }
-        echo "$a"
+      # mesh_ssh <node>: sets SSH_CMD to an ssh command for shot at <node>'s
+      # mesh address; append the remote command. (An array, not a function
+      # that runs ssh: `timeout` can only run real programs -- the first
+      # version did `timeout 60 <function>` and every node looked unreachable.)
+      # -F none: no user/system ssh_config can change what this does. Host
+      # keys come only from /etc/ssh/ssh_known_hosts (tools.nix, from
+      # _hosts.nix), and nothing is ever added. BatchMode: fail instead of
+      # prompting if the key is refused. BindAddress: always connect from our
+      # own mesh address, the only source the key is accepted from.
+      mesh_ssh() {
+        SSH_CMD=(ssh -F none -p 20530 -i "$SSH_KEY" -o IdentitiesOnly=yes -o BatchMode=yes
+          -o StrictHostKeyChecking=yes -o UserKnownHostsFile=/dev/null
+          -o ConnectTimeout=5 -o BindAddress="$(mesh_of "$SELF")"
+          "shot@$(mesh_of "$1")")
       }
       # on_root <node> <script>: run as root via sudo, interactively (password).
       # (sudo resets PATH, so the export goes inside the script.)
@@ -98,11 +108,7 @@
         # shellcheck disable=SC2016  # $PATH expands on the target, not here
         b64=$(printf 'export PATH=%s:$PATH\n%s\n' "$TOOL_PATH" "$2" | base64 -w0)
         if [ "$1" = "$SELF" ]; then printf '%s' "$b64" | base64 -d | sudo bash
-        # -t goes after the host: `tailscale ssh` only takes [user@]host first,
-        # and passes the rest to ssh (which accepts options after the host).
-        else
-          local a; a=$(ts_addr "$1") || return 1
-          tailscale ssh "shot@$a" -t "echo $b64 | base64 -d | sudo bash"
+        else mesh_ssh "$1"; "''${SSH_CMD[@]}" -t "echo $b64 | base64 -d | sudo bash"
         fi
       }
       reachable() { on "$1" <<<'true' >/dev/null 2>&1; }
@@ -163,7 +169,7 @@
       )
         if [ -n "$summary" ]; then echo "$summary"; any=1; fi
         for n in $(node_names); do
-          if ! reachable "$n"; then echo "$n: FAIL  unreachable over Tailscale SSH"; any=1; continue; fi
+          if ! reachable "$n"; then echo "$n: FAIL  unreachable over SSH on the mesh"; any=1; continue; fi
           lines=$(node_attention "$n")
           if [ -n "$lines" ]; then
             while IFS= read -r l; do echo "$n: $l"; done <<<"$lines"
@@ -197,7 +203,7 @@
           echo
           echo "### $n"
           echo '```'
-          if ! reachable "$n"; then echo "UNREACHABLE over Tailscale SSH"; echo '```'; continue; fi
+          if ! reachable "$n"; then echo "UNREACHABLE over SSH on the mesh"; echo '```'; continue; fi
           on "$n" <<'EOF' 2>&1
       c() { echo "\$ $*"; "$@" 2>&1; echo; }
       c uptime
@@ -288,7 +294,7 @@
           ok "$node is Evacuated, no other member is down"
         fi
 
-        reachable "$node" || die "$node isn't reachable over Tailscale SSH"
+        reachable "$node" || die "$node isn't reachable over SSH on the mesh"
 
         # 2. mesh
         ring=$(field "$node" 2)
@@ -434,7 +440,31 @@
     '';
   };
 in {
-  flake.nixosModules.clusterTools = { config, pkgs, ... }: {
+  flake.nixosModules.clusterTools = { config, lib, pkgs, ... }: {
+    imports = [ inputs.agenix.nixosModules.default ];
+
     environment.systemPackages = [ (mkCluster { inherit pkgs config; }) ];
+
+    # The key `cluster` uses to reach shot on the other nodes (mesh_ssh).
+    # Every node has the same one, decrypted with its pre-seeded host key.
+    # Readable by shot only -- whoever is shot on one node may already be
+    # shot on the others.
+    age.secrets.cluster-ssh-key = {
+      file = ../../secrets/cluster-ssh-key.age;
+      owner = "shot";
+      mode = "0400";
+    };
+    # Accepted only from mesh addresses, and only for running commands.
+    users.users.shot.openssh.authorizedKeys.keys = [
+      ''from="${meshNet}",no-port-forwarding,no-agent-forwarding,no-X11-forwarding ${clusterSshPub}''
+    ];
+    # Every node's host key at its mesh address, so ssh checks it strictly.
+    programs.ssh.knownHosts = lib.mapAttrs (_: h: {
+      hostNames = [ "[fd9a:7af:74af:ff::${toString h.id}]:20530" ];
+      publicKey = h.hostKey;
+    }) hosts;
+    # A burst of failed logins from another node (e.g. after a key change)
+    # must never get it banned.
+    services.fail2ban.ignoreIP = [ meshNet ];
   };
 }
