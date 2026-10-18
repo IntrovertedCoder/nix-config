@@ -26,6 +26,17 @@ if [ -e /etc/ceph/ceph.client.admin.keyring ] && [ -s /etc/ceph/ceph.client.admi
 fi
 failed=$(systemctl --failed --no-legend --plain | cut -d" " -f1)
 [ -z "$failed" ] || { echo "    failed units: $failed"; exit 1; }
+# Ceph can be HEALTH_OK while the node is still rejoining Incus (seen in
+# testing), so also wait until no Incus member is offline.
+if incus cluster list >/dev/null 2>&1 </dev/null; then
+  timeout 300 bash -c 'until ! incus cluster list -f csv -c s </dev/null | grep -qx OFFLINE; do sleep 3; done' \
+    || { echo "    incus members still offline after 5 min:"; incus cluster list </dev/null; exit 1; }
+  # ...and until healing is re-armed (incus.nix, 2 min after the cluster is
+  # whole). Otherwise a still-pending re-arm on some node can undo the
+  # healing switch-off below right before a reboot (seen in testing).
+  timeout 900 bash -c 'until systemctl is-active --quiet incus-healing-arm; do sleep 5; done' \
+    || { echo "    incus-healing-arm hasn't finished after 15 min"; exit 1; }
+fi
 EOF
 }
 
@@ -45,6 +56,10 @@ for t in "${targets[@]}"; do
     # Wait for a *new* boot id: sshd can still answer while shutdown is only
     # starting, which would look like "already back".
     boot=$(on "$n" 'cat /proc/sys/kernel/random/boot_id')
+    # A planned reboot isn't a failure: switch healing off so a slow POST
+    # can't move this node's instances away. incus-healing-arm (incus.nix)
+    # on the rebooted node turns it back on once the cluster is whole again.
+    on "$n" 'incus cluster list >/dev/null 2>&1 </dev/null && incus config set cluster.healing_threshold=0 </dev/null' || true
     on "$n" 'systemctl reboot' || true
     timeout 600 bash -c "until b=\$(ssh ${SSH_OPTS[*]} root@$(ip "$n") cat /proc/sys/kernel/random/boot_id 2>/dev/null) && [ -n \"\$b\" ] && [ \"\$b\" != $boot ]; do sleep 5; done" \
       || { echo "$t didn't come back from the reboot within 10 min -- check its console" >&2; exit 1; }
