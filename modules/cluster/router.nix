@@ -56,7 +56,8 @@
     lanMac = id: "02:74:af:01:00:${hex id}";
     mgmtMac = id: "02:74:af:fe:00:${hex id}";
 
-    inherit (import ./_lan.nix) segments ula;
+    lan = import ./_lan.nix;
+    inherit (lan) segments ula;
     clientSegs = lib.filterAttrs (_: s: s.dhcp) segments;
     v6Segs = lib.filterAttrs (_: s: s.v6 != null) segments;
     raSegs = lib.filterAttrs (_: s: s.dhcp && s.v6 != null) segments;   # clients that get IPv6
@@ -184,7 +185,12 @@
         linkConfig.RequiredForOnline = "no";
         # Backups (WAN down) reach the internet through the master; on the
         # master its WAN's DHCP route (metric 1024) wins.
-        routes = lib.optional (seg == "transit") { Gateway = "10.91.0.1"; Metric = 2048; };
+        # OVN's services network sits behind OVN's router on transit.
+        routes = lib.optionals (seg == "transit") [
+          { Gateway = "10.91.0.1"; Metric = 2048; }
+          { Destination = "${lan.services.v4}.0/24"; Gateway = lan.ovnUplink.v4; }
+          { Destination = "${lan.services.v6}::/64"; Gateway = lan.ovnUplink.v6; }
+        ];
       }) segments;
 
       boot.kernel.sysctl = {

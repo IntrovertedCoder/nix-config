@@ -14,4 +14,10 @@
     guest   = { v4 = "10.3.0";  v6 = null;               dhcp = true;  onLink = true; };
     transit = { v4 = "10.91.0"; v6 = "fd9a:7af:74af:91"; dhcp = false; onLink = true; };
   };
+
+  # The Incus OVN network for services (ovn.nix, cluster-ovn-bootstrap.sh),
+  # behind OVN's router. That router's uplink address on the transit VLAN is
+  # pinned, so the routers can route the services network to it statically.
+  services = { v4 = "10.90.0"; v6 = "fd9a:7af:74af:90"; };
+  ovnUplink = { v4 = "10.91.0.10"; v6 = "fd9a:7af:74af:91::10"; };
 }
