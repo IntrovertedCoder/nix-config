@@ -16,9 +16,16 @@
     services.chrony = {
       enable = true;   # replaces timesyncd (the module forces it off)
       extraConfig = ''
-        ${lib.concatMapStrings (h: "peer ${mesh h} iburst\n") peers}
+        ${lib.concatMapStrings (h: "peer ${mesh h} iburst minpoll 3\n") peers}
         allow fd9a:7af:74af:ff::/64
-        local stratum 10 orphan
+        # orphan: with no real source, the node with the smallest reference
+        # ID serves its own clock and the others follow it. waitunsynced is
+        # how long a fresh start waits for real sources first; orphan mode's
+        # default (300s) outlasted chrony-wait-sync below, so a cold start
+        # with no internet started Ceph on unsynced clocks (1.3s skew, seen
+        # in testing). With internet, real sources sync well within 20s.
+        # minpoll 3 (8s) lets the followers lock on in seconds, not minutes.
+        local stratum 10 orphan waitunsynced 20
         # step (rather than slew) a large offset during the first updates
         makestep 0.1 3
       '';
