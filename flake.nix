@@ -25,6 +25,11 @@
     flake-parts = {
       url = "github:hercules-ci/flake-parts";
     };
+    # Router VMs on the cluster nodes (modules/cluster/router.nix).
+    microvm = {
+      url = "github:microvm-nix/microvm.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     import-tree = {
       url = "github:vic/import-tree";
     };

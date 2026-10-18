@@ -17,6 +17,13 @@ let
     ring = [ "ens19" "ens20" ];  # Thunderbolt ring stand-in, point-to-point bridges
     wan = "ens21";           # router VMs' WAN -- VLAN 30 in the test lab
     trunk = "ens22";         # Trusted / IoT / Guest VLAN trunk
+    # Router VM (router.nix). The real nodes pass the WAN NIC through by PCI
+    # address; the test VMs can't (nested passthrough), so their router gets
+    # a macvtap on `wan` instead.
+    wanPci = null;
+    # VLAN IDs on the trunk. The test lab's only need to avoid VLAN 30 (the
+    # test WAN) and the home network's VLANs; the real cluster uses its own.
+    vlans = { trusted = 31; iot = 32; guest = 33; transit = 34; };
     ringMtu = 1500;          # real Thunderbolt links run 65520
     # One per cluster -- the real cluster gets its own (uuidgen).
     cephFsid = "6b1f3c2e-0d7a-4f43-9c1e-7a52e1d0b9a4";

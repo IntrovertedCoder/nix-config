@@ -34,11 +34,11 @@
           linkConfig.RequiredForOnline = "routable";
         };
 
-        # Handed to Incus later (router WAN, VLAN trunk). Up, but no
-        # addresses on the host -- an address here is what caused the ARP
-        # flux / duplicate-IP warnings on the installer ISO.
+        # The router VM's WAN parent (router.nix; the trunk is bridged
+        # there). Up, but no addresses on the host -- an address here is
+        # what caused the ARP flux / duplicate-IP warnings on the installer ISO.
         "30-unmanaged" = {
-          matchConfig.Name = "${host.wan} ${host.trunk}";
+          matchConfig.Name = host.wan;
           networkConfig = { LinkLocalAddressing = "no"; IPv6AcceptRA = false; };
           linkConfig = { ActivationPolicy = "up"; RequiredForOnline = "no"; };
         };
