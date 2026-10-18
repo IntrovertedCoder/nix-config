@@ -40,6 +40,10 @@
         sec() { printf '\n--- %s\n' "$1" >>"$details"; }
         say() { printf '%s\n' "$*" >>"$details"; }
         num() { [[ "''${1:-}" =~ ^[0-9]+$ ]] && echo "$1" || echo 0; }
+        # exists <glob...>: true if the glob matched a path (an unmatched glob stays
+        # literal and fails -e). Not compgen -G: the non-interactive bash these
+        # scripts run under has no programmable completion, so compgen is missing.
+        exists() { for p in "$@"; do [ -e "$p" ] && return 0; done; return 1; }
 
         # ------------------------------------------------------------- disks (SMART)
         sec "Disks (SMART)"
@@ -109,7 +113,7 @@
 
         # ------------------------------------------------------------ CPU throttling
         sec "CPU thermal throttling (since boot)"
-        if compgen -G '/sys/devices/system/cpu/cpu*/thermal_throttle/package_throttle_count' >/dev/null; then
+        if exists /sys/devices/system/cpu/cpu*/thermal_throttle/package_throttle_count; then
           pkg=$(cat /sys/devices/system/cpu/cpu*/thermal_throttle/package_throttle_count | sort -n | tail -1)
           core=$(cat /sys/devices/system/cpu/cpu*/thermal_throttle/core_throttle_count | awk '{s+=$1} END {print s+0}')
           say "package events: $pkg, core events (all cores): $core"
@@ -120,7 +124,7 @@
 
         # ------------------------------------------------------------- memory errors
         sec "Memory errors (EDAC)"
-        if compgen -G '/sys/devices/system/edac/mc/mc*' >/dev/null; then
+        if exists /sys/devices/system/edac/mc/mc*; then
           for mc in /sys/devices/system/edac/mc/mc*; do
             ce=$(cat "$mc/ce_count" 2>/dev/null || echo 0); ue=$(cat "$mc/ue_count" 2>/dev/null || echo 0)
             say "''${mc##*/}: corrected=$ce uncorrected=$ue"
