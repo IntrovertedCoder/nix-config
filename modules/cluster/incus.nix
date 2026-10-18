@@ -96,14 +96,23 @@
       after = [ "frr.service" "mesh-online.service" "ceph.target" ];
       # incus-startup is what stops real instances at shutdown (softDaemonRestart)
       before = [ "incus.service" "incus-startup.service" ];
-      path = [ pkgs.ceph pkgs.util-linux pkgs.coreutils pkgs.procps ];
+      path = [ pkgs.ceph pkgs.util-linux pkgs.coreutils pkgs.procps pkgs.systemd ];
       serviceConfig = {
         Type = "oneshot";
         RemainAfterExit = true;
         ExecStart = "${pkgs.coreutils}/bin/true";
         TimeoutStopSec = "120s";
       };
+      # A switch must never stop this unit: its stop IS the cleanup, and on a
+      # live node it would unmap and kill running instances (happened once,
+      # when this script changed). A changed script still applies at the next
+      # shutdown -- systemd reads the new unit file.
+      restartIfChanged = false;
       preStop = ''
+        if systemctl is-active --quiet incus.service; then
+          echo "incus is still running -- its instances aren't stale, not touching them"
+          exit 0
+        fi
         for dev in /sys/bus/rbd/devices/*; do
           [ -e "$dev" ] || continue
           id=''${dev##*/}
@@ -117,7 +126,9 @@
           echo 1 > "$cg/cgroup.kill" || true
         done
         pkill -9 -f '^\[lxc monitor\]' || true
-        pkill -9 qemu-system || true
+        # Only Incus's own VMs: the router VMs (microvm@router) run qemu too,
+        # and must outlive Incus.
+        pkill -9 --cgroup /system.slice/incus.service qemu-system || true
       '';
     };
 
