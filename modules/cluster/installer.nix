@@ -33,6 +33,7 @@ in {
             runtimeInputs = with pkgs; [
               coreutils util-linux gnugrep gawk jq smartmontools nvme-cli lvm2
               lm_sensors iproute2 frr systemd btrfs-progs
+              mtools efibootmgr                    # read the ESP without mounting it; boot entries
             ];
             text = ''
               c() { echo "\$ $*"; "$@" 2>&1 || true; echo; }
@@ -58,6 +59,36 @@ in {
               c lvs -o lv_name,vg_name,lv_size,lv_tags --noheadings
 
               echo "### The dead system (boot disk ${host.bootDisk})"
+              # Its ESP first: with only that destroyed, the journal below looks
+              # fine and nothing else says why the node didn't boot (seen in
+              # testing). mtools reads the FAT filesystem straight off the
+              # partition -- no mount, nothing written.
+              esp=/dev/disk/by-partlabel/disk-main-ESP
+              export MTOOLS_SKIP_CHECK=1   # don't refuse a partition over its CHS geometry
+              echo "--- ESP ($esp):"
+              if [ ! -e "$esp" ]; then
+                echo "VERDICT: no ESP partition (disk-main-ESP) -- the firmware has nothing to boot from"
+              elif ! mdir -i "$esp" -b ::/ >/dev/null 2>&1; then
+                echo "VERDICT: the ESP has no readable FAT filesystem -- the firmware can't boot from it,"
+                echo "which is why this node fell through to the rescue installer."
+                c blkid -p "$esp"
+              else
+                missing=""
+                for f in ::/EFI/BOOT/BOOTX64.EFI ::/EFI/systemd/systemd-bootx64.efi; do
+                  mdir -i "$esp" -b "$f" >/dev/null 2>&1 || missing="$missing ''${f#::}"
+                done
+                entries=$(mdir -i "$esp" -b ::/loader/entries 2>/dev/null | grep -c '\.conf$' || true)
+                if [ -n "$missing" ] || [ "$entries" = 0 ]; then
+                  echo "VERDICT: the ESP is readable but incomplete --''${missing:+ missing$missing;} $entries boot entries"
+                else
+                  echo "VERDICT: ESP readable, systemd-boot present, $entries boot entries"
+                fi
+                c mdir -i "$esp" -/ -b ::/
+              fi
+              echo "--- firmware boot entries (BootOrder; the boot disk should come before this stick):"
+              c efibootmgr
+              echo
+
               root=/dev/disk/by-partlabel/disk-main-root
               if [ -e "$root" ]; then
                 mkdir -p "$mnt/log" "$mnt/persistent"
