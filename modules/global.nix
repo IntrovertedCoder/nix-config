@@ -30,7 +30,12 @@
           directories = [
             "/etc/nixos"
             "/var/lib/bluetooth"
-            "/var/lib/nixos"
+            # NixOS's record of the uids/gids it handed out. Must be there
+            # before stage 2 creates users, i.e. mounted in the initrd -- as a
+            # later bind mount it was ignored, users without a fixed uid got
+            # new numbers whenever the user set changed, and files they own
+            # on /persistent became unreadable (the router VM's disk did).
+            { directory = "/var/lib/nixos"; inInitrd = true; }
             "/etc/NetworkManager/system-connections"
             # Kernel panic records (moved here from the firmware's pstore at
             # the next boot -- on tmpfs they'd survive exactly one boot),

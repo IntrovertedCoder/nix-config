@@ -417,5 +417,9 @@
     preservation.preserveAt."/persistent".directories = [
       { directory = "/var/lib/microvms"; user = "microvm"; group = "kvm"; mode = "0775"; }
     ];
+    # The router's disk must belong to whatever uid microvm has this boot;
+    # once a uid shift left qemu unable to open it and the router never came
+    # up (global.nix now keeps uids stable; this keeps the router safe anyway).
+    systemd.tmpfiles.rules = [ "z /var/lib/microvms/router/var.img 0644 microvm kvm - -" ];
   };
 }
