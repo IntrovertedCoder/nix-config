@@ -414,6 +414,40 @@
 
     environment.systemPackages = [ routerSsh ];
 
+    # The router's LAN side has carrier only while the node's trunk NIC does.
+    # A router cut off from the LAN (dead cable or switch port) hears no VRRP
+    # adverts and would make itself a second master, bringing up a second WAN
+    # with the shared MAC. With its LAN link down keepalived goes to FAULT
+    # instead, and the WAN stays down. (QEMU doesn't pass a host link's
+    # carrier through to the guest, so this does, via QMP set_link.)
+    systemd.services.router-lan-carrier = {
+      description = "Mirror the trunk NIC's carrier onto the router VM's LAN link";
+      bindsTo = [ "microvm@router.service" ];
+      after = [ "microvm@router.service" ];
+      wantedBy = [ "microvm@router.service" ];
+      path = [ pkgs.socat pkgs.coreutils ];
+      serviceConfig = { Restart = "always"; RestartSec = 5; };
+      script = ''
+        sock=/var/lib/microvms/router/${name}-router.sock
+        until [ -S "$sock" ]; do sleep 1; done
+        setlink() {
+          printf '{"execute":"qmp_capabilities"}\n{"execute":"set_link","arguments":{"name":"vm-rtr-lan","up":%s}}\n' "$1" \
+            | socat - "UNIX-CONNECT:$sock" >/dev/null
+          echo "trunk ${host.trunk} carrier $2: router LAN link up=$1"
+        }
+        last=""
+        while true; do
+          # Unreadable (NIC admin-down) counts as no carrier.
+          c=$(cat /sys/class/net/${host.trunk}/carrier 2>/dev/null || echo 0)
+          if [ "$c" != "$last" ]; then
+            if [ "$c" = 1 ]; then setlink true "$c"; else setlink false "$c"; fi
+            last=$c
+          fi
+          sleep 1
+        done
+      '';
+    };
+
     preservation.preserveAt."/persistent".directories = [
       { directory = "/var/lib/microvms"; user = "microvm"; group = "kvm"; mode = "0775"; }
     ];
