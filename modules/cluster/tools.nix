@@ -143,9 +143,10 @@
           else echo 0; fi
           ;;
 
-        stale-procs)  # containers, VMs, RBD mappings still on this node
+        stale-procs)  # containers, VMs, RBD mappings still on this node (Incus's own
+                      # qemu only -- the router VM runs qemu too, in microvm@router)
           args 0
-          echo "$(pgrep -c -f '^\[lxc monitor\]' || true) $(pgrep -c qemu-system || true) $(rbd showmapped 2>/dev/null | tail -n +2 | wc -l)"
+          echo "$(pgrep -c -f '^\[lxc monitor\]' || true) $(pgrep -c --cgroup /system.slice/incus.service qemu-system || true) $(rbd showmapped 2>/dev/null | tail -n +2 | wc -l)"
           ;;
 
         incus-active) args 0; systemctl is-active --quiet incus ;;

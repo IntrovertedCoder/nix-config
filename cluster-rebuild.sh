@@ -83,6 +83,26 @@ echo "  ok  no instances registered to $target"
 expected_osds=$(nix eval --raw ".#nixosConfigurations.$target.config.var.cluster.osdIds" --apply 'builtins.concatStringsSep " "' 2>/dev/null)
 echo "  ..  $target should have OSDs: $expected_osds"
 
+
+# ----------------------------------------------------------------- ovn raft
+# The reinstalled node joins the OVN databases as a new Raft member. Its old
+# membership died with the boot disk and must go first: left in, each
+# database would count 4 members, one dead, and need 3 alive for quorum.
+# (On a resumed run the new node may have joined already: keep its member.)
+step "OVN: drop $target's old database membership"
+for db in nb sb; do
+  dbname=OVN_Northbound; port=6643; [ $db = sb ] && { dbname=OVN_Southbound; port=6644; }
+  ctl=/run/ovn/ovn${db}_db.ctl
+  cur=""
+  [ $resume = 1 ] && cur=$(on "$T" "ovs-appctl -t $ctl cluster/sid $dbname 2>/dev/null | cut -c1-4" </dev/null || true)
+  olds=$(on "$CTRL" "ovs-appctl -t $ctl cluster/status $dbname | awk -v a='tcp:[$addr]:$port' '/^Servers:/ {s=1; next} s && index(\$0, a) {print \$1}'" </dev/null)
+  for sid in $olds; do
+    [ "$sid" = "$cur" ] && continue
+    on "$CTRL" "ovs-appctl -t $ctl cluster/kick $dbname $sid" </dev/null >/dev/null
+    echo "  ok  removed $target's old $dbname member $sid"
+  done
+done
+
 # -------------------------------------------------------------------- install
 if [ $resume = 0 ]; then
   step "reinstall the boot disk"
@@ -93,6 +113,11 @@ wait_for 600 "$target booted, mesh up" "$T" 'systemctl is-active --quiet mesh-on
 # mesh (needs its key decrypted with the pre-seeded host key). Tailscale is
 # only remote access -- reported at the end, never waited for.
 wait_for 120 "$target reaches the other nodes over mesh SSH" "$T" "runuser -u shot -- cluster check-ssh"
+# A fresh node asks to join the OVN databases by itself (ovn.nix); its old
+# membership was dropped above.
+wait_for 180 "$target rejoined both OVN databases" "$T" \
+  "for d in nb:OVN_Northbound sb:OVN_Southbound; do ovs-appctl -t /run/ovn/ovn\${d%%:*}_db.ctl cluster/status \${d#*:} | grep -qx 'Status: cluster member' || exit 1; done"
+wait_for 180 "$target's router VM running" "$T" "systemctl is-active --quiet microvm@router"
 
 # ---------------------------------------------------------------------- ceph
 step "Ceph: monitor"
