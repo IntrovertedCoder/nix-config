@@ -44,10 +44,23 @@
       serviceConfig = {
         Type = "oneshot";
         RemainAfterExit = true;
-        # 12 tries, 10s apart, until the offset is under 10ms
-        ExecStart = "-${pkgs.chrony}/bin/chronyc waitsync 12 0.01";
         TimeoutStartSec = "150s";
       };
+      # Synced (to the internet, a peer, or -- as the orphan leader -- its own
+      # clock) with under 10ms left to correct; up to 2 minutes, then go on
+      # anyway. Not `chronyc waitsync`: it never counts the local reference
+      # as synced, so the orphan leader always waited out the full cap.
+      path = [ pkgs.chrony pkgs.coreutils ];
+      script = ''
+        for _ in $(seq 120); do
+          IFS=, read -r _ _ _ _ offset _ _ _ _ _ _ _ _ leap < <(chronyc -c tracking || true)
+          if [ "$leap" = Normal ] && [ "''${offset#-}" \< 0.01 ]; then
+            echo "chrony synced (offset ''${offset}s)"; exit 0
+          fi
+          sleep 1
+        done
+        echo "chrony not synced after 2 minutes -- starting anyway"
+      '';
     };
 
     preservation.preserveAt."/persistent" = lib.mkIf config.services.chrony.enable {
