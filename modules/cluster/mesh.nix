@@ -98,7 +98,15 @@
           Type = "oneshot";
           RemainAfterExit = true;
           TimeoutStartSec = "5min";
+          # A node that booted alone fails this after 4 minutes (Ceph and
+          # Incus start anyway). Without a retry it stayed failed after the
+          # others came up, and cluster-deploy.sh / cluster restore refused
+          # the node (seen in testing). Re-check until a neighbour appears.
+          Restart = "on-failure";
+          RestartSec = "30s";
         };
+        # retrying all night on an isolated node is fine
+        unitConfig.StartLimitIntervalSec = 0;
         # A neighbour that's listed but not Up is the FRR start-up race this
         # unit exists for: restart FRR, once. A neighbour that isn't listed at
         # all is a node that's down -- restarting FRR then only tears down the
