@@ -255,7 +255,7 @@
       }
 
       cmd_restore() {
-        local node=''${1:-} members st others origin stale ring ups failed inst bl lxcs qemus maps rebuilt
+        local node=''${1:-} members st others origin stale ring ups failed inst bl lxcs qemus maps rebuilt m
         [ -n "$node" ] || die "usage: cluster restore <node>"
         is_node "$node" || die "unknown node $node (known: $(node_names | tr '\n' ' '))"
         echo "== checks before restoring $node"
@@ -274,12 +274,18 @@
           rebuilt=0
           [ "$st" = Evacuated ] || die "$node is '$st', not Evacuated, and no instances were evacuated from it -- nothing to restore"
         fi
-        others=$(jq -r --arg n "$node" '.[] | select(.server_name!=$n and .status!="Online") | "\(.server_name)=\(.status)"' <<<"$members")
-        [ -z "$others" ] || die "other members aren't Online ($others) -- fix those first; the cluster has no spare"
+        # Another Evacuated member is fine if it's up, just drained (e.g.
+        # several healed at once after a power cut) -- but a member that died
+        # after it was healed away from shows Evacuated too, so ask it.
+        others=$(jq -r --arg n "$node" '.[] | select(.server_name!=$n and .status!="Online" and .status!="Evacuated") | "\(.server_name)=\(.status)"' <<<"$members")
+        for m in $(jq -r --arg n "$node" '.[] | select(.server_name!=$n and .status=="Evacuated") | .server_name' <<<"$members"); do
+          ctl <<<"incus info --target $m >/dev/null 2>&1" || others="$others $m=Evacuated,not-answering"
+        done
+        [ -z "$others" ] || die "other members are down ($others) -- fix those first; the cluster has no spare"
         if [ $rebuilt = 1 ]; then
-          ok "$node is Online (rebuilt) with instances still evacuated from it; every other member is Online"
+          ok "$node is Online (rebuilt) with instances still evacuated from it; no other member is down"
         else
-          ok "$node is Evacuated, every other member is Online"
+          ok "$node is Evacuated, no other member is down"
         fi
 
         reachable "$node" || die "$node isn't reachable over Tailscale SSH"
