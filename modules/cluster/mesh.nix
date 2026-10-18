@@ -93,28 +93,47 @@
         wantedBy = [ "multi-user.target" ];
         after = [ "frr.service" ];
         wants = [ "frr.service" ];
-        path = [ pkgs.frr pkgs.gnugrep pkgs.coreutils pkgs.systemd ];
+        path = [ pkgs.frr pkgs.gnugrep pkgs.gawk pkgs.coreutils pkgs.systemd ];
         serviceConfig = {
           Type = "oneshot";
           RemainAfterExit = true;
           TimeoutStartSec = "5min";
         };
+        # A neighbour that's listed but not Up is the FRR start-up race this
+        # unit exists for: restart FRR, once. A neighbour that isn't listed at
+        # all is a node that's down -- restarting FRR then only tears down the
+        # links that do work, and doing it repeatedly hit systemd's start
+        # limit and left FRR dead (seen in testing, cold start with one node
+        # off). So with at least one adjacency Up and none stuck, the mesh is
+        # as up as it can be; only a node with no adjacency at all fails.
         script = ''
           want=${toString (builtins.length host.ring)}
-          up() { vtysh -c "show openfabric neighbor" | grep -c ' Up ' || true; }
-          for attempt in 1 2 3 4; do
-            for _ in $(seq 1 45); do
-              if [ "$(up)" -ge "$want" ]; then
-                echo "mesh up: $want/$want adjacencies (attempt $attempt)"
+          neighbours() { vtysh -c "show openfabric neighbor"; }
+          up() { neighbours | grep -c ' Up ' || true; }
+          stuck() { neighbours | awk 'NF >= 5 && $1 != "System" && $1 != "Area" && $4 != "Up"' | grep -c . || true; }
+          grace=45 restarted=0
+          for t in $(seq 1 240); do
+            u=$(up)
+            if [ "$u" -ge "$want" ]; then
+              echo "mesh up: $u/$want adjacencies after ''${t}s"
+              exit 0
+            fi
+            if [ "$t" -ge "$grace" ]; then
+              if [ "$(stuck)" -gt 0 ] && [ $restarted = 0 ]; then
+                echo "an adjacency is stuck after ''${t}s, restarting frr (once)"
+                neighbours
+                systemctl restart frr.service
+                restarted=1 grace=$((t + 45))
+              elif [ "$u" -ge 1 ]; then
+                echo "mesh up on $u/$want ring links; no working neighbour on the rest (a node down, or a link fault)"
+                neighbours
                 exit 0
               fi
-              sleep 1
-            done
-            echo "only $(up)/$want adjacencies Up after 45s, restarting frr"
-            vtysh -c "show openfabric neighbor"
-            systemctl restart frr.service
+            fi
+            sleep 1
           done
-          echo "mesh did not come up" >&2
+          echo "no ring adjacency at all after 4 minutes" >&2
+          neighbours >&2
           exit 1
         '';
       };
