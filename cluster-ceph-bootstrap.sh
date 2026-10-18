@@ -27,8 +27,8 @@ for n in "${NODES[@]}"; do
     echo "$(name "$n") already has a mon -- this cluster is bootstrapped" >&2; exit 1
   fi
 done
-echo "== tailscale"
-require_tailscale
+echo "== mesh SSH between the nodes (and Tailscale)"
+require_access
 FSID=$(on "$FIRST" "sed -n 's/^fsid *= *//p' /etc/ceph/ceph.conf")
 [ -n "$FSID" ] || { echo "no fsid in /etc/ceph/ceph.conf" >&2; exit 1; }
 echo "fsid $FSID"

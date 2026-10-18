@@ -1,31 +1,24 @@
 { inputs, lib, ... }: {
-  # Tailscale on cluster nodes. tailscale.nix (via the terminal module)
-  # already enables it and persists /var/lib/tailscale; this only changes
-  # what cluster nodes advertise.
+  # Tailscale on cluster nodes -- remote access for you, nothing more. The
+  # nodes themselves don't depend on it: the `cluster` tool reaches the other
+  # nodes over SSH on the mesh (tools.nix), so it works without internet.
+  # tailscale.nix (via the terminal module) already enables it and persists
+  # /var/lib/tailscale; this only changes what cluster nodes advertise.
   #
-  # Login is manual, once per install (cluster-testlab.sh reminds you, and
-  # the bootstrap scripts refuse to run until it's done):
+  # Login is manual, once per install, until the OAuth secret below exists
+  # (the bootstrap scripts refuse to run until it's done):
   #
-  #   sudo tailscale up --ssh --advertise-tags=tag:cluster
+  #   sudo tailscale up --advertise-tags=tag:cluster
   #
   # Tailnet policy needed (admin console -> Access controls):
   #
   #   "tagOwners": { "tag:cluster": ["autogroup:admin"] },
-  #   "ssh": [
-  #     { "action": "accept",
-  #       "src":   ["tag:cluster"],
-  #       "dst":   ["tag:cluster"],
-  #       "users": ["shot"] }
-  #   ]
   #
-  # plus, if your policy restricts traffic at all,
-  #   { "action": "accept", "src": ["tag:cluster"], "dst": ["tag:cluster:*"] }
-  #
-  # Only the nodes themselves may Tailscale-SSH to each other -- that's what
-  # the `cluster` tool (debug / restore / replace-osd) uses, as shot;
-  # anything needing root goes through sudo with shot's password. Personal
-  # devices are deliberately not in "src": being logged into the tailnet
-  # isn't a credential. They use regular sshd (port 20530, ~/.ssh/nixos):
+  # plus, if your policy restricts traffic at all, a rule letting your
+  # devices reach tag:cluster on port 20530. No "ssh" section: Tailscale SSH
+  # is off on the nodes (--ssh=false below). Being logged into the tailnet
+  # isn't a credential -- you log in with regular sshd (port 20530,
+  # ~/.ssh/nixos), over the tailnet or the LAN:
   #
   #   ssh -p 20530 shot@test-node1 cluster debug
   #
@@ -57,16 +50,17 @@
 
     services.tailscale = lib.mkMerge [
       {
-        # Tailscale SSH instead of exit-node routing -- the router VMs take
-        # that job later.
-        extraSetFlags = lib.mkForce [ "--ssh" ];
+        # No exit-node routing -- the router VMs take that job later. SSH
+        # off explicitly, not just left out: the setting persists in
+        # /var/lib/tailscale, and nodes from before this had it on.
+        extraSetFlags = lib.mkForce [ "--ssh=false" ];
       }
       (lib.mkIf haveOauth {
         authKeyFile = config.age.secrets.tailscale-cluster-oauth.path;
         # OAuth secrets need the tag on the command line; ephemeral=false so
         # the node isn't removed when it goes offline (e.g. a reboot).
         authKeyParameters = { ephemeral = false; preauthorized = true; };
-        extraUpFlags = lib.mkForce [ "--ssh" "--advertise-tags=tag:cluster" ];
+        extraUpFlags = lib.mkForce [ "--advertise-tags=tag:cluster" ];
       })
     ];
   };

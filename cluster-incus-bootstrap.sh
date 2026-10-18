@@ -30,8 +30,8 @@ for n in "${NODES[@]}"; do
   on "$n" "systemctl is-active --quiet incus" || { echo "$(name "$n"): incus not running" >&2; exit 1; }
 done
 on "$FIRST" "ceph health | grep -q HEALTH_OK" || { echo "ceph is not HEALTH_OK" >&2; exit 1; }
-echo "== tailscale"
-require_tailscale
+echo "== mesh SSH between the nodes (and Tailscale)"
+require_access
 # Every step below skips what already exists, so a run that stopped halfway
 # can simply be re-run.
 members_now=$(on "$FIRST" "incus cluster list -f csv -c n 2>/dev/null" </dev/null || true)

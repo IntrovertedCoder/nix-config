@@ -2,7 +2,7 @@
 # Sourced by the cluster-*-bootstrap.sh scripts: which nodes, and how to
 # reach them. name=ip, in node-id order (mesh address fd9a:7af:74af:ff::<id>).
 #
-# Run directly for the Tailscale check:  ./cluster-nodes.sh check-tailscale
+# Run directly to check the nodes can reach each other:  ./cluster-nodes.sh check-access
 NODES=(test-node1=10.123.58.148 test-node2=10.123.97.55 test-node3=10.123.135.218)
 KEY=${KEY:-$HOME/.ssh/nixos}
 
@@ -72,47 +72,39 @@ _cleanup() {
   rm -rf "$_TMP"
 }
 
-# Every node logged in, tagged tag:cluster, and able to reach every other
-# node as shot over Tailscale SSH (which is what proves the tailnet ACL).
-# The manual step after each install -- see modules/cluster/tailscale.nix.
-require_tailscale() {
-  local n m bad=0 state
+# What the nodes need from each other before any bootstrap: every node can
+# reach every other one as shot over SSH on the mesh -- what the `cluster`
+# tool runs on (`cluster check-ssh`, modules/cluster/tools.nix). Tailscale
+# is only for your own remote access, so it's reported but never blocks
+# (the cluster has to come up without internet too).
+require_access() {
+  local n bad=0 state out
   for n in "${NODES[@]}"; do
-    state=$(on "$n" "tailscale status --self --peers=false --json | jq -r '[.BackendState, ((.Self.Tags // []) | index(\"tag:cluster\") != null)] | @tsv'" 2>/dev/null || echo "unreachable")
-    case $state in
-      $'Running\ttrue') echo "  $(name "$n"): logged in, tag:cluster" ;;
-      $'Running\tfalse') echo "  $(name "$n"): logged in but NOT tagged tag:cluster"; bad=1 ;;
-      *) echo "  $(name "$n"): not logged in ($state)"; bad=1 ;;
-    esac
+    out=$(on "$n" 'runuser -u shot -- cluster check-ssh' 2>&1) || bad=1
+    sed 's/^/  /' <<<"$out"
   done
-  if [ $bad = 0 ]; then
-    for n in "${NODES[@]}"; do for m in "${NODES[@]}"; do
-      [ "$n" = "$m" ] && continue
-      # By the peer's real hostname and online state, not its tailnet name
-      # (which is "<node>-1" after a rebuild until renamed).
-      if ! on "$n" "a=\$(tailscale status --json | jq -r --arg h $(name "$m") '[.Peer[]? | select(.HostName == \$h and .Online)] | first | .TailscaleIPs[0] // empty'); [ -n \"\$a\" ] && timeout 20 runuser -u shot -- tailscale ssh shot@\$a true </dev/null" >/dev/null 2>&1; then
-        echo "  $(name "$n") -> $(name "$m"): Tailscale SSH as shot FAILED (check the tailnet ACL)"; bad=1
-      fi
-    done; done
-    [ $bad = 0 ] && echo "  Tailscale SSH works between every pair of nodes"
-  fi
   if [ $bad != 0 ]; then
     cat >&2 <<'EOF'
 
-Tailscale isn't set up yet. On each node not marked OK above:
-
-  sudo tailscale up --ssh --advertise-tags=tag:cluster
-
-and make sure the tailnet ACL has the tag:cluster entries from
-modules/cluster/tailscale.nix. Then re-run.
+Mesh SSH between the nodes isn't working. Check that mesh-online is active
+on every node, /run/agenix/cluster-ssh-key exists (decrypted with the
+node's host key), and every node runs the current config. Then re-run.
 EOF
     return 1
   fi
+  for n in "${NODES[@]}"; do
+    state=$(on "$n" "tailscale status --self --peers=false --json | jq -r '[.BackendState, ((.Self.Tags // []) | index(\"tag:cluster\") != null)] | @tsv'" 2>/dev/null || echo "unreachable")
+    case $state in
+      $'Running\ttrue') echo "  $(name "$n"): Tailscale logged in, tag:cluster" ;;
+      $'Running\tfalse') echo "  $(name "$n"): WARN Tailscale logged in but NOT tagged tag:cluster" ;;
+      *) echo "  $(name "$n"): WARN not on Tailscale ($state) -- remote access only, not needed by the cluster" ;;
+    esac
+  done
 }
 
 if [ "${BASH_SOURCE[0]}" = "$0" ]; then
   case ${1:-} in
-    check-tailscale) require_tailscale ;;
-    *) echo "usage: $0 check-tailscale" >&2; exit 1 ;;
+    check-access) require_access ;;
+    *) echo "usage: $0 check-access" >&2; exit 1 ;;
   esac
 fi

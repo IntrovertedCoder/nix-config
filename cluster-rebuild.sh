@@ -8,7 +8,7 @@
 # 1. preflight: node on the installer; the other nodes healthy and holding
 #    Ceph quorum; no instances still registered to the dead node
 # 2. reinstall the boot disk only (pre-seeded host key), wait for the mesh
-#    and for Tailscale to join on its own
+#    and for mesh SSH to the other nodes (what the `cluster` tool uses)
 # 3. Ceph: replace its mon, restore its mgr, re-activate its OSDs from the
 #    intact disks, wait for HEALTH_OK
 # 4. Incus: remove the dead member, join again with a fresh token
@@ -89,8 +89,10 @@ if [ $resume = 0 ]; then
   ./cluster-testlab.sh "$target"
 fi
 wait_for 600 "$target booted, mesh up" "$T" 'systemctl is-active --quiet mesh-online'
-wait_for 300 "$target joined Tailscale" "$T" \
-  'test "$(tailscale status --self --peers=false --json | jq -r .BackendState)" = Running'
+# The `cluster` tool on the rebuilt node reaches every other node over the
+# mesh (needs its key decrypted with the pre-seeded host key). Tailscale is
+# only remote access -- reported at the end, never waited for.
+wait_for 120 "$target reaches the other nodes over mesh SSH" "$T" "runuser -u shot -- cluster check-ssh"
 
 # ---------------------------------------------------------------------- ceph
 step "Ceph: monitor"
@@ -180,12 +182,16 @@ wait_for 120 "$target ONLINE in Incus" "$CTRL" \
 # ------------------------------------------------------------------- report
 step "done"
 on "$CTRL" "ceph -s | sed -n '/health:/p;/mon:/p;/osd:/p'; incus cluster list -f csv -c ns </dev/null"
-dns=$(on "$T" "tailscale status --self --peers=false --json | jq -r '.Self.DNSName'")
-if [[ "${dns%%.*}" != "$target" ]]; then
+dns=$(on "$T" "tailscale status --self --peers=false --json | jq -r 'select(.BackendState == \"Running\") | .Self.DNSName'" 2>/dev/null || true)
+if [ -z "$dns" ]; then
+  echo
+  echo "Tailscale: $target isn't on the tailnet yet (no internet?). Only remote access needs"
+  echo "it; it joins on its own once it can reach Tailscale."
+elif [[ "${dns%%.*}" != "$target" ]]; then
   echo
   echo "Tailscale: the rebuilt node joined as '${dns%%.*}' because the old '$target' entry"
-  echo "was still in the tailnet. The cluster tool works regardless (it finds nodes by"
-  echo "hostname). To tidy up in the admin console (Machines): delete the old, offline"
-  echo "'$target', then rename '${dns%%.*}' back to '$target'."
+  echo "was still in the tailnet. Only its tailnet name is affected. To tidy up in the"
+  echo "admin console (Machines): delete the old, offline '$target',"
+  echo "then rename '${dns%%.*}' back to '$target'."
 fi
 echo "$target rebuilt and rejoined."

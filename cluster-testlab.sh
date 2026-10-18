@@ -83,24 +83,27 @@ for n in "${targets[@]}"; do echo "== $(name "$n")"; tail -2 "$LOGS/$(name "$n")
 if [ -e secrets/tailscale-cluster-oauth.age ]; then
   cat <<'EOF'
 
-NEXT: the nodes join Tailscale on their own within a minute or two of
-booting (OAuth secret in secrets/). Confirm before any bootstrap script --
-they check too:
+NEXT: check the nodes reach each other over mesh SSH before any bootstrap
+script (they check too). Tailscale joins on its own a minute or two after
+boot (OAuth secret in secrets/); it's only for remote access, so the check
+just reports it:
 
-  ./cluster-nodes.sh check-tailscale
+  ./cluster-nodes.sh check-access
 EOF
 else
   cat <<'EOF'
 
-NEXT: log each node into Tailscale by hand before running any bootstrap
-script (they check, and stop until it's done). On each node:
+NEXT: check the nodes reach each other over mesh SSH before any bootstrap
+script (they check too):
 
-  sudo tailscale up --ssh --advertise-tags=tag:cluster
+  ./cluster-nodes.sh check-access
 
-then open the printed URL. The tailnet ACL needs tag:cluster in tagOwners
-and the ssh rule from modules/cluster/tailscale.nix. Check with:
+For remote access, log each node into Tailscale by hand (no OAuth secret
+in secrets/ yet):
 
-  ./cluster-nodes.sh check-tailscale
+  sudo tailscale up --advertise-tags=tag:cluster
+
+then open the printed URL. The tailnet ACL needs tag:cluster in tagOwners.
 EOF
 fi
 exit $fail

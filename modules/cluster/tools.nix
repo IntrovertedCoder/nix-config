@@ -40,6 +40,7 @@
       #   cluster debug                                  health report to paste into a chat
       #   cluster restore <node>                         bring an evacuated node back, safely
       #   cluster replace-osd <node> <osd-id> <disk>     rebuild an OSD on a replacement disk
+      #   cluster check-ssh                              can this node reach the others?
       #
       # Other nodes are reached over SSH on the mesh (fd9a:7af:74af:ff::<id>,
       # port 20530) as shot, with a key only the nodes have and that's only
@@ -227,6 +228,20 @@
       EOF
           echo '```'
         done
+      }
+
+      # ------------------------------------------------------------------ check-ssh
+      # Every other node answers over SSH on the mesh -- the path every other
+      # command here depends on. The bootstrap scripts run it on each node.
+      cmd_check_ssh() {
+        local n err bad=0
+        for n in $(node_names); do
+          [ "$n" = "$SELF" ] && continue
+          if err=$(on "$n" <<<'true' 2>&1 >/dev/null); then ok "$SELF -> $n"
+          else fail "$SELF -> $n: no answer over SSH on the mesh ($(tail -n1 <<<"''${err:-timed out}"))"; bad=1
+          fi
+        done
+        return $bad
       }
 
       # ------------------------------------------------------------------ restore
@@ -434,8 +449,9 @@
         debug)       shift; cmd_debug "$@" ;;
         restore)     shift; cmd_restore "$@" ;;
         replace-osd) shift; cmd_replace_osd "$@" ;;
+        check-ssh)   shift; cmd_check_ssh ;;
         *) sed -n '2,10p' "$0" 2>/dev/null || true
-           echo "usage: cluster debug | restore <node> | replace-osd <node> <osd-id> <disk>" >&2; exit 1 ;;
+           echo "usage: cluster debug | restore <node> | replace-osd <node> <osd-id> <disk> | check-ssh" >&2; exit 1 ;;
       esac
     '';
   };
