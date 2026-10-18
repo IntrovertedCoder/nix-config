@@ -320,7 +320,7 @@
         ok "no failed units on $node"
 
         # 8. restore
-        echo "== restoring $node (moving back: ''${origin:-nothing})"
+        echo "== restoring $node (moving back: ''${origin:-nothing})" | tr '\n' ' '; echo
         if [ $rebuilt = 0 ]; then
           ctl <<<"incus cluster restore $node --force --quiet"
         else
