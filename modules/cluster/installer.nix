@@ -8,12 +8,13 @@ in {
   #   nix build .#nixosConfigurations.<node>-installer.config.system.build.isoImage
   #
   # Reachable two ways, both root with your key only:
-  # - the LAN (management) port, by DHCP with the node's usual address --
-  #   which also gives it internet when the routers are up;
+  # - management: the node's own static address on the Trusted VLAN of the
+  #   trunk, and its link-local fe80::<lanId>, which answers with every
+  #   router down (test lab: also the home-LAN side door, by DHCP);
   # - the Thunderbolt mesh, at the node's usual mesh address (same FRR config
-  #   as the node, mesh.nix), through a healthy node or osmium's break-glass
-  #   port: ssh -J shot@<healthy-node>:20530 root@fd9a:7af:74af:ff::<id>
-  # The WAN and trunk ports stay unaddressed. No host key is baked in -- it
+  #   as the node, mesh.nix), through a healthy node:
+  #   ssh -J shot@<healthy-node>:20530 root@fd9a:7af:74af:ff::<id>
+  # The WAN port stays unaddressed. No host key is baked in -- it
   # would sit unencrypted on the stick -- so it makes its own at each boot.
   # It never touches a disk by itself. `rescue-report` says why a node died.
   flake.nixosConfigurations = lib.mapAttrs' (name: host:
@@ -25,6 +26,9 @@ in {
         ({ lib, pkgs, ... }: let
           # Same derivation as ceph.nix's osdIds: node1 -> 0 1, node2 -> 2 3, ...
           osdIds = lib.imap0 (i: _: toString ((host.id - 1) * 2 + i)) host.osdDisks;
+          lan = import ./_lan.nix;
+          mgmtSeg = lan.segments.trusted;
+          mgmtIf = "${host.trunk}.${toString host.vlans.trusted}";
 
           # One paste-ready answer to "why did this node die?". Read-only:
           # the dead boot disk is mounted ro, nothing is changed.
@@ -124,15 +128,44 @@ in {
           var.cluster = { inherit name host hosts; };
           networking.hostName = "${name}-installer";
 
-          # Only the LAN port and the mesh: no NetworkManager/wifi from the
-          # installer profile, nothing on the WAN or trunk.
+          # Only management and the mesh: no NetworkManager/wifi from the
+          # installer profile, nothing on the WAN. Management is the node's
+          # own static address and link-local on the Trusted VLAN of the trunk
+          # (node.nix), so it's reachable exactly where the node was -- with
+          # the routers down, by fe80::<lanId>. The node isn't running while
+          # this is, so the address is free.
           networking.networkmanager.enable = lib.mkForce false;
           networking.wireless.enable = lib.mkForce false;
-          systemd.network.networks."10-mgmt" = {
-            matchConfig.Name = host.mgmt;
-            networkConfig = { DHCP = "ipv4"; IPv6AcceptRA = true; };
-            # Same client ID as the node, so it gets the node's usual address.
-            dhcpV4Config.ClientIdentifier = "mac";
+          systemd.network.netdevs."25-mgmt" = {
+            netdevConfig = { Kind = "vlan"; Name = mgmtIf; };
+            vlanConfig.Id = host.vlans.trusted;
+          };
+          systemd.network.networks = {
+            "20-trunk" = {
+              matchConfig.Name = host.trunk;
+              vlan = [ mgmtIf ];
+              networkConfig = { LinkLocalAddressing = "no"; IPv6AcceptRA = false; };
+            };
+            "25-mgmt" = {
+              matchConfig.Name = mgmtIf;
+              address = [
+                "${mgmtSeg.v4}.${toString host.lanId}/24"
+                "${mgmtSeg.v6}::${toString host.lanId}/64"
+                "fe80::${toString host.lanId}/64"
+              ];
+              gateway = [ "${mgmtSeg.v4}.1" ];
+              dns = [ "${mgmtSeg.v4}.1" ];
+              networkConfig = { LinkLocalAddressing = "no"; IPv6AcceptRA = false; ConfigureWithoutCarrier = true; };
+            };
+          } // lib.optionalAttrs ((host.testLan or null) != null) {
+            # Test lab: the home-LAN side door, with its default route (a
+            # rescue system may need internet when the routers are down).
+            "10-testlan" = {
+              matchConfig.Name = host.testLan;
+              networkConfig = { DHCP = "ipv4"; IPv6AcceptRA = true; };
+              # Same client ID as the node, so it gets the node's usual address.
+              dhcpV4Config.ClientIdentifier = "mac";
+            };
           };
 
           boot.kernelModules = [ "thunderbolt" "thunderbolt_net" ];
@@ -148,9 +181,9 @@ in {
           users.users.root.openssh.authorizedKeys.keys =
             self.nixosConfigurations.${name}.config.users.users.shot.openssh.authorizedKeys.keys;
 
-          # Nothing trusted; SSH and ping on the LAN port and the ring links.
+          # Nothing trusted; SSH and ping on management (and the test side door) and the ring links.
           var.nftFirewall.trustedInterfaces = [ ];
-          var.nftFirewall.interfaces = lib.genAttrs ([ host.mgmt ] ++ host.ring) (_: {
+          var.nftFirewall.interfaces = lib.genAttrs ([ mgmtIf ] ++ lib.optional ((host.testLan or null) != null) host.testLan ++ host.ring) (_: {
             allowedTCPPorts = [ 22 ];
             allowPing = true;
           });

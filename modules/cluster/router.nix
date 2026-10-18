@@ -56,19 +56,13 @@
     lanMac = id: "02:74:af:01:00:${hex id}";
     mgmtMac = id: "02:74:af:fe:00:${hex id}";
 
-    segments = {
-      trusted = { v4 = "10.1.0";  v6 = "fd9a:7af:74af:1";  dhcp = true;  onLink = true; };
-      iot     = { v4 = "10.2.0";  v6 = "fd9a:7af:74af:2";  dhcp = true;  onLink = false; };
-      guest   = { v4 = "10.3.0";  v6 = null;               dhcp = true;  onLink = true; };
-      transit = { v4 = "10.91.0"; v6 = "fd9a:7af:74af:91"; dhcp = false; onLink = true; };
-    };
+    inherit (import ./_lan.nix) segments ula;
     clientSegs = lib.filterAttrs (_: s: s.dhcp) segments;
     v6Segs = lib.filterAttrs (_: s: s.v6 != null) segments;
     raSegs = lib.filterAttrs (_: s: s.dhcp && s.v6 != null) segments;   # clients that get IPv6
     segNames = set: lib.concatMapStringsSep ", " (s: ''"${s}"'') (lib.attrNames set);
     routerIp = id: seg: "${segments.${seg}.v4}.${toString (id + 1)}";
     peers = lib.filter (h: h.id != host.id) (lib.attrValues hosts);
-    ula = "fd9a:7af:74af::/48";
 
     poolStart = 100 + (host.id - 1) * 50;
 

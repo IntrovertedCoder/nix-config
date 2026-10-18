@@ -13,7 +13,15 @@ let
     # a reinstalled node keeps its identity and can decrypt agenix secrets on
     # first boot. Also an agenix recipient (see secrets.nix).
     inherit hostKey;
-    mgmt = "ens18";          # home LAN, DHCP (UniFi reservation by MAC)
+    # Management: a static address on the Trusted VLAN of the trunk (node.nix,
+    # _lan.nix): 10.1.0.<lanId>, fd9a:7af:74af:1::<lanId>, and the fixed
+    # link-local fe80::<lanId> for break-glass. The real nodes use their
+    # atomic numbers (77 Ir, 78 Pt, 76 Os); the test nodes 11-13.
+    lanId = 10 + id;
+    # Test lab only: a side door on the home LAN (DHCP, UniFi reservation by
+    # MAC) with no default route or DNS, so the nodes still depend on the
+    # router VMs like the real ones but stay reachable if the routers fail.
+    testLan = "ens18";
     ring = [ "ens19" "ens20" ];  # Thunderbolt ring stand-in, point-to-point bridges
     wan = "ens21";           # router VMs' WAN -- VLAN 30 in the test lab
     trunk = "ens22";         # Trusted / IoT / Guest VLAN trunk

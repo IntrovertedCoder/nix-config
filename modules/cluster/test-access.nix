@@ -14,8 +14,8 @@
     users.users.root.openssh.authorizedKeys.keys =
       config.users.users.shot.openssh.authorizedKeys.keys;
 
-    # SSH from the home LAN, ping for debugging.
-    var.nftFirewall.interfaces.${config.var.cluster.host.mgmt} = {
+    # SSH from the home LAN (the testLan side door), ping for debugging.
+    var.nftFirewall.interfaces.${config.var.cluster.host.testLan} = {
       allowedTCPPorts = config.services.openssh.ports;
       allowPing = true;
     };
