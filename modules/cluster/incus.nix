@@ -38,10 +38,19 @@
       # applies patch.global.sql to the cluster database as it starts,
       # before healing can run: disable healing on every start, and let
       # incus-healing-arm turn it back on once the cluster has settled.
+      # Only once this node has been part of the running cluster (marker left
+      # by incus-healing-arm): on a fresh install there's no config table yet,
+      # the patch fails and Incus never starts (that
+      # broke cluster-rebuild.sh's rejoin). A joining node gets the cluster's
+      # database, healing setting and all, from the others.
       preStart = ''
         install -d -m 0700 /var/lib/incus/database
-        echo "UPDATE config SET value = '0' WHERE key = 'cluster.healing_threshold';" \
-          > /var/lib/incus/database/patch.global.sql
+        if [ -e /var/lib/incus/.healing-guard ]; then
+          echo "UPDATE config SET value = '0' WHERE key = 'cluster.healing_threshold';" \
+            > /var/lib/incus/database/patch.global.sql
+        else
+          rm -f /var/lib/incus/database/patch.global.sql
+        fi
       '';
     };
 
@@ -71,6 +80,8 @@
             if { [ -n "$settled" ] && [ $((now - settled)) -ge 120 ]; } || [ $((now - first)) -ge 600 ]; then
               incus config set cluster.healing_threshold=${toString healingThreshold}
               echo "healing re-armed: cluster.healing_threshold=${toString healingThreshold}"
+              # from now on every Incus start on this node disables healing first
+              touch /var/lib/incus/.healing-guard
               exit 0
             fi
           fi

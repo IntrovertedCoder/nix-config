@@ -45,17 +45,22 @@ done
 [ -n "$T" ] || die "unknown node $target"
 CTRL=${others[0]}
 addr=$(mesh "$tid")
+# Left on the node after the reinstall, removed when the rebuild finishes:
+# the only thing that lets a re-run resume (see preflight).
+REBUILD_MARK=/persistent/cluster-rebuild-in-progress   # / is tmpfs: must survive a reboot
 
 # ------------------------------------------------------------------ preflight
 step "preflight"
 resume=0
 if installer_find "$T"; then
   echo "  ok  $target is on the installer (${INST_HOST[$target]}:${INST_PORT[$target]})"
-elif on "$T" "test ! -e /var/lib/ceph/mon/ceph-$target/keyring && ! incus cluster list >/dev/null 2>&1" 2>/dev/null; then
-  # A previous run installed it but stopped before rejoining. Only a node
-  # with no mon and no Incus cluster qualifies -- never a working member.
+elif on "$T" "test -e $REBUILD_MARK" 2>/dev/null; then
+  # A previous run reinstalled it and stopped partway. Only a node carrying
+  # the marker this script leaves after the install qualifies -- never a
+  # working member, even one whose services are down. Every step below
+  # skips what that run already finished.
   resume=1
-  echo "  ok  $target is freshly installed but not rejoined -- resuming after the install"
+  echo "  ok  $target was reinstalled by an unfinished rebuild -- resuming after the install"
 else
   die "$target isn't booted into an installer (checked its management address, and its mesh address through the other nodes)"
 fi
@@ -109,6 +114,7 @@ if [ $resume = 0 ]; then
   ./cluster-testlab.sh "$target"
 fi
 wait_for 600 "$target booted, mesh up" "$T" 'systemctl is-active --quiet mesh-online'
+on "$T" "touch $REBUILD_MARK"
 # The `cluster` tool on the rebuilt node reaches every other node over the
 # mesh (needs its key decrypted with the pre-seeded host key). Tailscale is
 # only remote access -- reported at the end, never waited for.
@@ -121,6 +127,9 @@ wait_for 180 "$target's router VM running" "$T" "systemctl is-active --quiet mic
 
 # ---------------------------------------------------------------------- ceph
 step "Ceph: monitor"
+if on "$CTRL" "ceph quorum_status -f json | jq -e --arg n $target '.quorum_names | index(\$n)' >/dev/null" </dev/null 2>&1; then
+  echo "  ok  mon.$target is already in quorum"
+else
 on "$CTRL" bash -euo pipefail -s <<EOF
 # The old mon's store died with the boot disk; drop it from the monmap and
 # let the fresh one join. Quorum stays 2 of the remaining 2.
@@ -150,15 +159,20 @@ systemctl start ceph-mon-$target
 EOF
 wait_for 300 "mon.$target back in quorum" "$CTRL" \
   "ceph quorum_status -f json | jq -e --arg n $target '.quorum_names | index(\$n)' >/dev/null"
+fi
 
 step "Ceph: manager"
+if on "$T" "systemctl is-active --quiet ceph-mgr-$target" </dev/null; then
+  echo "  ok  mgr.$target already running"
+else
 on "$T" bash -euo pipefail -s <<EOF
 install -d -o ceph -g ceph /var/lib/ceph/mgr/ceph-$target
 ceph auth get mgr.$target -o /var/lib/ceph/mgr/ceph-$target/keyring
 chown ceph:ceph /var/lib/ceph/mgr/ceph-$target/keyring
 systemctl start ceph-mgr-$target
 EOF
-echo "  ok  mgr.$target started"
+  echo "  ok  mgr.$target started"
+fi
 
 step "Ceph: OSDs from the intact disks"
 found=$(on "$T" "ceph-volume lvm list --format json | jq -r 'to_entries[] | \"\(.key) \(.value[0].tags[\"ceph.osd_fsid\"]) \(.value[0].devices | join(\",\"))\"'")
@@ -167,6 +181,7 @@ while read -r id fsid devs; do
   if [[ " $expected_osds " != *" $id "* ]]; then
     die "found osd.$id on $devs, but $target should only have: $expected_osds -- wrong disks in this node?"
   fi
+  if on "$T" "systemctl is-active --quiet ceph-osd-$id" </dev/null; then echo "  ok  osd.$id already running"; continue; fi
   # </dev/null: ssh would otherwise read the rest of this loop's input
   on "$T" "ceph-volume lvm activate --no-tmpfs --no-systemd $id $fsid >/dev/null && systemctl start ceph-osd-$id" </dev/null
   echo "  ok  osd.$id re-activated from $devs"
@@ -185,10 +200,32 @@ done
 
 # ---------------------------------------------------------------------- incus
 step "Incus: rejoin"
+if on "$CTRL" "incus cluster list -f csv -c ns </dev/null | grep -qx '$target,ONLINE'" </dev/null; then
+  echo "  ok  $target is already an Incus member"
+else
 # The member's database and identity died with the boot disk; remove it and
 # join again. Safe because preflight confirmed no instances are registered to it.
-on "$CTRL" "incus cluster remove $target --force --yes </dev/null"
+on "$CTRL" "! incus cluster list -f csv -c n </dev/null | grep -qx $target || incus cluster remove $target --force --yes </dev/null"
+# A failed join leaves a half-made member database behind (pools and
+# networks created before the error), and the next join then fails on it.
+# The fresh node's Incus holds nothing yet -- preflight confirmed no
+# instances are registered to it -- so start every join attempt from empty.
+on "$T" bash -euo pipefail -s <<'EOF'
+systemctl stop incus.service incus.socket
+find /var/lib/incus -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+systemctl start incus.socket incus.service
+EOF
+on "$CTRL" "incus cluster list-tokens -f csv </dev/null | awk -F, -v n=$target '\$1==n {print \$1}' | xargs -r -n1 incus cluster revoke-token </dev/null" || true
 token=$(on "$CTRL" "incus cluster add $target -q </dev/null")
+# Member-specific settings the join must supply: the storage pool's source,
+# and (once cluster-ovn-bootstrap.sh has made it) the OVN uplink's parent.
+transit_member=""
+if on "$CTRL" "incus network list -f csv -c n </dev/null | grep -qx transit" </dev/null; then
+  transit_member="  - entity: network
+    name: transit
+    key: parent
+    value: br-trunk"
+fi
 on "$T" "incus admin init --preseed" <<EOF
 cluster:
   enabled: true
@@ -200,12 +237,15 @@ cluster:
     name: remote
     key: source
     value: vms
+$transit_member
 EOF
 wait_for 120 "$target ONLINE in Incus" "$CTRL" \
   "incus cluster list -f csv -c ns </dev/null | grep -qx '$target,ONLINE'"
+fi
 
 # ------------------------------------------------------------------- report
 step "done"
+on "$T" "rm -f $REBUILD_MARK"
 on "$CTRL" "ceph -s | sed -n '/health:/p;/mon:/p;/osd:/p'; incus cluster list -f csv -c ns </dev/null"
 dns=$(on "$T" "tailscale status --self --peers=false --json | jq -r 'select(.BackendState == \"Running\") | .Self.DNSName'" 2>/dev/null || true)
 if [ -z "$dns" ]; then
