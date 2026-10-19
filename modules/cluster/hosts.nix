@@ -13,6 +13,7 @@ in {
       self.nixosModules.clusterHealth
       self.nixosModules.clusterRouter
       self.nixosModules.clusterOvn
+      self.nixosModules.clusterUnifi
       self.nixosModules.clusterDisko
       self.nixosModules.user-shot
       self.nixosModules.sshd

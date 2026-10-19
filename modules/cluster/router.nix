@@ -480,6 +480,19 @@
 
     environment.systemPackages = [ routerSsh ];
 
+    # nixpkgs' Incus module loads br_netfilter, whose default sends every
+    # bridged frame through the node's own firewall and conntrack -- all the
+    # LAN traffic passing the router on br-trunk included. A node's own
+    # packets coming back across its bridge (node -> router -> UniFi
+    # controller on that node, or out again through the router it hosts) were
+    # dropped there. br-trunk is a plain switch; Incus filters with nftables'
+    # bridge family and doesn't need this.
+    boot.kernel.sysctl = {
+      "net.bridge.bridge-nf-call-iptables" = 0;
+      "net.bridge.bridge-nf-call-ip6tables" = 0;
+      "net.bridge.bridge-nf-call-arptables" = 0;
+    };
+
     # The router's LAN side has carrier only while the node's trunk NIC does.
     # A router cut off from the LAN (dead cable or switch port) hears no VRRP
     # adverts and would make itself a second master, bringing up a second WAN
