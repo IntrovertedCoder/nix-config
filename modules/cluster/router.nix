@@ -37,13 +37,15 @@
   #   Trusted   10.1.0.0/24     fd9a:7af:74af:1::/64
   #   IoT       10.2.0.0/24     fd9a:7af:74af:2::/64  (not on-link)
   #   Guest     10.3.0.0/24     --
+  #   Infra     10.4.0.0/24     --                    (UNTAGGED: network gear, UniFi controller)
   #   Transit   10.91.0.0/24    fd9a:7af:74af:91::/64 (to OVN's services network)
   #   .1 / ::1 = gateway (VRRP), .<id+1> / ::<id+1> = the router on node <id>,
   #   DHCP .100-.149 / .150-.199 / .200-.249 from routers 1 / 2 / 3.
   #
-  # Forwarding: every VLAN out to the internet over IPv4 (NAT); nothing
-  # between VLANs over IPv4; locally over IPv6, Trusted may reach anything,
-  # nothing else starts connections.
+  # Forwarding: every segment out to the internet over IPv4 (NAT); between
+  # segments over IPv4 only Trusted -> Infra (managing the gear); locally over
+  # IPv6, Trusted may reach anything, nothing else starts connections.
+  # Infra DHCP answers UniFi gear only (vendor class "ubnt").
   #
   # Get a shell on this node's router (as root on the node):  router-ssh
   flake.nixosModules.clusterRouter = { config, lib, pkgs, ... }: let
@@ -54,6 +56,7 @@
     wanMac = "02:74:af:00:00:01";
     hex = n: lib.fixedWidthString 2 "0" (lib.toLower (lib.toHexString n));
     lanMac = id: "02:74:af:01:00:${hex id}";
+    untaggedMac = id: "02:74:af:02:00:${hex id}";
     mgmtMac = id: "02:74:af:fe:00:${hex id}";
 
     lan = import ./_lan.nix;
@@ -61,6 +64,15 @@
     clientSegs = lib.filterAttrs (_: s: s.dhcp) segments;
     v6Segs = lib.filterAttrs (_: s: s.v6 != null) segments;
     raSegs = lib.filterAttrs (_: s: s.dhcp && s.v6 != null) segments;   # clients that get IPv6
+    # Tagged segments are VLANs on the router's trunk link ("lan"). The
+    # untagged one (infra) is a macvlan on it, NOT the trunk link itself: a
+    # raw socket there (Kea's) sees the tagged frames too, and Kea answered
+    # VLAN 31 requests from the infra subnet (seen in testing). The kernel hands
+    # tagged frames to their VLAN devices before the macvlan sees anything.
+    taggedSegs = lib.filterAttrs (_: s: !(s.untagged or false)) segments;
+    untaggedSeg = lib.findFirst (seg: segments.${seg}.untagged or false) null (lib.attrNames segments);
+    segAddrs = seg: s: [ "${routerIp host.id seg}/24" ]
+      ++ lib.optional (s.v6 != null) "${s.v6}::${toString (host.id + 1)}/64";
     segNames = set: lib.concatMapStringsSep ", " (s: ''"${s}"'') (lib.attrNames set);
     routerIp = id: seg: "${segments.${seg}.v4}.${toString (id + 1)}";
     peers = lib.filter (h: h.id != host.id) (lib.attrValues hosts);
@@ -152,7 +164,12 @@
       systemd.network.netdevs = lib.mapAttrs' (seg: _: lib.nameValuePair "20-${seg}" {
         netdevConfig = { Kind = "vlan"; Name = seg; };
         vlanConfig.Id = host.vlans.${seg};
-      }) segments;
+      }) taggedSegs // lib.optionalAttrs (untaggedSeg != null) {
+        "20-${untaggedSeg}" = {
+          netdevConfig = { Kind = "macvlan"; Name = untaggedSeg; MACAddress = untaggedMac host.id; };
+          macvlanConfig.Mode = "bridge";
+        };
+      };
       systemd.network.networks = {
         # Down until keepalived makes this router master.
         "10-wan" = {
@@ -167,7 +184,8 @@
         };
         "10-lan" = {
           matchConfig.Name = "lan";
-          vlan = lib.attrNames segments;
+          vlan = lib.attrNames taggedSegs;
+          macvlan = lib.optional (untaggedSeg != null) untaggedSeg;
           networkConfig = { LinkLocalAddressing = "no"; IPv6AcceptRA = false; };
           linkConfig.RequiredForOnline = "carrier";
         };
@@ -179,8 +197,7 @@
         };
       } // lib.mapAttrs' (seg: s: lib.nameValuePair "20-${seg}" {
         matchConfig.Name = seg;
-        address = [ "${routerIp host.id seg}/24" ]
-          ++ lib.optional (s.v6 != null) "${s.v6}::${toString (host.id + 1)}/64";
+        address = segAddrs seg s;
         networkConfig = { IPv6AcceptRA = false; ConfigureWithoutCarrier = true; };
         linkConfig.RequiredForOnline = "no";
         # Backups (WAN down) reach the internet through the master; on the
@@ -279,11 +296,24 @@
           # gone is ignored rather than refused, so it keeps its address
           # until the lease runs out.
           authoritative = false;
-          subnet4 = lib.imap1 (i: seg: let s = clientSegs.${seg}; in {
-            id = i;
+          # A segment with dhcpClass hands out addresses only to clients whose
+          # vendor class (DHCP option 60) starts with it -- UniFi gear sends
+          # "ubnt". Keeps whatever else gets plugged into an infra port off it
+          # (spoofable: the switch port profiles are the real gate).
+          client-classes = lib.mapAttrsToList (seg: s: {
+            name = "${seg}-gear";
+            test = "substring(option[60].text, 0, ${toString (lib.stringLength s.dhcpClass)}) == '${s.dhcpClass}'";
+          }) (lib.filterAttrs (_: s: s ? dhcpClass) clientSegs);
+          # Fixed subnet ids (the second octet: trusted 1, iot 2, ...): ids by
+          # position shifted when a segment was added, and every stored lease
+          # failed Kea's sanity check. fix-del repairs such leases or drops them.
+          sanity-checks.lease-checks = "fix-del";
+          subnet4 = map (seg: let s = clientSegs.${seg}; in {
+            id = lib.toInt (lib.elemAt (lib.splitString "." s.v4) 1);
             subnet = "${s.v4}.0/24";
             interface = seg;
-            pools = [{ pool = "${s.v4}.${toString poolStart} - ${s.v4}.${toString (poolStart + 49)}"; }];
+            pools = [({ pool = "${s.v4}.${toString poolStart} - ${s.v4}.${toString (poolStart + 49)}"; }
+              // lib.optionalAttrs (s ? dhcpClass) { client-classes = [ "${seg}-gear" ]; })];
             option-data = [
               { name = "routers"; data = "${s.v4}.1"; }
               { name = "domain-name-servers"; data = "${s.v4}.1"; }
@@ -340,6 +370,33 @@
         iifname "transit" ip saddr 10.91.0.0/24 ip protocol vrrp accept
       '';
 
+      # Tagged frames for VLANs this router doesn't serve would bypass the VLAN
+      # devices and reach the untagged macvlan (and Kea on it): drop them as
+      # they come in. Its own unit, loaded once "lan" exists: an ingress hook
+      # on a missing device fails the whole ruleset -- at boot, the firewall.
+      systemd.services.trunk-vlan-filter = lib.mkIf (untaggedSeg != null) {
+        description = "Drop frames for VLANs this router does not serve";
+        bindsTo = [ "sys-subsystem-net-devices-lan.device" ];
+        after = [ "sys-subsystem-net-devices-lan.device" "nftables.service" ];
+        wantedBy = [ "sys-subsystem-net-devices-lan.device" "multi-user.target" ];
+        # NixOS's firewall starts with "flush ruleset": load again after it
+        # restarts or reloads.
+        partOf = [ "nftables.service" ];
+        unitConfig.ReloadPropagatedFrom = [ "nftables.service" ];
+        serviceConfig = let
+          load = "${pkgs.nftables}/bin/nft -f ${pkgs.writeText "trunk-vlan-filter.nft" ''
+          table netdev trunk
+          delete table netdev trunk
+          table netdev trunk {
+            chain ingress {
+              type filter hook ingress device "lan" priority filter; policy accept;
+              vlan id != { ${lib.concatMapStringsSep ", " (seg: toString host.vlans.${seg}) (lib.attrNames taggedSegs)} } drop
+            }
+          }
+          ''}";
+        in { Type = "oneshot"; RemainAfterExit = true; ExecStart = load; ExecReload = load; };
+      };
+
       networking.nftables.tables.router = {
         family = "inet";
         content = ''
@@ -361,6 +418,9 @@
             meta nfproto ipv4 iifname { ${segNames segments} } oifname "wan" accept
             # Local IPv6: Trusted may start connections to anything local.
             iifname "trusted" ip6 daddr ${ula} accept
+            # Network gear has no IPv6: Trusted manages it (and the UniFi
+            # controller) over IPv4.
+            ${lib.optionalString (segments ? infra) ''iifname "trusted" oifname "infra" meta nfproto ipv4 accept''}
           }
 
           chain postrouting {

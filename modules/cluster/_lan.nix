@@ -12,6 +12,10 @@
     trusted = { v4 = "10.1.0";  v6 = "fd9a:7af:74af:1";  dhcp = true;  onLink = true; };
     iot     = { v4 = "10.2.0";  v6 = "fd9a:7af:74af:2";  dhcp = true;  onLink = false; };
     guest   = { v4 = "10.3.0";  v6 = null;               dhcp = true;  onLink = true; };
+    # Network gear (UniFi switches, APs) and the UniFi controller. The one
+    # UNTAGGED segment on the trunk: factory-fresh gear asks for DHCP there.
+    # DHCP only answers devices that say they are UniFi (dhcpClass).
+    infra   = { v4 = "10.4.0";  v6 = null;               dhcp = true;  onLink = true; untagged = true; dhcpClass = "ubnt"; };
     transit = { v4 = "10.91.0"; v6 = "fd9a:7af:74af:91"; dhcp = false; onLink = true; };
   };
 
