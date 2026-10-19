@@ -63,6 +63,7 @@ in {
     networking.firewall.allowedTCPPorts = [ 8443 ];   # the web UI
 
     services.openssh.enable = lib.mkForce false;
+    environment.systemPackages = [ pkgs.curl ];   # debugging from inside
   };
 
   # On every node: keep a copy of the controller's backups on local disk.
