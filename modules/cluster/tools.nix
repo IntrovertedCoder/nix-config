@@ -27,7 +27,7 @@
   mkAgent = { pkgs, config }: pkgs.writeShellApplication {
     name = "cluster-agent";
     runtimeInputs = with pkgs; [
-      coreutils gnugrep gawk gnused jq util-linux procps iproute2
+      coreutils gnugrep gawk gnused jq util-linux procps iproute2 iputils
       ceph                                       # ceph, rbd
       config.virtualisation.incus.clientPackage  # incus
       frr                                        # vtysh
@@ -38,11 +38,13 @@
       NODES=(${lib.concatStringsSep " " (lib.attrNames hosts)})
       OSD_DISKS=(${lib.escapeShellArgs config.var.cluster.host.osdDisks})
       # Which node's router holds the gateway, from its MAC in the neighbour
-      # table (router.nix: LAN MACs end in the node id) -- no root, no ping.
+      # table (router.nix: LAN MACs end in the node id) -- no root. Ping first:
+      # a stopped router's MAC lingers there as STALE, which looked alive.
       MGMT_IF=br-trunk.${toString config.var.cluster.host.vlans.trusted}
       GATEWAY=${(import ./_lan.nix).segments.trusted.v4}.1
       gateway_router() {
         local mac id
+        ping -c1 -W1 -I "$MGMT_IF" "$GATEWAY" >/dev/null 2>&1 || return 1
         mac=$(ip -4 neigh show "$GATEWAY" dev "$MGMT_IF" | awk '/lladdr/ && !/FAILED|INCOMPLETE/ {print $3}')
         [ -n "$mac" ] || return 1
         id=$(( 16#''${mac##*:} ))
@@ -123,8 +125,8 @@
           c vtysh -c "show ipv6 route openfabric"
           c vtysh -c "show openfabric topology"
           c journalctl -b -u mesh-online --no-pager -n 10 -o short-iso
-          c chronyc tracking
-          c chronyc sources
+          c chronyc -n tracking
+          c chronyc -n sources   # -n: no DNS, which is down with the routers
           c systemctl --failed --no-legend
           c rbd showmapped
           c journalctl -b -p warning --since -2h --no-pager -n 40 -o short-iso -u 'ceph*' -u incus -u frr -u mesh-online -u chronyd
