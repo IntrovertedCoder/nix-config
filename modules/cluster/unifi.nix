@@ -47,7 +47,7 @@ in {
     networking.useDHCP = false;
     systemd.network.networks."10-eth0" = {
       matchConfig.Name = "eth0";
-      address = [ "${address}/24" ];
+      address = [ "${address}/${toString infra.plen}" ];
       gateway = [ "${infra.v4}.1" ];
       dns = [ "${infra.v4}.1" ];
       networkConfig = { LinkLocalAddressing = "no"; IPv6AcceptRA = false; };

@@ -44,7 +44,7 @@
         "25-mgmt" = {
           matchConfig.Name = mgmtIf;
           address = [
-            "${mgmtSeg.v4}.${toString host.lanId}/24"
+            "${mgmtSeg.v4}.${toString host.lanId}/${toString mgmtSeg.plen}"
             "${mgmtSeg.v6}::${toString host.lanId}/64"
             "fe80::${toString host.lanId}/64"
           ];

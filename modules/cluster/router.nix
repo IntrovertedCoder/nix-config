@@ -34,13 +34,14 @@
   # even IoT-to-IoT IPv6 goes through the router's firewall.
   #
   #             IPv4            IPv6 (ULA)
-  #   Trusted   10.1.0.0/24     fd9a:7af:74af:1::/64
-  #   IoT       10.2.0.0/24     fd9a:7af:74af:2::/64  (not on-link)
-  #   Guest     10.3.0.0/24     --
-  #   Infra     10.4.0.0/24     --                    (UNTAGGED: network gear, UniFi controller)
+  #   Trusted   10.1.0.0/21     fd9a:7af:74af:1::/64
+  #   IoT       10.2.0.0/21     fd9a:7af:74af:2::/64  (not on-link)
+  #   Guest     10.3.0.0/21     --
+  #   Infra     10.4.0.0/21     --                    (UNTAGGED: network gear, UniFi controller)
   #   Transit   10.91.0.0/24    fd9a:7af:74af:91::/64 (to OVN's services network)
   #   .1 / ::1 = gateway (VRRP), .<id+1> / ::<id+1> = the router on node <id>,
-  #   DHCP .100-.149 / .150-.199 / .200-.249 from routers 1 / 2 / 3.
+  #   DHCP from router <id> in 10.<seg>.<id>.x; reservations in 10.<seg>.4.x,
+  #   the same from every router (_lan.nix).
   #
   # Forwarding: every segment out to the internet over IPv4 (NAT); between
   # segments over IPv4 only Trusted -> Infra (managing the gear); locally over
@@ -71,13 +72,12 @@
     # tagged frames to their VLAN devices before the macvlan sees anything.
     taggedSegs = lib.filterAttrs (_: s: !(s.untagged or false)) segments;
     untaggedSeg = lib.findFirst (seg: segments.${seg}.untagged or false) null (lib.attrNames segments);
-    segAddrs = seg: s: [ "${routerIp host.id seg}/24" ]
+    segAddrs = seg: s: [ "${routerIp host.id seg}/${toString s.plen}" ]
       ++ lib.optional (s.v6 != null) "${s.v6}::${toString (host.id + 1)}/64";
     segNames = set: lib.concatMapStringsSep ", " (s: ''"${s}"'') (lib.attrNames set);
     routerIp = id: seg: "${segments.${seg}.v4}.${toString (id + 1)}";
     peers = lib.filter (h: h.id != host.id) (lib.attrValues hosts);
 
-    poolStart = 100 + (host.id - 1) * 50;
 
     routerSsh = pkgs.writeShellApplication {
       name = "router-ssh";
@@ -236,7 +236,7 @@
           priority = 160 - 10 * host.id;   # first election only: node1 > node2 > node3
           unicastSrcIp = routerIp host.id "transit";
           unicastPeers = map (h: routerIp h.id "transit") peers;
-          virtualIps = lib.mapAttrsToList (seg: s: { addr = "${s.v4}.1/24"; dev = seg; }) segments;
+          virtualIps = lib.mapAttrsToList (seg: s: { addr = "${s.v4}.1/${toString s.plen}"; dev = seg; }) segments;
           trackScripts = [ "wan_carrier" ];
           # IPv6 gateway addresses move with the IPv4 ones but aren't carried
           # in the (IPv4) adverts.
@@ -310,9 +310,14 @@
           sanity-checks.lease-checks = "fix-del";
           subnet4 = map (seg: let s = clientSegs.${seg}; in {
             id = lib.toInt (lib.elemAt (lib.splitString "." s.v4) 1);
-            subnet = "${s.v4}.0/24";
+            subnet = lan.v4net s;
             interface = seg;
-            pools = [({ pool = "${s.v4}.${toString poolStart} - ${s.v4}.${toString (poolStart + 49)}"; }
+            # A reserved device gets its address from whichever router answers
+            # (outside every pool, and not subject to the pool's client class).
+            reservations = map (r: {
+              hw-address = r.mac; ip-address = lan.v4reserved s r.host; hostname = r.name;
+            }) (s.reservations or [ ]);
+            pools = [({ pool = lan.v4pool s host.id; }
               // lib.optionalAttrs (s ? dhcpClass) { client-classes = [ "${seg}-gear" ]; })];
             option-data = [
               { name = "routers"; data = "${s.v4}.1"; }
@@ -346,7 +351,7 @@
             # adblock = false gets the group "none", which has no lists. (An
             # empty list doesn't work: Blocky falls back to "default".)
             clientGroupsBlock = { default = [ "ads" ]; } // lib.mapAttrs' (_: s:
-              lib.nameValuePair "${s.v4}.0/24" [ "none" ]
+              lib.nameValuePair (lan.v4net s) [ "none" ]
             ) (lib.filterAttrs (_: s: !(s.adblock or true)) segments);
             # Answer straight away and fetch the lists in the background
             # (backups fetch through the master), retrying if that fails.
@@ -410,7 +415,7 @@
           chain input {
             type filter hook input priority filter - 10; policy accept;
             ${lib.concatStrings (lib.mapAttrsToList (seg: s: ''
-              iifname "${seg}" ip daddr 10.0.0.0/8 ip daddr != ${s.v4}.0/24 drop
+              iifname "${seg}" ip daddr 10.0.0.0/8 ip daddr != ${lan.v4net s} drop
               iifname "${seg}" ip6 daddr ${ula} ${lib.optionalString (s.v6 != null) "ip6 daddr != ${s.v6}::/64 "}drop
             '') clientSegs)}
           }
