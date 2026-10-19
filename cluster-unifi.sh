@@ -57,8 +57,10 @@ missing=\$(nix-store -qR $sys | $(cexec bash) -c 'xargs nix-store --check-validi
 echo "   \$(echo "\$missing" | grep -c . || true) paths"
 [ -z "\$missing" ] || nix-store --export \$missing | $(cexec nix-store) --import >/dev/null
 echo "== switch"
-$(cexec nix-env) -p /nix/var/nix/profiles/system --set $sys
-$(cexec bash) -c '$sys/bin/switch-to-configuration switch'
+$(cexec nix-env) -p /nix/var/nix/profiles/system --set $sys </dev/null
+$(cexec bash) -c '$sys/bin/switch-to-configuration switch' </dev/null
+# check: it must be running the new system now (and boot it: /sbin/init)
+[ "\$($(cexec readlink) -f /run/current-system </dev/null)" = $sys ] || { echo 'switch did not take' >&2; exit 1; }
 EOF
   ;;
 
