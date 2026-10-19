@@ -11,7 +11,8 @@
   segments = {
     trusted = { v4 = "10.1.0";  v6 = "fd9a:7af:74af:1";  dhcp = true;  onLink = true; };
     iot     = { v4 = "10.2.0";  v6 = "fd9a:7af:74af:2";  dhcp = true;  onLink = false; };
-    guest   = { v4 = "10.3.0";  v6 = null;               dhcp = true;  onLink = true; };
+    # Guests get plain DNS: no ad blocking (adblock = false).
+    guest   = { v4 = "10.3.0";  v6 = null;               dhcp = true;  onLink = true; adblock = false; };
     # Network gear (UniFi switches, APs) and the UniFi controller. The one
     # UNTAGGED segment on the trunk: factory-fresh gear asks for DHCP there.
     # DHCP only answers devices that say they are UniFi (dhcpClass).

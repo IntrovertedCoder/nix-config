@@ -342,7 +342,12 @@
           queryLog.type = "none";        # not every client's lookups in the journal
           blocking = {
             denylists.ads = [ "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts" ];
-            clientGroupsBlock.default = [ "ads" ];
+            # Blocky tells clients apart by source address: a segment with
+            # adblock = false gets the group "none", which has no lists. (An
+            # empty list doesn't work: Blocky falls back to "default".)
+            clientGroupsBlock = { default = [ "ads" ]; } // lib.mapAttrs' (_: s:
+              lib.nameValuePair "${s.v4}.0/24" [ "none" ]
+            ) (lib.filterAttrs (_: s: !(s.adblock or true)) segments);
             # Answer straight away and fetch the lists in the background
             # (backups fetch through the master), retrying if that fails.
             loading = {
