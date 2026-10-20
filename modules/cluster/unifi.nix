@@ -8,9 +8,12 @@ in {
   # It sits directly on the untagged infra segment with the gear it manages
   # (layer-2 adoption, no router in between), at a fixed address.
   #
-  # The container is NixOS, built from this flake. It has no SSH: updates go
-  # in through the cluster (nix run .#cluster-unifi). The switches and APs keep
-  # forwarding on their last config while the controller is down.
+  # The container is NixOS, built from this flake into an Incus image, and
+  # declared in OpenTofu (opentofu/unifi.tf): image, instance, and the
+  # `unifi-data` volume holding /var/lib/unifi. The container itself is
+  # disposable -- an update builds a new image and `nix run .#tofu -- apply`
+  # replaces the instance, keeping the volume. It has no SSH. The switches
+  # and APs keep forwarding on their last config while the controller is down.
   #
   # Backups: UniFi's own auto-backup lands in the container (on Ceph); every
   # node also copies it to its own disk daily, so losing Ceph doesn't lose
@@ -62,6 +65,12 @@ in {
     };
     networking.firewall.allowedTCPPorts = [ 8443 ];   # the web UI
 
+    # The data volume outlives each container, and a fresh image hands out
+    # system uids anew: pin them to what owns the data (UniFi and its MongoDB
+    # both run as `unifi`), or a replaced container couldn't read its state.
+    users.users.unifi.uid = 997;
+    users.groups.unifi.gid = 996;
+
     services.openssh.enable = lib.mkForce false;
     environment.systemPackages = [ pkgs.curl ];   # debugging from inside
   };
@@ -78,11 +87,13 @@ in {
         dest=/persistent/backups/unifi
         tmp=$(mktemp -d /persistent/backups/.unifi.XXXXXX)
         trap 'rm -rf "$tmp"' EXIT
-        if incus file pull -r unifi/var/lib/unifi/data/backup/autobackup "$tmp/"; then
+        if incus file pull -r unifi/var/lib/unifi/data/backup/autobackup "$tmp/" \
+           && [ -n "$(find "$tmp/autobackup" -name '*.unf' -print -quit)" ]; then
           rm -rf "$dest"; mv "$tmp/autobackup" "$dest"
           echo "copied: $(find "$dest" -name '*.unf' | wc -l) backups"
         else
-          echo "no autobackup directory yet (turn on auto backup in UniFi)"
+          # Never replace the last good copy with nothing.
+          echo "no backups in the controller yet (turn on auto backup in UniFi); kept the old copy"
         fi
       '';
     };

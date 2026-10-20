@@ -8,7 +8,7 @@
 
     packages.tofu = cluster.mkApp {
       name = "tofu";
-      runtimeInputs = [ tofu pkgs.openssl ];
+      runtimeInputs = [ tofu pkgs.openssl pkgs.jq pkgs.iproute2 ];
       text = /* bash */ ''
         # OpenTofu for the cluster's Incus objects (opentofu/ in this repo):
         #
@@ -49,7 +49,12 @@
         fi
 
         # ---- tunnel to that node's Incus API on the mesh
-        port=$((30000 + RANDOM % 20000))
+        # A fixed local port: the address is a variable, and a saved plan
+        # (plan -out, then apply <plan>) only applies with the same values.
+        port=''${ELEMENTS_TOFU_PORT:-18443}
+        if ss -Htln "sport = :$port" | grep -q .; then
+          echo "local port $port is in use (another tofu run?); set ELEMENTS_TOFU_PORT" >&2; exit 1
+        fi
         ssh -i "$KEY" -o BatchMode=yes -o ConnectTimeout=8 -o "UserKnownHostsFile=$KNOWN_HOSTS" \
             -o StrictHostKeyChecking=yes -o LogLevel=ERROR -o ExitOnForwardFailure=yes \
             -f -N -M -S "$_TMP/tunnel-tofu" -L "$port:[fd9a:7af:74af:ff::$id]:8443" -p 20530 "shot@$(ip "$node")" \
@@ -57,6 +62,15 @@
 
         export TF_VAR_incus_address="https://127.0.0.1:$port"
         export TF_VAR_incus_config_dir="$CONF"
+
+        # ---- values from the flake, so nothing is typed twice
+        # The controller's image (modules/cluster/unifi.nix). Same flake, same
+        # store paths: OpenTofu only replaces the image (and so the instance)
+        # when the system actually changed.
+        meta=$(nix build --no-link --print-out-paths .#nixosConfigurations.unifi.config.system.build.metadata)
+        data=$(nix build --no-link --print-out-paths .#nixosConfigurations.unifi.config.system.build.squashfs)
+        jq -n --arg m "$(echo "$meta"/tarball/*.tar.xz)" --arg d "$(echo "$data"/*.squashfs)" \
+          '{unifi_image: {metadata: $m, data: $d}}' > opentofu/flake.auto.tfvars.json
 
         [ -d opentofu/.terraform ] || tofu -chdir=opentofu init -input=false >/dev/null
         tofu -chdir=opentofu "$@"
