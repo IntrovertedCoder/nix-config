@@ -114,7 +114,7 @@
         # limit and left FRR dead (seen in testing, cold start with one node
         # off). So with at least one adjacency Up and none stuck, the mesh is
         # as up as it can be; only a node with no adjacency at all fails.
-        script = ''
+        script = /* bash */ ''
           want=${toString (builtins.length host.ring)}
           neighbours() { vtysh -c "show openfabric neighbor"; }
           up() { neighbours | grep -c ' Up ' || true; }

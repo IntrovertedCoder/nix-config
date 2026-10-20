@@ -82,7 +82,7 @@
     routerSsh = pkgs.writeShellApplication {
       name = "router-ssh";
       runtimeInputs = [ pkgs.openssh ];
-      text = ''
+      text = /* bash */ ''
         # The node's own host key is the router's admin key (root only); the
         # link is a point-to-point tap to this node's router, nothing else.
         exec ssh -i /etc/ssh/ssh_host_ed25519_key \
@@ -99,11 +99,11 @@
       # same MAC). radvd isn't told to withdraw anything on stop, so clients
       # keep their addresses and the /48 route while the next master (same
       # fe80::1) takes over.
-      becomeMaster = pkgs.writeShellScript "router-become-master" ''
+      becomeMaster = pkgs.writeShellScript "router-become-master" /* bash */ ''
         ${pkgs.systemd}/bin/networkctl up wan
         ${pkgs.systemd}/bin/systemctl start radvd.service
       '';
-      leaveMaster = pkgs.writeShellScript "router-leave-master" ''
+      leaveMaster = pkgs.writeShellScript "router-leave-master" /* bash */ ''
         ${pkgs.systemd}/bin/systemctl stop radvd.service
         ${pkgs.systemd}/bin/networkctl down wan
       '';
@@ -113,7 +113,7 @@
       # router alike, and handing over would just flap the WAN between them.
       # (The test lab's virtio NIC always has carrier; set_link via QMP
       # simulates a pulled cable.)
-      wanCarrier = pkgs.writeShellScript "router-wan-carrier" ''
+      wanCarrier = pkgs.writeShellScript "router-wan-carrier" /* bash */ ''
         ${pkgs.iproute2}/bin/ip -4 addr show dev transit | ${pkgs.gnugrep}/bin/grep -q ' 10\.91\.0\.1/' || exit 0
         # Admin state from IFF_UP: operstate says "down" for a lost carrier too.
         (( $(cat /sys/class/net/wan/flags) & 1 )) || exit 0   # admin-down: not ours to judge
@@ -516,7 +516,7 @@
       wantedBy = [ "microvm@router.service" ];
       path = [ pkgs.socat pkgs.coreutils ];
       serviceConfig = { Restart = "always"; RestartSec = 5; };
-      script = ''
+      script = /* bash */ ''
         sock=/var/lib/microvms/router/${name}-router.sock
         until [ -S "$sock" ]; do sleep 1; done
         setlink() {

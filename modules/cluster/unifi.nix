@@ -73,7 +73,7 @@ in {
       after = [ "incus.service" ];
       path = [ config.virtualisation.incus.package pkgs.coreutils pkgs.findutils ];
       serviceConfig.Type = "oneshot";
-      script = ''
+      script = /* bash */ ''
         incus info unifi >/dev/null 2>&1 || { echo "no unifi instance"; exit 0; }
         dest=/persistent/backups/unifi
         tmp=$(mktemp -d /persistent/backups/.unifi.XXXXXX)

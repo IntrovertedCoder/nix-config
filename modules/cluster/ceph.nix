@@ -87,7 +87,7 @@
             RestartSec = "15s";
           };
           unitConfig.StartLimitIntervalSec = 0;
-          script = ''
+          script = /* bash */ ''
             [ -s /etc/ceph/ceph.client.admin.keyring ] || { echo "Ceph isn't bootstrapped yet"; exit 0; }
             # rbd hangs rather than failing while the cluster can't serve the
             # read, so every call gets a timeout.

@@ -42,7 +42,7 @@
       after = [ "mesh-online.service" ];
       wants = [ "mesh-online.service" ];
       path = [ ovs pkgs.coreutils ];
-      preStart = ''
+      preStart = /* bash */ ''
         mkdir -p /var/lib/ovn /run/ovn
         if [ ! -e /var/lib/ovn/${file} ]; then
           # Never create: ask to join the cluster cluster-ovn-bootstrap.sh made.
@@ -106,7 +106,7 @@
         path = [ ovs ];
         # Open vSwitch's database is on the tmpfs root, so this node's chassis
         # settings are written at every start rather than kept.
-        preStart = ''
+        preStart = /* bash */ ''
           ovs-vsctl --no-wait set open_vswitch . \
             external_ids:system-id=${name} \
             external_ids:hostname=${name} \

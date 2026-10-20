@@ -34,7 +34,7 @@
       config.services.chrony.package             # chronyc
       config.systemd.package                     # systemctl, journalctl
     ];
-    text = ''
+    text = /* bash */ ''
       NODES=(${lib.concatStringsSep " " (lib.attrNames hosts)})
       OSD_DISKS=(${lib.escapeShellArgs config.var.cluster.host.osdDisks})
       # Which node's router holds the gateway, from its MAC in the neighbour
@@ -251,7 +251,7 @@
       config.programs.ssh.package  # ssh, to the other nodes' cluster-agent
       agent                        # cluster-agent, for this node
     ];
-    text = ''
+    text = /* bash */ ''
       CLUSTER_NODES=(${lib.concatStringsSep " " (lib.mapAttrsToList (name: h:
         "'${name}=${toString h.id}=${toString (builtins.length h.ring)}=${lib.concatStringsSep "," h.osdDisks}'"
       ) hosts)})

@@ -13,7 +13,7 @@
       runtimeInputs = with pkgs; [
         smartmontools lm_sensors jq coreutils gawk gnugrep util-linux config.systemd.package chrony
       ];
-      text = ''
+      text = /* bash */ ''
         REPORT=${report}
         RING_LINKS=${lib.escapeShellArg (lib.concatStringsSep " " config.var.cluster.host.ring)}
 

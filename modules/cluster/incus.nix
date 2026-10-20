@@ -46,7 +46,7 @@
       # the patch fails and Incus never starts (that
       # broke cluster-rebuild.sh's rejoin). A joining node gets the cluster's
       # database, healing setting and all, from the others.
-      preStart = ''
+      preStart = /* bash */ ''
         install -d -m 0700 /var/lib/incus/database
         if [ -e /var/lib/incus/.healing-guard ]; then
           echo "UPDATE config SET value = '0' WHERE key = 'cluster.healing_threshold';" \
@@ -72,7 +72,7 @@
       serviceConfig.RemainAfterExit = true;
       # waits as long as it takes (a fresh node joins the cluster later)
       serviceConfig.TimeoutStartSec = "infinity";
-      script = ''
+      script = /* bash */ ''
         first="" settled=""
         while :; do
           if members=$(incus cluster list -f csv -c s 2>/dev/null) && [ -n "$members" ]; then
@@ -114,7 +114,7 @@
         Type = "simple";
         RemainAfterExit = true;
       };
-      script = ''
+      script = /* bash */ ''
         me=${config.var.cluster.name}
         todo=""
         for i in $(seq 1 60); do
@@ -194,7 +194,7 @@
         RestartSec = "5s";
       };
       unitConfig.StartLimitIntervalSec = 0;
-      script = ''
+      script = /* bash */ ''
         me=${config.var.cluster.name}
         peers="${lib.concatStringsSep " " meshPeers}"
         # In /run: survives this unit restarting (a deploy) while fenced,
@@ -342,7 +342,7 @@
       # when this script changed). A changed script still applies at the next
       # shutdown -- systemd reads the new unit file.
       restartIfChanged = false;
-      preStop = ''
+      preStop = /* bash */ ''
         if systemctl is-active --quiet incus.service; then
           echo "incus is still running -- its instances aren't stale, not touching them"
           exit 0

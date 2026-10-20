@@ -51,7 +51,7 @@
       # anyway. Not `chronyc waitsync`: it never counts the local reference
       # as synced, so the orphan leader always waited out the full cap.
       path = [ pkgs.chrony pkgs.coreutils ];
-      script = ''
+      script = /* bash */ ''
         for _ in $(seq 120); do
           IFS=, read -r _ _ _ _ offset _ _ _ _ _ _ _ _ leap < <(chronyc -c tracking || true)
           if [ "$leap" = Normal ] && [ "''${offset#-}" \< 0.01 ]; then

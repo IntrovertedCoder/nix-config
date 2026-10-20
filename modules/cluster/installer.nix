@@ -39,7 +39,7 @@ in {
               lm_sensors iproute2 frr systemd btrfs-progs
               mtools efibootmgr                    # read the ESP without mounting it; boot entries
             ];
-            text = ''
+            text = /* bash */ ''
               c() { echo "\$ $*"; "$@" 2>&1 || true; echo; }
               mnt=$(mktemp -d)
               trap 'umount -q "$mnt"/* 2>/dev/null || true; rm -rf "$mnt"' EXIT
