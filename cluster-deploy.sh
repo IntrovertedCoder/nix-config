@@ -41,7 +41,26 @@ EOF
 }
 
 targets=("$@")
-if [ ${#targets[@]} -eq 0 ]; then for n in "${NODES[@]}"; do targets+=("$(name "$n")"); done; fi
+if [ ${#targets[@]} -eq 0 ]; then
+  for n in "${NODES[@]}"; do targets+=("$(name "$n")"); done
+  # Deploy the master router's node last: a router change restarts all
+  # three routers in turn regardless of order, so whichever node goes last
+  # is the one still holding the gateway when the others come back up --
+  # one WAN blip (the last restart) instead of two or three (every backup
+  # taking over, then handing back). Best-effort: if we can't tell who's
+  # master, deploy in the default order.
+  master=$(on "${NODES[0]}" "runuser -u shot -- cluster debug 2>&1" </dev/null \
+    | sed -n 's/^\$ gateway .* is held by the router on: //p' | head -1) || true
+  # "nobody (no router answering)" or an unknown MAC matches no node: no change.
+  for i in "${!targets[@]}"; do
+    if [ "${targets[$i]}" = "$master" ]; then
+      unset 'targets[i]'
+      targets=("${targets[@]}" "$master")
+      echo "== master router is on $master -- deploying it last"
+      break
+    fi
+  done
+fi
 
 for t in "${targets[@]}"; do
   n=""; for e in "${NODES[@]}"; do [ "$(name "$e")" = "$t" ] && n=$e; done
