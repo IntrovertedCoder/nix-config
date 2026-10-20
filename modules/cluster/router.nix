@@ -246,6 +246,14 @@
                 "fe80::1/64 dev ${seg}" "${s.v6}::1/64 dev ${seg}"
               ]) v6Segs))}
             }
+            # Keep re-announcing the gateway addresses (gratuitous ARP / NA)
+            # while master, not just at the transition. OVN's router never
+            # ages out what it learned, and a master elected while the path to
+            # OVN's gateway isn't forwarding yet (a router VM booting with its
+            # node) announces into nothing: OVN then sent the services network
+            # to the old master for 11 hours (seen in testing). Now it heals
+            # within 10 s; LAN clients that missed the move heal the same way.
+            garp_master_refresh 10
             notify_master "${becomeMaster}"
             notify_backup "${leaveMaster}"
             notify_fault "${leaveMaster}"
