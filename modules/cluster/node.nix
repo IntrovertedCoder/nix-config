@@ -13,7 +13,7 @@
     # Incus didn't create it.
     mgmtIf = "br-trunk.${toString host.vlans.trusted}";
     meshPorts = lib.concatMapStringsSep " "
-      (h: "[fd9a:7af:74af:ff::${toString h.id}]:20530 [fd9a:7af:74af:ff::${toString h.id}]:22")
+      (h: let m = "[fd9a:7af:74af:ff::${toString h.id}]"; in "${m}:20530 ${m}:22 ${m}:8443")
       (lib.attrValues hosts);
   in {
     imports = [ self.nixosModules.clusterMesh ];
@@ -96,8 +96,10 @@
 
       # `ssh -J` through a node (to another node, or to a node stuck in its
       # rescue installer) needs TCP forwarding, which sshd.nix turns off.
-      # Allow it here only towards the cluster's own SSH ports on mesh
-      # addresses -- nothing else can be forwarded.
+      # Allow it here only towards the cluster's own SSH ports and Incus's
+      # API (8443, for OpenTofu: nix run .#tofu) on mesh addresses -- nothing
+      # else can be forwarded. The API still wants a trusted client
+      # certificate, and shot can run incus on a node anyway.
       services.openssh.settings.AllowTcpForwarding = lib.mkForce "local";
       services.openssh.extraConfig = ''
         PermitOpen ${meshPorts}

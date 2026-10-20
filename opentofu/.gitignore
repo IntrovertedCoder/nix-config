@@ -1,0 +1,11 @@
+# Working files of `nix run .#tofu`.
+.terraform/
+# The provider comes from nixpkgs (opentofu.withPlugins), pinned by flake.lock;
+# the registry lock file would only go stale on every nixpkgs bump.
+.terraform.lock.hcl
+# Local state: back it up by hand, never commit it.
+*.tfstate
+*.tfstate.*
+crash.log
+# Values the app generates from the flake on every run.
+*.auto.tfvars.json
