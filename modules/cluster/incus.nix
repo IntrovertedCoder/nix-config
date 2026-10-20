@@ -29,8 +29,8 @@
     users.users.shot.extraGroups = [ "incus-admin" ];
 
     systemd.services.incus = {
-      after = [ "mesh-online.service" "ceph.target" ];
-      wants = [ "mesh-online.service" ];
+      after = [ "mesh-online.service" "ceph.target" "ceph-online.service" ];
+      wants = [ "mesh-online.service" "ceph-online.service" ];
       # Healing guard, part 1. Incus measures a member's downtime from its
       # last heartbeat, so after a whole-cluster power cut every member looks
       # long overdue and the first ones up "heal" the rest: in testing, two
@@ -87,6 +87,51 @@
           fi
           sleep 10
         done
+      '';
+    };
+
+    # When Incus starts before its Ceph pool answers (ceph-online gave up:
+    # a node that came up alone, or Ceph slower than 90 s), it skips
+    # autostarting this node's instances and never tries again by itself.
+    # Start the ones Incus would have started: boot.autostart=true, or
+    # unset (Incus's default: restore the last state) and running before.
+    # An instance someone stopped on purpose stays stopped. Only this
+    # node's instances -- every node runs this for its own. Runs in the
+    # background (Type=simple) so a slow pool never holds up a boot or a
+    # deploy; fails, and shows in `cluster debug`, if something still
+    # won't start after 10 minutes.
+    systemd.services.incus-autostart-recover = {
+      description = "Start this node's instances Incus didn't autostart";
+      wantedBy = [ "incus.service" ];
+      after = [ "incus.service" "ceph-online.service" ];
+      bindsTo = [ "incus.service" ];
+      path = [ cfg.package pkgs.coreutils pkgs.jq ];
+      serviceConfig = {
+        Type = "simple";
+        RemainAfterExit = true;
+      };
+      script = ''
+        me=${config.var.cluster.name}
+        todo=""
+        for i in $(seq 1 60); do
+          # Incus may not answer yet right after it starts: retry, never
+          # read a failed list as "nothing to do".
+          if json=$(incus list -f json </dev/null 2>/dev/null); then
+            todo=$(jq -r --arg me "$me" '.[]
+              | select(.location == $me and .status == "Stopped")
+              | select((.config["boot.autostart"] // "") as $a
+                  | $a == "true" or ($a == "" and .config["volatile.last_state.power"] == "RUNNING"))
+              | .name' <<<"$json")
+            [ -n "$todo" ] || exit 0
+            for n in $todo; do
+              echo "starting $n (Incus didn't autostart it)"
+              incus start "$n" </dev/null || true
+            done
+          fi
+          sleep 10
+        done
+        echo "still not running after 10 minutes: $todo" >&2
+        exit 1
       '';
     };
 

@@ -58,7 +58,56 @@
         serviceConfig.Restart = lib.mkForce "always";
         serviceConfig.RestartSec = lib.mkForce "5";
         unitConfig.StartLimitIntervalSec = lib.mkForce 0;
-      });
+      }) // {
+        # ceph.target only means the daemons were started. When Incus
+        # starts it reads its storage pool once (`rbd info incus_vms` in
+        # the vms pool); if that read hangs it's killed, and Incus marks the
+        # pool unavailable, so none of its instances autostart. Seen after
+        # whole-cluster power cuts, both before mon quorum formed and after
+        # (quorum up, the pool's placement groups not active yet). Wait for
+        # that exact read to work. Give up after 90 s so a slow Ceph can't
+        # hold Incus back for good (incus-autostart-recover in incus.nix
+        # then starts the instances once the pool answers), and keep
+        # checking in the background like mesh-online. A node that came up
+        # alone never gets this far: its Incus waits behind mesh-online
+        # until a neighbour appears (seen in testing). Before the cluster is
+        # bootstrapped (no admin keyring, or no incus_vms image yet) there's
+        # nothing to wait for.
+        ceph-online = {
+          description = "Wait until Incus's Ceph pool answers";
+          wantedBy = [ "multi-user.target" ];
+          after = map (u: "${u}.service") daemonUnits ++ [ "mesh-online.service" ];
+          wants = map (u: "${u}.service") daemonUnits ++ [ "mesh-online.service" ];
+          path = [ pkgs.ceph pkgs.coreutils pkgs.gnugrep ];
+          serviceConfig = {
+            Type = "oneshot";
+            RemainAfterExit = true;
+            TimeoutStartSec = "3min";
+            Restart = "on-failure";
+            RestartSec = "15s";
+          };
+          unitConfig.StartLimitIntervalSec = 0;
+          script = ''
+            [ -s /etc/ceph/ceph.client.admin.keyring ] || { echo "Ceph isn't bootstrapped yet"; exit 0; }
+            # rbd hangs rather than failing while the cluster can't serve the
+            # read, so every call gets a timeout.
+            vms() { timeout 15 rbd --id admin --cluster ceph --pool vms "$@"; }
+            deadline=$((SECONDS + 90))
+            while [ $SECONDS -lt $deadline ]; do
+              if images=$(vms ls 2>/dev/null); then
+                grep -qx incus_vms <<<"$images" || { echo "no Incus storage pool yet"; exit 0; }
+                if vms info incus_vms >/dev/null 2>&1; then
+                  echo "Incus's pool answers after ''${SECONDS}s"
+                  exit 0
+                fi
+              fi
+              sleep 5
+            done
+            echo "Incus's pool still doesn't answer after 90 s (no quorum, or placement groups not active)" >&2
+            exit 1
+          '';
+        };
+      };
 
       preservation.preserveAt."/persistent" = lib.mkIf cfg.enable {
         directories = [
