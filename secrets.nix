@@ -31,7 +31,7 @@ in
   # mesh (fd9a:7af:74af:ff::<id>). See modules/cluster/tools.nix.
   "secrets/cluster-ssh-key.age".publicKeys = [ arik ] ++ clusterKeys;
 }
-# Each cluster node's SSH host private key, shipped by cluster-testlab.sh at
+# Each cluster node's SSH host private key, shipped by the cluster-testlab app at
 # install. Every node can decrypt every node's key, so any working node can
 # rebuild a broken one.
 // builtins.listToAttrs (map (name: {

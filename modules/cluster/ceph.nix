@@ -5,7 +5,7 @@
   # the Thunderbolt ring.
   #
   # What Nix can't declare -- keyrings, the monmap, creating the OSDs, pool
-  # sizes -- is done once by cluster-ceph-bootstrap.sh. Until then every
+  # sizes -- is done once by cluster-ceph-bootstrap (nix run .#cluster-ceph-bootstrap). Until then every
   # daemon sits idle: the nixpkgs module only starts a daemon once its
   # keyring exists.
   flake.nixosModules.clusterCeph = { config, lib, pkgs, ... }: let

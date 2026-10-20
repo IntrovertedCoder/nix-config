@@ -13,12 +13,12 @@
   #   node may host the gateway (enable-chassis-as-gw).
   #
   # A node never creates a database cluster by itself: with no database it
-  # asks to join the existing one. Only cluster-ovn-bootstrap.sh creates it,
+  # asks to join the existing one. Only cluster-ovn-bootstrap creates it,
   # once, on the first node -- so a rebuilt node can't start a second cluster.
-  # (cluster-rebuild.sh removes the dead node's old Raft membership first.)
+  # (cluster-rebuild removes the dead node's old Raft membership first.)
   #
   # The networks themselves (the transit uplink and the services network)
-  # are Incus objects, made by cluster-ovn-bootstrap.sh.
+  # are Incus objects, made by cluster-ovn-bootstrap.
   #
   # Status:  ovs-appctl -t /run/ovn/ovnnb_db.ctl cluster/status OVN_Northbound
   #          ovn-sbctl show     (chassis and their tunnels)

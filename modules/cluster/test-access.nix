@@ -9,7 +9,7 @@
   flake.nixosModules.clusterTestAccess = { config, lib, ... }: {
     services.openssh.settings.PermitRootLogin = lib.mkForce "prohibit-password";
     # nixos-anywhere talks to the kexec installer on 22 after the first hop,
-    # so cluster-testlab.sh just uses 22 throughout.
+    # so cluster-testlab just uses 22 throughout.
     services.openssh.ports = [ 22 ];
     users.users.root.openssh.authorizedKeys.keys =
       config.users.users.shot.openssh.authorizedKeys.keys;

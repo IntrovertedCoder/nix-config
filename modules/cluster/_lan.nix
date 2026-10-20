@@ -47,7 +47,7 @@ in {
   v4pool = s: router: "${base s}.${toString router}.1 - ${base s}.${toString router}.254";
   v4reserved = s: host: "${base s}.4.${toString host}";
 
-  # The Incus OVN network for services (ovn.nix, cluster-ovn-bootstrap.sh),
+  # The Incus OVN network for services (ovn.nix, cluster-ovn-bootstrap),
   # behind OVN's router. That router's uplink address on the transit VLAN is
   # pinned, so the routers can route the services network to it statically.
   services = { v4 = "10.90.0"; v6 = "fd9a:7af:74af:90"; };

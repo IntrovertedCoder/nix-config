@@ -9,7 +9,7 @@ in {
   # (layer-2 adoption, no router in between), at a fixed address.
   #
   # The container is NixOS, built from this flake. It has no SSH: updates go
-  # in through the cluster (cluster-unifi.sh). The switches and APs keep
+  # in through the cluster (nix run .#cluster-unifi). The switches and APs keep
   # forwarding on their last config while the controller is down.
   #
   # Backups: UniFi's own auto-backup lands in the container (on Ceph); every

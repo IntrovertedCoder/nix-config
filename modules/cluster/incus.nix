@@ -1,7 +1,7 @@
 { lib, ... }: {
   # Incus on every cluster node. The cluster itself (init, joins, the Ceph
   # storage pool, networks, profiles) is created once by
-  # cluster-incus-bootstrap.sh -- Incus' preseed can't join a cluster, since
+  # the cluster-incus-bootstrap app -- Incus' preseed can't join a cluster, since
   # joining needs a one-time token from an existing member.
   #
   # Members talk to each other on the mesh loopbacks, like Ceph.
@@ -44,7 +44,7 @@
       # Only once this node has been part of the running cluster (marker left
       # by incus-healing-arm): on a fresh install there's no config table yet,
       # the patch fails and Incus never starts (that
-      # broke cluster-rebuild.sh's rejoin). A joining node gets the cluster's
+      # broke cluster-rebuild's rejoin). A joining node gets the cluster's
       # database, healing setting and all, from the others.
       preStart = /* bash */ ''
         install -d -m 0700 /var/lib/incus/database

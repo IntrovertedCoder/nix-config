@@ -6,9 +6,13 @@
 # `id` drives every derived address: mesh loopback fd9a:7af:74af:ff::<id>,
 # OpenFabric NET 49.0001.0000.0000.000<id>.00.
 let
-  testNode = id: hostKey: {
+  testNode = id: sshAddr: hostKey: {
     inherit id;
     test = true;
+    # Where the workstation apps (nix run .#cluster-*) reach the node as root.
+    # Test lab: the home-LAN side door (testLan below, DHCP reservation). The
+    # real nodes: their management address (10.1.0.<lanId>).
+    inherit sshAddr;
     # SSH host key, pre-seeded at install from secrets/hostkeys/<name>.age so
     # a reinstalled node keeps its identity and can decrypt agenix secrets on
     # first boot. Also an agenix recipient (see secrets.nix).
@@ -44,7 +48,7 @@ let
     ];
   };
 in {
-  test-node1 = testNode 1 "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKbf3UN2FTuOSYsc2HscLPvWH03Sk7yjbludv1Vh2uGB root@test-node1";
-  test-node2 = testNode 2 "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHB20Q+1Mu38pAuD58DiEyMitY6wufEFheQ+O/neFbej root@test-node2";
-  test-node3 = testNode 3 "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIJIO7kEZdac+ekLgmGPRI9996osv5WofnmheN6Yex4S root@test-node3";
+  test-node1 = testNode 1 "10.123.58.148" "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKbf3UN2FTuOSYsc2HscLPvWH03Sk7yjbludv1Vh2uGB root@test-node1";
+  test-node2 = testNode 2 "10.123.97.55" "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHB20Q+1Mu38pAuD58DiEyMitY6wufEFheQ+O/neFbej root@test-node2";
+  test-node3 = testNode 3 "10.123.135.218" "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIJIO7kEZdac+ekLgmGPRI9996osv5WofnmheN6Yex4S root@test-node3";
 }
