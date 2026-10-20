@@ -113,6 +113,9 @@
           [ "$(systemctl is-active mesh-online)" = active ] || echo "FAIL  mesh-online is not active"
           [ "$(systemctl is-active microvm@router)" = active ] || echo "FAIL  this node's router VM (microvm@router) is not running"
           gateway_router >/dev/null || echo "FAIL  no router answers as the gateway $GATEWAY -- no internet for the LAN or this node"
+          [ -e /run/mesh-fence/fenced ] && echo "FAIL  this node is self-fenced: cut off from the mesh, its instances killed (mesh-fence)"
+          [ -e /run/mesh-fence/stale-ceph-client ] && echo "WARN  this node's kernel Ceph client is blocklisted (healing took its disks): reboot it before cluster restore"
+          true
           ;;
 
         report)
@@ -148,7 +151,10 @@
         stale-procs)  # containers, VMs, RBD mappings still on this node (Incus's own
                       # qemu only -- the router VM runs qemu too, in microvm@router)
           args 0
-          echo "$(pgrep -c -f '^\[lxc monitor\]' || true) $(pgrep -c --cgroup /system.slice/incus.service qemu-system || true) $(rbd showmapped 2>/dev/null | tail -n +2 | wc -l)"
+          # 4th: 1 while this node's kernel Ceph client is stale (blocklisted
+          # when healing took its disks); mesh-fence (incus.nix, root) keeps
+          # the flag, since only root can see the client.
+          echo "$(pgrep -c -f '^\[lxc monitor\]' || true) $(pgrep -c --cgroup /system.slice/incus.service qemu-system || true) $(rbd showmapped 2>/dev/null | tail -n +2 | wc -l) $([ -e /run/mesh-fence/stale-ceph-client ] && echo 1 || echo 0)"
           ;;
 
         incus-active) args 0; systemctl is-active --quiet incus ;;
@@ -466,11 +472,20 @@
         # 3+4. no stale instance copies: after a failure, Incus leaves the old
         # node's copies running (fenced, but alive) until it reboots.
         stale=$(on "$node" stale-procs)
-        read -r lxcs qemus maps <<<"$stale"
+        read -r lxcs qemus maps client <<<"$stale"
         if [ "$lxcs" != 0 ] || [ "$qemus" != 0 ] || [ "$maps" != 0 ]; then
           die "$node still has instance processes or RBD mappings ($lxcs containers, $qemus VMs, $maps mapped) -- probably stale copies from before it failed. Reboot $node, then run this again."
         fi
         ok "no instance processes or RBD mappings left on $node"
+        # Healing blocklists the old node's kernel Ceph client, and it outlives
+        # its last disk: every new map on that node then fails, so a restore
+        # would move the instances back and fail to start them (seen in
+        # testing). Only a reboot clears it. (Empty on a node still running
+        # an older cluster-agent: treat as fine.)
+        if [ "''${client:-0}" != 0 ]; then
+          die "$node's kernel Ceph client was blocklisted when healing took its disks, and only a reboot clears it (mesh-fence normally reboots it by itself). Reboot $node, then run this again."
+        fi
+        ok "$node's kernel Ceph client is usable"
 
         # 5. ceph caught up, node's mon back in quorum
         ceph_wait_healthy "$node" || die "ceph isn't ready"
