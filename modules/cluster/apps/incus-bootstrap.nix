@@ -12,20 +12,16 @@
         #   nix run .#cluster-incus-bootstrap
         #
         # 1. init the first node as a cluster, join the others with one-time tokens
-        # 2. "remote" storage pool on the Ceph `vms` pool
-        # 3. incusbr0 NAT bridge (per member) and the default profile
-        # 4. (cluster.healing_threshold is set by incus-healing-arm on the nodes;
-        #    see modules/cluster/incus.nix)
+        # 2. each member's part of the "remote" storage pool (on the Ceph `vms`
+        #    pool) and of the incusbr0 NAT bridge, left pending
+        # 3. (the cluster-wide pool and networks, the default profile and the
+        #    link to OVN are OpenTofu's, opentofu/cluster.tf: cluster-ovn-bootstrap
+        #    applies it; cluster.healing_threshold is set by incus-healing-arm on
+        #    the nodes, see modules/cluster/incus.nix)
         #
         # Safe to re-run: each step skips whatever already exists.
 
         FIRST=''${NODES[0]}
-        # exclusive-lock is what fences a partitioned node: the member that heals
-        # an instance breaks the lock, which blocklists the old node's RBD client,
-        # so its stale copy can't write. Incus' default is "layering" only, and
-        # without exclusive-lock a healed instance and its stale copy both write
-        # the same disk (seen in testing: real filesystem corruption).
-        RBD_FEATURES=layering,exclusive-lock,object-map,fast-diff,deep-flatten
 
         mesh() { echo "fd9a:7af:74af:ff::$1"; }
 
@@ -71,7 +67,7 @@
         EOF
         done
 
-        echo "== storage, network, profile"
+        echo "== each member's part of the storage pool and incusbr0"
         members=""
         for n in "''${NODES[@]}"; do members+=" $(name "$n")"; done
         # This script reaches the node on stdin, so every incus command gets
@@ -80,31 +76,23 @@
         on "$FIRST" bash -euo pipefail -s <<EOF
         state() { incus \$1 list -f csv -c ns </dev/null | awk -F, -v n="\$2" '\$1==n {print \$2}'; }
 
-        # Ceph pools need the per-member step first: "source" is member-specific.
+        # Only the "pending" per-member parts ("source" is member-specific); the
+        # cluster-wide pool and network come from OpenTofu (opentofu/cluster.tf).
         if [ "\$(state storage remote)" != CREATED ]; then
           for m in $members; do incus storage create remote ceph source=vms --target \$m </dev/null >/dev/null 2>&1 || true; done
-          incus storage create remote ceph ceph.user.name=admin ceph.rbd.features=$RBD_FEATURES </dev/null
         else echo "storage pool remote exists"; fi
 
         if [ "\$(state network incusbr0)" != CREATED ]; then
           for m in $members; do incus network create incusbr0 --target \$m </dev/null >/dev/null 2>&1 || true; done
-          incus network create incusbr0 ipv4.address=10.200.0.1/24 ipv4.nat=true ipv6.address=none </dev/null
         else echo "network incusbr0 exists"; fi
-
-        devices=\$(incus profile device list default </dev/null)
-        grep -qx root <<<"\$devices" || incus profile device add default root disk path=/ pool=remote </dev/null
-        grep -qx eth0 <<<"\$devices" || incus profile device add default eth0 nic network=incusbr0 name=eth0 </dev/null
-        # Cold-migrate (stop, move, start) on evacuation -- no live-migration, no
-        # CPU-model matching between hosts.
-        incus profile set default cluster.evacuate=migrate </dev/null
 
         # Healing (cluster.healing_threshold) is switched on by incus-healing-arm on
         # the nodes once no member has been Offline for 2 minutes.
 
         incus cluster list </dev/null
-        incus storage show remote </dev/null
-        incus profile show default </dev/null
         EOF
+        echo "== next: nix run .#cluster-ovn-bootstrap (it ends with the OpenTofu apply"
+        echo "   that creates the pool, the networks and the default profile)"
       '';
     };
   };

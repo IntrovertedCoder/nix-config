@@ -69,8 +69,18 @@
         # when the system actually changed.
         meta=$(nix build --no-link --print-out-paths .#nixosConfigurations.unifi.config.system.build.metadata)
         data=$(nix build --no-link --print-out-paths .#nixosConfigurations.unifi.config.system.build.squashfs)
+        # The cluster's plan (opentofu/cluster.tf): members and their node ids,
+        # the transit VLAN and ring MTU (same on every node), and the subnets.
+        members=$(i=0; for n in "''${NODES[@]}"; do i=$((i + 1)); echo "$(name "$n") $i"; done \
+          | jq -Rn '[inputs | split(" ") | {(.[0]): (.[1] | tonumber)}] | add')
+        host=$(nix eval --json ".#nixosConfigurations.$(name "''${NODES[0]}").config.var.cluster.host" \
+          --apply 'h: { transit_vlan = h.vlans.transit; ring_mtu = h.ringMtu; }')
+        lan=$(nix eval --json --impure --expr 'let l = import ./modules/cluster/_lan.nix; in
+          { transit = { inherit (l.segments.transit) v4 v6; }; inherit (l) services ovnUplink; }')
         jq -n --arg m "$(echo "$meta"/tarball/*.tar.xz)" --arg d "$(echo "$data"/*.squashfs)" \
-          '{unifi_image: {metadata: $m, data: $d}}' > opentofu/flake.auto.tfvars.json
+          --argjson members "$members" --argjson host "$host" --argjson lan "$lan" \
+          '{unifi_image: {metadata: $m, data: $d},
+            cluster: ($host + {members: $members, lan: $lan})}' > opentofu/flake.auto.tfvars.json
 
         [ -d opentofu/.terraform ] || tofu -chdir=opentofu init -input=false >/dev/null
         tofu -chdir=opentofu "$@"
