@@ -52,13 +52,50 @@
       # Same reasoning as nixpkgs' own multi-node Ceph test: daemons have to
       # come back from arbitrary outages, so never hit a start limit. And
       # none of them start before the mesh they bind to is up.
-      systemd.services = lib.genAttrs daemonUnits (_: {
+      systemd.services = lib.mkMerge [ (lib.genAttrs daemonUnits (_: {
         after = [ "mesh-online.service" ];
         wants = [ "mesh-online.service" ];
         serviceConfig.Restart = lib.mkForce "always";
         serviceConfig.RestartSec = lib.mkForce "5";
         unitConfig.StartLimitIntervalSec = lib.mkForce 0;
-      }) // {
+      }))
+      # A planned stop (a reboot, a deploy) shouldn't pause everyone's I/O.
+      # It did, for 15-16 s every time in testing: the mon and the OSDs
+      # stopped back to back, the OSDs marked themselves down, and the others
+      # began re-peering -- which has to commit to the OSD map, so needs
+      # every mon in the quorum, and this one was already gone. The rest
+      # only noticed when its lease ran out (10 s), then held an election
+      # (5 s); writes resumed the moment the new quorum formed. The OSDs
+      # already stop first (they're ordered after ceph-mon.target), so the
+      # mon now stays until the OSD map has been quiet for 3 s -- peering
+      # done -- or 30 s at most. Its leaving then commits nothing. (A crash
+      # still pays the full pause; accepted.)
+      {
+        "ceph-mon-${name}" = {
+          path = [ pkgs.ceph pkgs.jq pkgs.coreutils ];
+          preStop = /* bash */ ''
+            # It runs as the mon (user ceph), so it uses the mon's own key. No
+            # quorum (the whole cluster stopping): nothing to wait for.
+            key=/var/lib/ceph/mon/ceph-${name}/keyring
+            [ -s "$key" ] || exit 0
+            epoch() { timeout 5 ceph -n mon. -k "$key" osd stat -f json 2>/dev/null | jq -e .epoch; }
+            last=$(epoch) || { echo "no answer from the monitors: not waiting"; exit 0; }
+            quiet=0
+            for _ in $(seq 1 30); do
+              sleep 1
+              e=$(epoch) || exit 0
+              if [ "$e" = "$last" ]; then
+                quiet=$((quiet + 1))
+                [ $quiet -lt 3 ] || { echo "OSD map quiet at epoch $e: leaving the quorum"; exit 0; }
+              else
+                quiet=0; last=$e
+              fi
+            done
+            echo "OSD map still changing after 30 s: stopping anyway"
+          '';
+        };
+      }
+      {
         # ceph.target only means the daemons were started. When Incus
         # starts it reads its storage pool once (`rbd info incus_vms` in
         # the vms pool); if that read hangs it's killed, and Incus marks the
@@ -107,7 +144,7 @@
             exit 1
           '';
         };
-      };
+      } ];
 
       preservation.preserveAt."/persistent" = lib.mkIf cfg.enable {
         directories = [
