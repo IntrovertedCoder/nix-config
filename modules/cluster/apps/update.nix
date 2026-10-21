@@ -101,6 +101,10 @@
           on "$n" "journalctl -u cluster-update -u cluster-update-resume --since @$start --no-pager -o cat \
                    | grep -E '^(this run|already running|updated to|controller|no system|still waiting|no turn|the cluster|didn.t boot|not healthy)'" || true
           on "$n" "test ! -e $D/failed" || rc=1
+          # A refused or failed controller plan, a skipped node... (update.nix)
+          if p=$(on "$n" "cat /var/lib/cluster-update-status/problem 2>/dev/null") && [ -n "$p" ]; then
+            echo "  NEEDS YOU: $p"; rc=1
+          fi
         done
         exit $rc
       '';
