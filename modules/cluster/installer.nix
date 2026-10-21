@@ -183,9 +183,21 @@ in {
 
           # Nothing trusted; SSH and ping on management (and the test side door) and the ring links.
           var.nftFirewall.trustedInterfaces = [ ];
-          var.nftFirewall.interfaces = lib.genAttrs ([ mgmtIf ] ++ lib.optional ((host.testLan or null) != null) host.testLan ++ host.ring) (_: {
+          var.nftFirewall.interfaces = lib.genAttrs ([ mgmtIf ] ++ lib.optional ((host.testLan or null) != null) host.testLan ++ host.ring) (iface: {
             allowedTCPPorts = [ 22 ];
             allowPing = true;
+            # On the ring, refuse the rest rather than drop it. This installer
+            # holds the node's mesh address, so to the other nodes it looks
+            # alive: Incus's database clients kept dialling the address that
+            # had been the leader, each attempt hanging until its deadline,
+            # and with this node's Incus gone that froze the cluster's
+            # database (no healing, no incus commands) for as long as the
+            # installer ran -- 6+ minutes in testing, every time. Refused,
+            # they move on at once (seen: the database back within 2 s).
+            extraRules = lib.optionalString (lib.elem iface host.ring) ''
+              iifname "${iface}" meta l4proto tcp reject with tcp reset
+              iifname "${iface}" reject with icmpx admin-prohibited
+            '';
           });
 
           # No internet is guaranteed down here, so `nix shell` can't be
