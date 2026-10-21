@@ -210,6 +210,10 @@
         # The member's database and identity died with the boot disk; remove it and
         # join again. Safe because preflight confirmed no instances are registered to it.
         on "$CTRL" "! incus cluster list -f csv -c n </dev/null | grep -qx $target || incus cluster remove $target --force --yes </dev/null"
+        # Removing the member leaves its server certificate trusted (seen: the
+        # old test-node2's, after its rebuild). Its key died with the disk, and
+        # every join below starts from an empty Incus with a new one.
+        on "$CTRL" "incus config trust list -f json </dev/null | jq -r '.[] | select(.type==\"server\" and .name==\"$target\") | .fingerprint' | while read -r fp; do incus config trust remove \$fp </dev/null && echo \"  ok  removed $target's old certificate \''${fp:0:12}\"; done"
         # A failed join leaves a half-made member database behind (pools and
         # networks created before the error), and the next join then fails on it.
         # The fresh node's Incus holds nothing yet -- preflight confirmed no
