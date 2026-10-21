@@ -25,7 +25,17 @@
 
     # Hosts vmtest builds and caches for every Thursday. Never includes
     # "vmtest" itself -- see modules/fleet/fleet.nix.
-    var.fleet.hosts = [ "alaptop" "antimony" ];
+    # The cluster nodes too: they install only what this cache has
+    # (modules/cluster/update.nix), an hour after this runs.
+    var.fleet.hosts = [ "alaptop" "antimony" ]
+      ++ builtins.attrNames (import ../../cluster/_hosts.nix);
+    # ...and the UniFi controller's image, which the last node to update
+    # hands to OpenTofu. Built from source it takes hours (unfree: not in
+    # cache.nixos.org), so it has to come from here.
+    var.fleet.extraBuilds = [
+      "nixosConfigurations.unifi.config.system.build.metadata"
+      "nixosConfigurations.unifi.config.system.build.squashfs"
+    ];
 
     # Example two-monitor layout for the not-yet-built desktop: a 1440p
     # ultrawide with a 1080p monitor rotated vertical to its right, bottom

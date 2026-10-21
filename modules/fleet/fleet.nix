@@ -19,5 +19,15 @@
         (used to resolve it over Tailscale when relevant).
       '';
     };
+
+    options.var.fleet.extraBuilds = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [];
+      description = ''
+        Other flake attribute paths vmtest builds and caches each cycle,
+        after the hosts -- things that aren't a host's system but that a
+        host fetches from the cache (e.g. the cluster's UniFi image).
+      '';
+    };
   };
 }

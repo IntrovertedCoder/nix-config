@@ -138,6 +138,12 @@
                 notify "fleet: build for $host FAILED"
               fi
             done
+            extra=(${lib.concatMapStringsSep " " lib.escapeShellArg config.var.fleet.extraBuilds})
+            for attr in "''${extra[@]}"; do
+              if ! nix build ".#$attr" --no-link; then
+                notify "fleet: build of $attr FAILED"
+              fi
+            done
 
             # sudo: this script runs as `shot`, not root -- same reason
             # follower.nix's fleet-pull-update-reboot needs it for its own

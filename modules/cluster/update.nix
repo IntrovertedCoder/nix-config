@@ -6,11 +6,15 @@
   # they install it one at a time, each rebooting into it. Nothing reaches
   # into the cluster from outside.
   #
-  #   cluster-update run       what the timer starts (root); by hand:
-  #                            `systemctl start --no-block cluster-update` on
-  #                            every node -- they take turns by themselves
-  #   cluster-update status    each node's state this cycle, and the lock
-  #   cluster-update release   after a failed node is fixed: let the others go
+  #   nix run .#elements-update   by hand, from a workstation: starts this
+  #                               on every node and follows it (apps/update.nix)
+  #
+  # On a node, as root:
+  #   cluster-update run          what the timer starts
+  #   cluster-update status       each node's state this cycle, and the lock
+  #   cluster-update release      after a failed node is fixed: let the others go
+  #   cluster-update controller   only the controller step, for the checkout
+  #                               the last run fetched (after fixing a refused plan)
   #
   # One cycle, per node:
   # - Fetch main; build this node's system from the cache only (retrying
@@ -62,6 +66,11 @@
           echo "$*"
           if command -v notify-discord >/dev/null 2>&1; then notify-discord "cluster-update on $SELF: $*" || true; fi
         }
+        # Something for you to look at: also kept for `cluster debug`
+        # (cluster-agent's attention list, tools.nix) until an update of this
+        # node succeeds or `cluster-update release`.
+        PROBLEM=/var/lib/cluster-update-status/problem
+        problem() { notify "$*"; printf '%s %s\n' "$(date '+%F %T')" "$*" > "$PROBLEM"; chmod 0644 "$PROBLEM"; }
         set_status() { printf '%s %s %s\n' "$(date +%s)" "$1" "''${2:--}" | "''${R[@]}" put "status.$SELF" - ; }
 
         # Nodes still on their way through this cycle: a status from the last
@@ -148,10 +157,17 @@
           rm -f "$D/moved-vms"
         }
 
-        # The controller, from the same checkout -- by the last node to finish.
+        # The controller, from the same checkout -- by the last node to finish,
+        # once per revision: the first node to create controller.<rev> in Ceph
+        # does it (when every node was already up to date, they all get
+        # here). `controller <rev> force` (cluster-update controller) skips that.
         controller() {
-          local work=$D/tofu changes other
-          if [ -n "$(pending_others)" ]; then echo "other nodes are still updating: the last one does the controller"; return 0; fi
+          local rev=$1 force=''${2:-} work=$D/tofu changes other
+          if [ -z "$force" ]; then
+            if [ -n "$(pending_others)" ]; then echo "other nodes are still updating: the last one does the controller"; return 0; fi
+            if ! "''${R[@]}" create "controller.$rev" 2>/dev/null; then echo "another node did the controller for $rev"; return 0; fi
+            "''${R[@]}" ls | grep '^controller\.' | grep -vx "controller.$rev" | while read -r o; do "''${R[@]}" rm "$o"; done
+          fi
           # One node at a time here too: when several were already up to date,
           # each gets this far.
           local cookie n=0
@@ -165,21 +181,21 @@
           trap unlock RETURN
           echo "== the controller (OpenTofu)"
           if ! FLAKE=$FLAKE elements-tofu-prepare "$D/src" "$work" "''${NIXB[@]}" >/dev/null; then
-            notify "controller: the UniFi image isn't in vmtest's cache -- not updated"; return 1
+            problem "controller: the UniFi image isn't in vmtest's cache -- not updated"; return 1
           fi
           rm -f "$work/update.plan"
           elements-tofu-run "$work" plan -input=false -out=update.plan >/dev/null \
-            || { notify "controller: OpenTofu plan failed (journalctl -u cluster-update)"; return 1; }
+            || { problem "controller: OpenTofu plan failed (journalctl -u cluster-update)"; return 1; }
           elements-tofu-run "$work" show -json update.plan | grep '^{' > "$work/plan.json"
           changes=$(jq -r '.resource_changes[]? | select(.change.actions != ["no-op"] and .change.actions != ["read"]) | .address' "$work/plan.json")
           if [ -z "$changes" ]; then echo "controller: nothing to change"; return 0; fi
           other=$(grep -vxE 'incus_image\.unifi|incus_instance\.unifi' <<<"$changes" || true)
           if [ -n "$other" ]; then
-            notify "controller: the plan also changes $(echo "$other" | tr '\n' ' ')-- not applied; review it with nix run .#tofu -- plan"
+            problem "controller: the plan also changes $(echo "$other" | tr '\n' ' ')-- not applied; review it with nix run .#tofu -- plan"
             return 1
           fi
           if ! elements-tofu-run "$work" apply -input=false update.plan; then
-            notify "controller: OpenTofu apply FAILED (journalctl -u cluster-update)"; return 1
+            problem "controller: OpenTofu apply FAILED (journalctl -u cluster-update)"; return 1
           fi
           notify "controller updated"
         }
@@ -212,33 +228,33 @@
               echo "couldn't fetch $repo"
             fi
             if [ $((SECONDS - start)) -ge 14400 ]; then
-              set_status failed "''${rev:-}"; notify "no system for ''${rev:-main} in the cache after 4 h -- not updating this week"; exit 1
+              set_status failed "''${rev:-}"; problem "no system for ''${rev:-main} in the cache after 4 h -- not updating this week"; exit 1
             fi
             sleep 600
           done
           if [ "$target" = "$(readlink -f /run/booted-system)" ]; then
-            set_status uptodate "$rev"; echo "already running $rev"
-            controller || true
+            set_status uptodate "$rev"; rm -f "$PROBLEM"; echo "already running $rev"
+            controller "$rev" || true
             return 0
           fi
 
           # ---- its turn: the gateway's node last, then one at a time
           set_status waiting "$rev"
           while master=$(gateway_router) && [ "$master" = "$SELF" ] && [ -n "$(pending_others)" ]; do
-            [ $((SECONDS - start)) -lt 14400 ] || { set_status skipped "$rev"; notify "still waiting for the others after 4 h -- skipped this week"; exit 1; }
+            [ $((SECONDS - start)) -lt 14400 ] || { set_status skipped "$rev"; problem "still waiting for the others after 4 h -- skipped this week"; exit 1; }
             sleep 30
           done
           cookie="$SELF-$(date +%s)"
           until "''${R[@]}" lock get lock update --lock-cookie "$cookie" --lock-duration 21600 \
                 --lock-description "$SELF $rev" 2>/dev/null; do
-            [ $((SECONDS - start)) -lt 14400 ] || { set_status skipped "$rev"; notify "no turn within 4 h (a failed node holds the lock?) -- skipped this week"; exit 1; }
+            [ $((SECONDS - start)) -lt 14400 ] || { set_status skipped "$rev"; problem "no turn within 4 h (a failed node holds the lock?) -- skipped this week"; exit 1; }
             sleep 30
           done
           echo "$cookie" > "$D/cookie"
 
           echo "== $rev: checking the cluster is healthy"
           if ! wait_healthy 900; then
-            unlock; set_status failed "$rev"; notify "the cluster isn't healthy -- not updating"; exit 1
+            unlock; set_status failed "$rev"; problem "the cluster isn't healthy -- not updating"; exit 1
           fi
           set_status updating "$rev"
           printf '%s %s\n' "$target" "$rev" > "$D/in-progress"
@@ -257,13 +273,13 @@
           read -r target rev < "$D/in-progress"
           if [ "$(readlink -f /run/booted-system)" != "$target" ]; then
             mv "$D/in-progress" "$D/failed"; set_status failed "$rev"
-            notify "didn't boot into $rev's system -- holding the update lock, so no other node updates. Fix it, then cluster-update release"
+            problem "didn't boot into $rev's system -- holding the update lock, so no other node updates. Fix it, then cluster-update release"
             exit 1
           fi
           echo "== waiting for the cluster to be healthy"
           if ! wait_healthy 1200; then
             mv "$D/in-progress" "$D/failed"; set_status failed "$rev"
-            notify "not healthy 20 min after updating to $rev -- holding the update lock, so no other node updates. Fix it, then cluster-update release"
+            problem "not healthy 20 min after updating to $rev -- holding the update lock, so no other node updates. Fix it, then cluster-update release"
             exit 1
           fi
           echo "== bringing VMs back"
@@ -271,8 +287,9 @@
           rm -f "$D/in-progress"
           set_status "done" "$rev"
           unlock
+          rm -f "$PROBLEM"
           notify "updated to $rev"
-          controller || true
+          controller "$rev" || true
         }
 
         cmd_status() {
@@ -296,17 +313,20 @@
           "''${R[@]}" lock info lock update --format=json 2>/dev/null \
             | jq -r --arg n "$SELF " '.lockers[]? | select(.description | startswith($n)) | "\(.name) \(.cookie)"' \
             | while read -r locker cookie; do "''${R[@]}" lock break lock update "$locker" --lock-cookie "$cookie"; done
+          rm -f "$PROBLEM"
           echo "released: the other nodes can update again"
         }
 
         case "''${1:-}" in
           run) cmd_run ;;
           resume) cmd_resume ;;
+          controller)  # by hand, for this checkout's revision (after fixing a refused plan)
+            controller "$(git -C "$D/src" rev-parse --short HEAD)" force ;;
           status) cmd_status ;;
           release) cmd_release ;;
           vms-away) mkdir -p "$D"; vms_away ;;
           vms-back) vms_back ;;
-          *) echo "usage: cluster-update run|status|release|vms-away|vms-back" >&2; exit 1 ;;
+          *) echo "usage: cluster-update run|status|release|controller|vms-away|vms-back" >&2; exit 1 ;;
         esac
       '';
     };
@@ -368,6 +388,8 @@
 
       preservation.preserveAt."/persistent".directories = [
         { directory = "/var/lib/cluster-update"; mode = "0700"; }
+        # Readable by cluster-agent, for `cluster debug`.
+        { directory = "/var/lib/cluster-update-status"; mode = "0755"; }
       ];
     };
   };

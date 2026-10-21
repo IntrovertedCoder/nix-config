@@ -115,6 +115,8 @@
           gateway_router >/dev/null || echo "FAIL  no router answers as the gateway $GATEWAY -- no internet for the LAN or this node"
           [ -e /run/mesh-fence/fenced ] && echo "FAIL  this node is self-fenced: cut off from the mesh, its instances killed (mesh-fence)"
           [ -e /run/mesh-fence/stale-ceph-client ] && echo "WARN  this node's kernel Ceph client is blocklisted (healing took its disks): reboot it before cluster restore"
+          # update.nix: kept until this node updates fine or `cluster-update release`
+          [ -r /var/lib/cluster-update-status/problem ] && echo "WARN  update: $(cat /var/lib/cluster-update-status/problem) (sudo cluster-update status)"
           true
           ;;
 
