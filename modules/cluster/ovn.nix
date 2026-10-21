@@ -10,7 +10,8 @@
   # - ovn-northd on every node; they take turns through a database lock.
   # - ovn-controller on every node, its Geneve tunnel endpoint on the node's
   #   mesh address, so instance traffic between nodes rides the mesh. Every
-  #   node may host the gateway (enable-chassis-as-gw).
+  #   node may host the gateway (enable-chassis-as-gw), once Incus has set up
+  #   its uplink there (see ovn-controller below).
   #
   # A node never creates a database cluster by itself: with no database it
   # asks to join the existing one. Only cluster-ovn-bootstrap creates it,
@@ -18,7 +19,7 @@
   # (cluster-rebuild removes the dead node's old Raft membership first.)
   #
   # The networks themselves (the transit uplink and the services network)
-  # are Incus objects, made by cluster-ovn-bootstrap.
+  # are Incus objects, declared in OpenTofu (opentofu/cluster.tf).
   #
   # Status:  ovs-appctl -t /run/ovn/ovnnb_db.ctl cluster/status OVN_Northbound
   #          ovn-sbctl show     (chassis and their tunnels)
@@ -103,7 +104,7 @@
         after = [ "ovs-vswitchd.service" "mesh-online.service" ];
         requires = [ "ovs-vswitchd.service" ];
         wants = [ "mesh-online.service" ];
-        path = [ ovs ];
+        path = [ ovs ovn pkgs.coreutils pkgs.gnugrep ];
         # Open vSwitch's database is on the tmpfs root, so this node's chassis
         # settings are written at every start rather than kept.
         preStart = /* bash */ ''
@@ -114,6 +115,35 @@
             external_ids:ovn-encap-type=geneve \
             external_ids:ovn-encap-ip=${me} \
             external_ids:ovn-cms-options=enable-chassis-as-gw
+
+          # Incus adds this node to each OVN network's gateway group when it
+          # starts the network, and removes it only on a clean stop. After a
+          # power cut or crash the entry is still there, so this ovn-controller
+          # would take the gateway (if its priority is highest) before Incus
+          # has set up the uplink -- and on a node that comes back Evacuated,
+          # Incus doesn't start its networks until `cluster restore`. Found in
+          # testing: the services network had no way out from test-node3's
+          # boot until its entry was removed by hand. So with no uplink here
+          # yet (the bridge mapping is in OVS's tmpfs database: gone after a
+          # boot, kept across a restart of this service), leave every gateway
+          # group first; Incus puts this node back along with its uplink.
+          if [ -z "$(ovs-vsctl --no-wait get open . external_ids:ovn-bridge-mappings 2>/dev/null)" ]; then
+            nb=(--db=${remotes 6641} --timeout=5)
+            for _ in $(seq 1 12); do
+              if groups=$(ovn-nbctl "''${nb[@]}" --bare --columns=name list HA_Chassis_Group); then
+                for g in $groups; do
+                  if ovn-nbctl "''${nb[@]}" ha-chassis-group-list "$g" | grep -qF "(${name})"; then
+                    ovn-nbctl "''${nb[@]}" ha-chassis-group-remove-chassis "$g" ${name} \
+                      && echo "left gateway group $g until Incus sets up the uplink"
+                  fi
+                done
+                break
+              fi
+              # No Northbound quorum yet (a node starting alone): its gateway
+              # can't matter until there is one. Give up after 2 minutes.
+              sleep 5
+            done
+          fi
         '';
         serviceConfig = {
           ExecStart = lib.concatStringsSep " " [
@@ -125,6 +155,8 @@
           RuntimeDirectoryPreserve = true;
           Restart = "always";
           RestartSec = 5;
+          # Room for the wait on the Northbound database above.
+          TimeoutStartSec = 180;
         };
       };
 

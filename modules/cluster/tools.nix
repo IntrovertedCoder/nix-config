@@ -437,7 +437,9 @@
         members=$(ctl incus-members)
         st=$(jq -r --arg n "$node" '.[] | select(.server_name==$n) | .status' <<<"$members")
         origin=$(ctl incus-instances | jq -r --arg n "$node" '.[] | select(.config["volatile.evacuate.origin"]==$n) | .name')
-        # A rebuilt node (cluster-rebuild.sh) rejoins Incus as a new, Online
+        # Those already stopped (e.g. kept as a way back) come back stopped.
+        stopped=$(ctl incus-instances | jq -r --arg n "$node" '.[] | select(.config["volatile.evacuate.origin"]==$n and .status=="Stopped") | .name')
+        # A rebuilt node (cluster-rebuild) rejoins Incus as a new, Online
         # member, so its healed-away instances still name it as their origin
         # but `incus cluster restore` has nothing to restore. Move those back
         # by hand instead (step 8).
@@ -520,6 +522,7 @@
         for inst in $origin; do
           st=$(ctl incus-instances | jq -r --arg i "$inst" '.[] | select(.name==$i) | "\(.status) \(.location)"')
           if [ "$st" = "Running $node" ]; then ok "$inst running on $node"
+          elif [ "$st" = "Stopped $node" ] && grep -qx "$inst" <<<"$stopped"; then ok "$inst back on $node (stopped, as it was)"
           else fail "$inst is '$st'"; fi
         done
         ceph_wait_healthy || die "ceph unhealthy after restore"
