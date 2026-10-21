@@ -22,10 +22,10 @@
         cd "$W"
         R=(rados -p important -N opentofu)
         STATE=terraform.tfstate
-        cookie="$(hostname)-$$"
+        cookie="$(uname -n)-$$"
 
         if ! "''${R[@]}" lock get lock tofu --lock-cookie "$cookie" --lock-duration 7200 \
-             --lock-description "$(hostname) $(date -u +%FT%TZ): tofu $*" 2>/dev/null; then
+             --lock-description "$(uname -n) $(date -u +%FT%TZ): tofu $*" 2>/dev/null; then
           echo "another OpenTofu run holds the lock:" >&2
           "''${R[@]}" lock info lock tofu >&2 || true
           echo >&2
@@ -58,7 +58,7 @@
         finish() {
           local rc=$?
           if ! save; then
-            echo "SAVING THE STATE TO CEPH FAILED -- it's in $W/$STATE on $(hostname); put it back by hand:" >&2
+            echo "SAVING THE STATE TO CEPH FAILED -- it's in $W/$STATE on $(uname -n); put it back by hand:" >&2
             echo "  rados -p important -N opentofu put $STATE $W/$STATE" >&2
             release; exit 1
           fi

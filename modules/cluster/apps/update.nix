@@ -89,7 +89,10 @@
         # The controller comes after the last node; wait for the runs to end.
         echo "== every node is through; waiting for the controller step"
         for n in "''${NODES[@]}"; do
-          until on "$n" '! systemctl is-active --quiet cluster-update cluster-update-resume' 2>/dev/null; do sleep 10; done
+          # A oneshot that's still running is "activating", not "active".
+          until on "$n" '! systemctl show -p ActiveState --value cluster-update cluster-update-resume | grep -qE "^(active|activating|deactivating)$"' 2>/dev/null; do
+            sleep 10
+          done
         done
         echo "== results"
         rc=0
