@@ -67,6 +67,7 @@ resource "incus_storage_pool" "remote" {
 
 resource "incus_network" "incusbr0" {
   name = "incusbr0"
+  description = "NAT bridge on each node, for test instances"
   config = {
     "ipv4.address" = "10.200.0.1/24"
     "ipv4.nat"     = "true"
