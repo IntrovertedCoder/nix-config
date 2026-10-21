@@ -89,8 +89,57 @@
         tofu "$@"
       '';
     };
+
+    # The work directory for the runner, from a checkout of this repo: the
+    # .tf files, and the values from the flake, so nothing is typed twice.
+    # Used by the app below (on the workstation) and by cluster-update (on
+    # a node, from its own checkout). Prints the UniFi image's two store
+    # paths, which the runner's node needs.
+    #
+    #   elements-tofu-prepare <checkout> <workdir> [nix build options...]
+    #
+    # FLAKE overrides the flake reference for the builds (default: the
+    # checkout), e.g. git+file://<checkout>?shallow=1 for a shallow clone.
+    prepare = pkgs.writeShellApplication {
+      name = "elements-tofu-prepare";
+      runtimeInputs = [ pkgs.jq pkgs.coreutils pkgs.findutils ];
+      # nix comes from the caller's system (its daemon's version).
+      text = /* bash */ ''
+        src=$1 dest=$2; shift 2
+        flake=''${FLAKE:-$src}
+        # The controller's image (modules/cluster/unifi.nix). Same flake, same
+        # store paths: OpenTofu only replaces the image (and so the instance)
+        # when the system actually changed.
+        meta=$(nix build --no-link --print-out-paths "$@" "$flake#nixosConfigurations.unifi.config.system.build.metadata")
+        data=$(nix build --no-link --print-out-paths "$@" "$flake#nixosConfigurations.unifi.config.system.build.squashfs")
+        # The cluster's plan (opentofu/cluster.tf): members and their node ids,
+        # the transit VLAN and ring MTU (same on every node), and the subnets.
+        values=$(nix eval --json --impure --expr "let
+            hosts = import $src/modules/cluster/_hosts.nix;
+            l = import $src/modules/cluster/_lan.nix;
+            h = builtins.head (builtins.attrValues hosts);
+          in {
+            members = builtins.mapAttrs (_: h: h.id) hosts;
+            transit_vlan = h.vlans.transit;
+            ring_mtu = h.ringMtu;
+            lan = { transit = { inherit (l.segments.transit) v4 v6; }; inherit (l) services ovnUplink; };
+          }")
+        mkdir -p "$dest"
+        find "$dest" -maxdepth 1 \( -name '*.tf' -o -name '*.tfvars.json' \) -delete
+        cp "$src"/opentofu/*.tf "$dest/"
+        jq -n --arg m "$(echo "$meta"/tarball/*.tar.xz)" --arg d "$(echo "$data"/*.squashfs)" \
+          --argjson c "$values" \
+          '{unifi_image: {metadata: $m, data: $d}, cluster: $c}' > "$dest/flake.auto.tfvars.json"
+        echo "$meta"
+        echo "$data"
+      '';
+    };
   in lib.mkIf pkgs.stdenv.isLinux {
     devShells.default = pkgs.mkShell { packages = [ tofu ]; };
+
+    # For cluster-update (modules/cluster/update.nix), on the nodes.
+    packages.elements-tofu-run = runner;
+    packages.elements-tofu-prepare = prepare;
 
     packages.tofu = cluster.mkApp {
       name = "tofu";
@@ -120,26 +169,9 @@
         done
         [ -n "$node" ] || { echo "no node answers over SSH" >&2; exit 1; }
 
-        # ---- values from the flake, so nothing is typed twice
-        # The controller's image (modules/cluster/unifi.nix). Same flake, same
-        # store paths: OpenTofu only replaces the image (and so the instance)
-        # when the system actually changed.
-        meta=$(nix build --no-link --print-out-paths .#nixosConfigurations.unifi.config.system.build.metadata)
-        data=$(nix build --no-link --print-out-paths .#nixosConfigurations.unifi.config.system.build.squashfs)
-        # The cluster's plan (opentofu/cluster.tf): members and their node ids,
-        # the transit VLAN and ring MTU (same on every node), and the subnets.
-        members=$(i=0; for n in "''${NODES[@]}"; do i=$((i + 1)); echo "$(name "$n") $i"; done \
-          | jq -Rn '[inputs | split(" ") | {(.[0]): (.[1] | tonumber)}] | add')
-        host=$(nix eval --json ".#nixosConfigurations.$(name "''${NODES[0]}").config.var.cluster.host" \
-          --apply 'h: { transit_vlan = h.vlans.transit; ring_mtu = h.ringMtu; }')
-        lan=$(nix eval --json --impure --expr 'let l = import ./modules/cluster/_lan.nix; in
-          { transit = { inherit (l.segments.transit) v4 v6; }; inherit (l) services ovnUplink; }')
-        mkdir "$_TMP/up"
-        cp opentofu/*.tf "$_TMP/up/"
-        jq -n --arg m "$(echo "$meta"/tarball/*.tar.xz)" --arg d "$(echo "$data"/*.squashfs)" \
-          --argjson members "$members" --argjson host "$host" --argjson lan "$lan" \
-          '{unifi_image: {metadata: $m, data: $d},
-            cluster: ($host + {members: $members, lan: $lan})}' > "$_TMP/up/flake.auto.tfvars.json"
+        # ---- the .tf files and the values from this checkout's flake
+        mapfile -t image < <(${lib.getExe prepare} "$PWD" "$_TMP/up")
+        meta=''${image[0]} data=''${image[1]}
 
         # ---- to the node: the runner (OpenTofu and the provider) and the
         # image, then this checkout's files

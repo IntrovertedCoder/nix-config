@@ -82,6 +82,9 @@
             # A planned reboot isn't a failure: switch healing off so a slow POST
             # can't move this node's instances away. incus-healing-arm (incus.nix)
             # on the rebooted node turns it back on once the cluster is whole again.
+            # Running VMs that can live-migrate wait it out on another node
+            # (cluster-update, update.nix); containers restart with this one.
+            on "$n" 'command -v cluster-update >/dev/null && cluster-update vms-away' || true
             on "$n" 'incus cluster list >/dev/null 2>&1 </dev/null && incus config set cluster.healing_threshold=0 </dev/null' || true
             on "$n" 'systemctl reboot' || true
             timeout 600 bash -c "until b=\$(ssh ''${SSH_OPTS[*]} root@$(ip "$n") cat /proc/sys/kernel/random/boot_id 2>/dev/null) && [ -n \"\$b\" ] && [ \"\$b\" != $boot ]; do sleep 5; done" \
@@ -89,6 +92,7 @@
           fi
           echo "== $t: waiting for it to be healthy"
           healthy "$n" || { echo "$t didn't come back healthy -- stopping here" >&2; exit 1; }
+          if [ "$ACTION" = boot ]; then on "$n" 'cluster-update vms-back' || true; fi
           echo "== $t: done"
         done
       '';

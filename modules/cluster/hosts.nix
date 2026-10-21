@@ -14,6 +14,7 @@ in {
       self.nixosModules.clusterRouter
       self.nixosModules.clusterOvn
       self.nixosModules.clusterUnifi
+      self.nixosModules.clusterUpdate
       self.nixosModules.clusterDisko
       self.nixosModules.user-shot
       self.nixosModules.sshd
