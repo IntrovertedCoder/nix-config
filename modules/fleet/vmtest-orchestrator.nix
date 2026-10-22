@@ -2,9 +2,12 @@
   flake.nixosModules.vmtestOrchestrator = { pkgs, lib, config, ... }: let
     secretsDir = ../../secrets;
     discordWebhookFile = secretsDir + "/discord-webhook.age";
+    # The action-required channel (failures); optional, see discord-notify.nix.
+    discordUrgentWebhookFile = secretsDir + "/discord-urgent-webhook.age";
     healthchecksUrlFile = secretsDir + "/healthchecks-ping-url.age";
 
     haveDiscordSecret = builtins.pathExists discordWebhookFile;
+    haveDiscordUrgentSecret = builtins.pathExists discordUrgentWebhookFile;
     haveHealthchecksSecret = builtins.pathExists healthchecksUrlFile;
   in {
     imports = [
@@ -40,6 +43,12 @@
           owner = "shot";
         };
       }
+      // lib.optionalAttrs haveDiscordUrgentSecret {
+        discord-urgent-webhook = {
+          file = discordUrgentWebhookFile;
+          owner = "shot";
+        };
+      }
       // lib.optionalAttrs haveHealthchecksSecret {
         healthchecks-ping-url = {
           file = healthchecksUrlFile;
@@ -49,6 +58,8 @@
 
     var.notify.discord.webhookPath =
       lib.mkIf haveDiscordSecret config.age.secrets.discord-webhook.path;
+    var.notify.discord.urgentWebhookPath =
+      lib.mkIf haveDiscordUrgentSecret config.age.secrets.discord-urgent-webhook.path;
 
     systemd.timers.fleet-update = {
       wantedBy = [ "timers.target" ];
@@ -85,7 +96,7 @@
           text = /* bash */ ''
             # Never let a missing/unconfigured secret take the whole run down --
             # see modules/network/discord-notify.nix, this is a no-op until then.
-            notify() { command -v notify-discord >/dev/null 2>&1 && notify-discord "$1" || true; }
+            notify() { command -v notify-discord >/dev/null 2>&1 && notify-discord "$@" || true; }
 
             cd /home/shot/nix-config
 
@@ -93,7 +104,7 @@
             # secrets above; git needs the *shot* user's ~/.ssh/github key
             # (git.nix) to reach GitHub -- both are independent of this step.
             if ! git fetch origin || ! git merge --ff-only origin/main; then
-              notify "vmtest: git pull failed (diverged checkout?) -- aborting this cycle"
+              notify --urgent "vmtest: git pull failed (diverged checkout?) -- aborting this cycle"
               git checkout -- flake.lock
               exit 1
             fi
@@ -103,7 +114,7 @@
             # a systemd service never sources (same class of bug as the
             # missing openssh fix above).
             if ! nh os boot --update -H vmtest /home/shot/nix-config; then
-              notify "vmtest: self-update FAILED (see journalctl -u fleet-update)"
+              notify --urgent "vmtest: self-update FAILED (see journalctl -u fleet-update)"
               git checkout -- flake.lock
               exit 1
             fi
@@ -135,13 +146,13 @@
               if nix build ".#nixosConfigurations.$host.config.system.build.toplevel" --no-link; then
                 notify "fleet: $host built OK, cache warmed"
               else
-                notify "fleet: build for $host FAILED"
+                notify --urgent "fleet: build for $host FAILED"
               fi
             done
             extra=(${lib.concatMapStringsSep " " lib.escapeShellArg config.var.fleet.extraBuilds})
             for attr in "''${extra[@]}"; do
               if ! nix build ".#$attr" --no-link; then
-                notify "fleet: build of $attr FAILED"
+                notify --urgent "fleet: build of $attr FAILED"
               fi
             done
 
@@ -168,7 +179,7 @@
           name = "fleet-boot-confirm";
           runtimeInputs = [ pkgs.curl pkgs.coreutils pkgs.gnugrep ];
           text = /* bash */ ''
-            notify() { command -v notify-discord >/dev/null 2>&1 && notify-discord "$1" || true; }
+            notify() { command -v notify-discord >/dev/null 2>&1 && notify-discord "$@" || true; }
             ${lib.optionalString haveHealthchecksSecret ''
               curl -sf "$(cat ${config.age.secrets.healthchecks-ping-url.path})" >/dev/null || true
             ''}

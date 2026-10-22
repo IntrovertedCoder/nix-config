@@ -41,10 +41,14 @@
     others = lib.filter (n: n != name) (lib.attrNames hosts);
     tofuRun = self.packages.${pkgs.stdenv.hostPlatform.system}.elements-tofu-run;
     tofuPrepare = self.packages.${pkgs.stdenv.hostPlatform.system}.elements-tofu-prepare;
-    # Discord: only once the webhook secret is encrypted for this node too
-    # (secrets.nix); until then the update says nothing there.
-    webhookShared = builtins.elem host.hostKey
-      (import ../../secrets.nix)."secrets/discord-webhook.age".publicKeys;
+    # Discord: only once a webhook secret is encrypted for this node too
+    # (secrets.nix); until then the update says nothing there. Two channels:
+    # updates (the summary) and action required (problems); with only the
+    # first shared, problems go there too.
+    sharedWith = secret: builtins.elem host.hostKey
+      ((import ../../secrets.nix).${secret}.publicKeys or []);
+    webhookShared = sharedWith "secrets/discord-webhook.age";
+    urgentShared = sharedWith "secrets/discord-urgent-webhook.age";
 
     clusterUpdate = pkgs.writeShellApplication {
       name = "cluster-update";
@@ -66,22 +70,27 @@
         # (unit files, scripts) come from the cache too.
         NIXB=(--max-jobs 0 --option always-allow-substitutes true)
 
-        # Discord, once secrets/discord-webhook.age is shared with the nodes
-        # (secrets.nix): every problem as it happens, and one summary per
-        # update (controller()). Never fails the run.
+        # Discord, once the webhook secrets are shared with the nodes
+        # (secrets.nix): every problem as it happens (`discord --urgent`, the
+        # action-required channel), and one summary per update (controller(),
+        # the updates channel). Never fails the run.
         discord() {
-          ${if webhookShared then ''
+          local hook=${lib.optionalString webhookShared config.age.secrets.discord-webhook.path}
+          if [ "$1" = --urgent ]; then
+            shift
+            ${lib.optionalString urgentShared "hook=${config.age.secrets.discord-urgent-webhook.path}"}
+          fi
+          [ -n "$hook" ] || return 0
           curl -sf -m 15 -H 'Content-Type: application/json' \
             -d "$(jq -n --arg c "elements: $*" '{content: $c}')" \
-            "$(cat ${config.age.secrets.discord-webhook.path})" >/dev/null || true
-          '' else '':  # not shared yet''}
+            "$(cat "$hook")" >/dev/null || true
         }
         # Something for you to look at: also kept for `cluster debug`
         # (cluster-agent's attention list, tools.nix) until an update of this
         # node succeeds or `cluster-update release`.
         PROBLEM=/var/lib/cluster-update-status/problem
         problem() {
-          echo "$*"; discord "$SELF: $*"
+          echo "$*"; discord --urgent "$SELF: $*"
           printf '%s %s\n' "$(date '+%F %T')" "$*" > "$PROBLEM"; chmod 0644 "$PROBLEM"
         }
         set_status() { printf '%s %s %s\n' "$(date +%s)" "$1" "''${2:--}" | "''${R[@]}" put "status.$SELF" - ; }
@@ -429,6 +438,9 @@
 
       age.secrets.discord-webhook = lib.mkIf webhookShared {
         file = ../../secrets/discord-webhook.age;
+      };
+      age.secrets.discord-urgent-webhook = lib.mkIf urgentShared {
+        file = ../../secrets/discord-urgent-webhook.age;
       };
 
       # vmtest's cache, over Tailscale; give up on it quickly when it's away.
