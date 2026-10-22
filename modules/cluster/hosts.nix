@@ -23,6 +23,8 @@ in {
         nixpkgs.hostPlatform = "x86_64-linux";
         networking.hostName = name;
         var.cluster = { inherit name host hosts; };
+        # Weekly, an hour after vmtest's update (update.nix, _schedule.nix).
+        var.cluster.autoUpdate.enable = true;
       }
     ] ++ lib.optional host.test self.nixosModules.clusterTestAccess;
   }) hosts;
