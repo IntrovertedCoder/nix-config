@@ -117,11 +117,18 @@
         # Ceph OK, every Incus member online, and healing re-armed on this
         # node -- so a pending re-arm can't undo the switch-off before a
         # reboot (cluster-deploy found that one).
+        #
+        # Once one node runs a newer Incus, the members still on the old
+        # one show BLOCKED, "Needs updating to newer version", until they
+        # update too. They're the nodes this update is about to fix, so
+        # they count (requiring ONLINE deadlocked the first update from
+        # GitHub, Incus 7.0.1 -> 7.0.2: the lock held by a node waiting
+        # for the very nodes it kept from updating).
         healthy() {
           local m
           ceph health 2>/dev/null | grep -q HEALTH_OK || return 1
-          m=$(incus cluster list -f csv -c s </dev/null 2>/dev/null) && [ -n "$m" ] || return 1
-          ! grep -qvx ONLINE <<<"$m" || return 1
+          m=$(incus cluster list -f csv -c s,m </dev/null 2>/dev/null) && [ -n "$m" ] || return 1
+          ! grep -v '^ONLINE,' <<<"$m" | grep -qv '^BLOCKED,Needs updating to newer version' || return 1
           systemctl is-active --quiet incus-healing-arm
         }
         wait_healthy() {  # wait_healthy <seconds>
