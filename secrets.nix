@@ -30,6 +30,12 @@ in
   # SSH key the `cluster` tool uses to reach shot on the other nodes over the
   # mesh (fd9a:7af:74af:ff::<id>). See modules/cluster/tools.nix.
   "secrets/cluster-ssh-key.age".publicKeys = [ arik ] ++ clusterKeys;
+
+  # The UniFi gear's SSH login (the controller's Device SSH Authentication),
+  # "username=..." and "password=..." lines. With it the switch and AP can
+  # be pointed at a rebuilt controller (`set-inform`) without a factory
+  # reset, which the AP's location makes hard.
+  "secrets/unifi-device-ssh.age".publicKeys = [ arik ] ++ clusterKeys;
 }
 # Each cluster node's SSH host private key, shipped by the cluster-testlab app at
 # install. Every node can decrypt every node's key, so any working node can
