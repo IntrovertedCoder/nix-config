@@ -41,11 +41,15 @@
     others = lib.filter (n: n != name) (lib.attrNames hosts);
     tofuRun = self.packages.${pkgs.stdenv.hostPlatform.system}.elements-tofu-run;
     tofuPrepare = self.packages.${pkgs.stdenv.hostPlatform.system}.elements-tofu-prepare;
+    # Discord: only once the webhook secret is encrypted for this node too
+    # (secrets.nix); until then the update says nothing there.
+    webhookShared = builtins.elem host.hostKey
+      (import ../../secrets.nix)."secrets/discord-webhook.age".publicKeys;
 
     clusterUpdate = pkgs.writeShellApplication {
       name = "cluster-update";
       runtimeInputs = with pkgs; [
-        coreutils gnugrep gawk jq git iproute2 iputils
+        coreutils gnugrep gawk jq git iproute2 iputils curl
         ceph config.virtualisation.incus.clientPackage
         config.nix.package config.systemd.package
         tofuRun tofuPrepare
@@ -62,15 +66,24 @@
         # (unit files, scripts) come from the cache too.
         NIXB=(--max-jobs 0 --option always-allow-substitutes true)
 
-        notify() {
-          echo "$*"
-          if command -v notify-discord >/dev/null 2>&1; then notify-discord "cluster-update on $SELF: $*" || true; fi
+        # Discord, once secrets/discord-webhook.age is shared with the nodes
+        # (secrets.nix): every problem as it happens, and one summary per
+        # update (controller()). Never fails the run.
+        discord() {
+          ${if webhookShared then ''
+          curl -sf -m 15 -H 'Content-Type: application/json' \
+            -d "$(jq -n --arg c "elements: $*" '{content: $c}')" \
+            "$(cat ${config.age.secrets.discord-webhook.path})" >/dev/null || true
+          '' else '':  # not shared yet''}
         }
         # Something for you to look at: also kept for `cluster debug`
         # (cluster-agent's attention list, tools.nix) until an update of this
         # node succeeds or `cluster-update release`.
         PROBLEM=/var/lib/cluster-update-status/problem
-        problem() { notify "$*"; printf '%s %s\n' "$(date '+%F %T')" "$*" > "$PROBLEM"; chmod 0644 "$PROBLEM"; }
+        problem() {
+          echo "$*"; discord "$SELF: $*"
+          printf '%s %s\n' "$(date '+%F %T')" "$*" > "$PROBLEM"; chmod 0644 "$PROBLEM"
+        }
         set_status() { printf '%s %s %s\n' "$(date +%s)" "$1" "''${2:--}" | "''${R[@]}" put "status.$SELF" - ; }
 
         # Nodes still on their way through this cycle: a status from the last
@@ -161,43 +174,59 @@
         # once per revision: the first node to create controller.<rev> in Ceph
         # does it (when every node was already up to date, they all get
         # here). `controller <rev> force` (cluster-update controller) skips that.
+        # The node that does it also sends the update's one Discord summary:
+        # every node's result and the controller's.
         controller() {
-          local rev=$1 force=''${2:-} work=$D/tofu changes other
+          local rev=$1 force=''${2:-} n s t st nodes=""
           if [ -z "$force" ]; then
             if [ -n "$(pending_others)" ]; then echo "other nodes are still updating: the last one does the controller"; return 0; fi
             if ! "''${R[@]}" create "controller.$rev" 2>/dev/null; then echo "another node did the controller for $rev"; return 0; fi
             "''${R[@]}" ls | grep '^controller\.' | grep -vx "controller.$rev" | while read -r o; do "''${R[@]}" rm "$o"; done
           fi
+          CTL_RESULT="not run"
+          controller_step "$rev" || true
+          [ -z "$force" ] || return 0
+          for n in "$SELF" "''${OTHERS[@]}"; do
+            s=$("''${R[@]}" get "status.$n" - 2>/dev/null) || s="0 unknown -"
+            read -r t st _ <<<"$s"
+            nodes="$nodes''${nodes:+, }$n $st"
+          done
+          discord "update to $rev: $nodes; controller: $CTL_RESULT"
+        }
+
+        controller_step() {
+          local work=$D/tofu changes other
           # One node at a time here too: when several were already up to date,
           # each gets this far.
           local cookie n=0
           cookie="$SELF-ctl-$(date +%s)"
           until "''${R[@]}" lock get lock update --lock-cookie "$cookie" --lock-duration 3600 \
                 --lock-description "$SELF controller" 2>/dev/null; do
-            n=$((n + 1)); [ $n -lt 120 ] || { echo "controller: no turn within an hour"; return 1; }
+            n=$((n + 1)); [ $n -lt 120 ] || { problem "controller: no turn within an hour"; CTL_RESULT="no turn"; return 1; }
             sleep 30
           done
           echo "$cookie" > "$D/cookie"
           trap unlock RETURN
           echo "== the controller (OpenTofu)"
           if ! FLAKE=$FLAKE elements-tofu-prepare "$D/src" "$work" "''${NIXB[@]}" >/dev/null; then
-            problem "controller: the UniFi image isn't in vmtest's cache -- not updated"; return 1
+            problem "controller: the UniFi image isn't in vmtest's cache -- not updated"; CTL_RESULT="image not in the cache"; return 1
           fi
           rm -f "$work/update.plan"
           elements-tofu-run "$work" plan -input=false -out=update.plan >/dev/null \
-            || { problem "controller: OpenTofu plan failed (journalctl -u cluster-update)"; return 1; }
+            || { problem "controller: OpenTofu plan failed (journalctl -u cluster-update)"; CTL_RESULT="plan FAILED"; return 1; }
           elements-tofu-run "$work" show -json update.plan | grep '^{' > "$work/plan.json"
           changes=$(jq -r '.resource_changes[]? | select(.change.actions != ["no-op"] and .change.actions != ["read"]) | .address' "$work/plan.json")
-          if [ -z "$changes" ]; then echo "controller: nothing to change"; return 0; fi
+          if [ -z "$changes" ]; then echo "controller: nothing to change"; CTL_RESULT="nothing to change"; return 0; fi
           other=$(grep -vxE 'incus_image\.unifi|incus_instance\.unifi' <<<"$changes" || true)
           if [ -n "$other" ]; then
             problem "controller: the plan also changes $(echo "$other" | tr '\n' ' ')-- not applied; review it with nix run .#tofu -- plan"
-            return 1
+            CTL_RESULT="NOT applied (the plan changes more than the controller)"; return 1
           fi
           if ! elements-tofu-run "$work" apply -input=false update.plan; then
-            problem "controller: OpenTofu apply FAILED (journalctl -u cluster-update)"; return 1
+            problem "controller: OpenTofu apply FAILED (journalctl -u cluster-update)"; CTL_RESULT="apply FAILED"; return 1
           fi
-          notify "controller updated"
+          echo "controller updated"
+          CTL_RESULT="updated"
         }
 
         cmd_run() {
@@ -261,6 +290,20 @@
           echo "== $rev: installing for the next boot"
           nix-env -p /nix/var/nix/profiles/system --set "$target"
           "$target/bin/switch-to-configuration" boot
+          # Boot the new system once: the one running now stays the firmware's
+          # default until the new one has proved itself (cmd_resume). If the
+          # new one crashes (panic=10 restarts it) or is reset, the node comes
+          # back on this one, and resume sees the wrong system: failed, the
+          # lock held, and a problem report.
+          cur=$(bootctl status 2>/dev/null | sed -n 's/^ *Current Entry: //p')
+          new="nixos-generation-$(readlink /nix/var/nix/profiles/system | sed -E 's/^system-([0-9]+)-link$/\1/').conf"
+          if [ -n "$cur" ] && [ "$cur" != "$new" ] && [ -e "/boot/loader/entries/$new" ] \
+             && bootctl set-default "$cur" && bootctl set-oneshot "$new"; then
+            echo "== booting $new once; $cur stays the default until it's healthy"
+          else
+            bootctl set-default "" 2>/dev/null || true
+            echo "== couldn't arrange a one-time boot ($cur, $new): the new system is the default straight away"
+          fi
           echo "== moving running VMs away"
           vms_away
           incus config set cluster.healing_threshold=0 </dev/null
@@ -272,8 +315,9 @@
           local target rev
           read -r target rev < "$D/in-progress"
           if [ "$(readlink -f /run/booted-system)" != "$target" ]; then
+            # Its old system stays the default (cmd_run), so it keeps booting that.
             mv "$D/in-progress" "$D/failed"; set_status failed "$rev"
-            problem "didn't boot into $rev's system -- holding the update lock, so no other node updates. Fix it, then cluster-update release"
+            problem "$rev's system didn't boot (crashed or was reset): back on its previous system -- holding the update lock, so no other node updates. Fix it, then cluster-update release"
             exit 1
           fi
           echo "== waiting for the cluster to be healthy"
@@ -282,13 +326,15 @@
             problem "not healthy 20 min after updating to $rev -- holding the update lock, so no other node updates. Fix it, then cluster-update release"
             exit 1
           fi
+          # Healthy: the new system becomes the default (loader.conf's again).
+          bootctl set-default "" 2>/dev/null || true
           echo "== bringing VMs back"
           vms_back
           rm -f "$D/in-progress"
           set_status "done" "$rev"
           unlock
           rm -f "$PROBLEM"
-          notify "updated to $rev"
+          echo "updated to $rev"
           controller "$rev" || true
         }
 
@@ -357,6 +403,15 @@
 
     config = {
       environment.systemPackages = [ clusterUpdate ];
+
+      # A kernel that panics restarts after 10 s instead of sitting there, so
+      # an update whose new system crashes falls back by itself (cmd_run
+      # boots a new system once; the old one stays the default).
+      boot.kernelParams = [ "panic=10" ];
+
+      age.secrets.discord-webhook = lib.mkIf webhookShared {
+        file = ../../secrets/discord-webhook.age;
+      };
 
       # vmtest's cache, over Tailscale; give up on it quickly when it's away.
       nix.settings.connect-timeout = 5;

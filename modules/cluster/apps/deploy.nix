@@ -86,7 +86,9 @@
             # (cluster-update, update.nix); containers restart with this one.
             on "$n" 'command -v cluster-update >/dev/null && cluster-update vms-away' || true
             on "$n" 'incus cluster list >/dev/null 2>&1 </dev/null && incus config set cluster.healing_threshold=0 </dev/null' || true
-            on "$n" 'systemctl reboot' || true
+            # A default left by an update that fell back (update.nix) would
+            # boot the old system again: this deploy's is the one wanted.
+            on "$n" 'bootctl set-default "" 2>/dev/null; systemctl reboot' || true
             timeout 600 bash -c "until b=\$(ssh ''${SSH_OPTS[*]} root@$(ip "$n") cat /proc/sys/kernel/random/boot_id 2>/dev/null) && [ -n \"\$b\" ] && [ \"\$b\" != $boot ]; do sleep 5; done" \
               || { echo "$t didn't come back from the reboot within 10 min -- check its console" >&2; exit 1; }
           fi
