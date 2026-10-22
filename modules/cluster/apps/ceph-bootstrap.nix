@@ -26,7 +26,10 @@
 
         echo "== preflight"
         for n in "''${NODES[@]}"; do
-          on "$n" "systemctl is-active --quiet mesh-online" || { echo "$(name "$n"): mesh not up" >&2; exit 1; }
+          # Right after an install the mesh needs up to a minute (found when
+          # run straight after cluster-testlab), so wait rather than fail.
+          on "$n" "timeout 120 bash -c 'until systemctl is-active --quiet mesh-online; do sleep 3; done'" \
+            || { echo "$(name "$n"): mesh not up after 2 minutes" >&2; exit 1; }
           if on "$n" "test -e /var/lib/ceph/mon/ceph-$(name "$n")/keyring"; then
             echo "$(name "$n") already has a mon -- this cluster is bootstrapped" >&2; exit 1
           fi
