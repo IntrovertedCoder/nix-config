@@ -81,7 +81,10 @@
         EOF
 
         echo "== OpenTofu: the pool, the networks, the default profile, the link to OVN"
-        nix run .#tofu -- apply
+        # No prompt: this runs unattended too (the first fresh build found it
+        # waiting for a "yes" it could never get). What it creates is fixed
+        # by opentofu/, and a re-run only fills in what's missing.
+        nix run .#tofu -- apply -input=false -auto-approve
       '';
     };
   };

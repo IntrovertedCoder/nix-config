@@ -19,7 +19,10 @@ resource "incus_image" "unifi" {
 
 resource "incus_storage_volume" "unifi_data" {
   name         = "unifi-data"
-  pool         = "remote"
+  # The pool resource, not its name: a fresh cluster creates both in one
+  # apply, and the volume has to wait for the pool (found in the first
+  # fresh build).
+  pool         = incus_storage_pool.remote.name
   content_type = "filesystem"
   config = {
     size = "10GiB"
@@ -61,7 +64,7 @@ resource "incus_instance" "unifi" {
     name = "data"
     type = "disk"
     properties = {
-      pool   = "remote"
+      pool   = incus_storage_pool.remote.name
       source = incus_storage_volume.unifi_data.name
       path   = "/var/lib/unifi"
     }

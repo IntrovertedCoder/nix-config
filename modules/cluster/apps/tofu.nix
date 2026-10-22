@@ -51,7 +51,8 @@
           fi
           "''${R[@]}" put "$STATE" "$STATE" || return 1
           echo "== state saved to Ceph (serial $(jq .serial "$STATE"))"
-          "''${R[@]}" ls | grep -E "^$STATE\.[0-9]+$" | sort -t. -k3 -n | head -n -20 \
+          # (No old copies yet, on a new cluster, isn't a failure.)
+          { "''${R[@]}" ls | grep -E "^$STATE\.[0-9]+$" || true; } | sort -t. -k3 -n | head -n -20 \
             | while read -r old; do "''${R[@]}" rm "$old"; done
         }
 
