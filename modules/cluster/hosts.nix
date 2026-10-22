@@ -11,6 +11,7 @@ in {
       self.nixosModules.clusterTailscale
       self.nixosModules.clusterTools
       self.nixosModules.clusterHealth
+      self.nixosModules.clusterHealthchecks
       self.nixosModules.clusterRouter
       self.nixosModules.clusterOvn
       self.nixosModules.clusterUnifi

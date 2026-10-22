@@ -22,6 +22,7 @@ in
   "secrets/discord-webhook.age".publicKeys = [ arik vmtest ] ++ clusterKeys;
   "secrets/discord-urgent-webhook.age".publicKeys = [ arik vmtest ] ++ clusterKeys;
   "secrets/healthchecks-ping-url.age".publicKeys = [ vmtest ];
+  "secrets/cluster-healthchecks-ping-key.age".publicKeys = [ arik ] ++ clusterKeys;
 
   # Tailscale OAuth client secret (auth keys: write, tag:cluster only) -- lets
   # a freshly installed node join the tailnet on its own. See
