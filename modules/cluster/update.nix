@@ -357,6 +357,17 @@
           # the failed resume stops showing in cluster debug.
           vms_back
           systemctl reset-failed cluster-update-resume.service 2>/dev/null || true
+          # After a fallback the boot menu's default is still the system that
+          # didn't boot; only the firmware's one-off default (cmd_run) keeps
+          # the node off it. Make the running system the default for good.
+          local running
+          running=$(readlink -f /run/booted-system)
+          if [ "$(readlink -f /nix/var/nix/profiles/system)" != "$running" ]; then
+            nix-env -p /nix/var/nix/profiles/system --set "$running"
+            "$running/bin/switch-to-configuration" boot
+            echo "the system it's running is the default again"
+          fi
+          bootctl set-default "" 2>/dev/null || true
           rm -f "$D/failed" "$D/in-progress"
           unlock
           # Also a lock left by this node's failed run under an older cookie.
