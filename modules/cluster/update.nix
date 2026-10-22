@@ -307,6 +307,10 @@
         }
 
         cmd_release() {
+          # The node is fixed: its VMs that waited elsewhere come home, and
+          # the failed resume stops showing in cluster debug.
+          vms_back
+          systemctl reset-failed cluster-update-resume.service 2>/dev/null || true
           rm -f "$D/failed" "$D/in-progress"
           unlock
           # Also a lock left by this node's failed run under an older cookie.
