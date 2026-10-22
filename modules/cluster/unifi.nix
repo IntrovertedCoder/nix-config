@@ -15,7 +15,8 @@ in {
   # replaces the instance, keeping the volume. It has no SSH. The switches
   # and APs keep forwarding on their last config while the controller is down.
   #
-  # Backups: UniFi's own auto-backup lands in the container (on Ceph); every
+  # Backups: UniFi's own auto-backup, weekly an hour before vmtest's update
+  # (_schedule.nix, set below), lands in the container (on Ceph); every
   # node also copies it to its own disk daily, so losing Ceph doesn't lose
   # them. Not yet off-cluster (design doc, open questions). A reset UX7 can
   # restore one of those .unf files (same or newer Network version).
@@ -75,8 +76,68 @@ in {
     environment.systemPackages = [ pkgs.curl ];   # debugging from inside
   };
 
-  # On every node: keep a copy of the controller's backups on local disk.
-  flake.nixosModules.clusterUnifi = { config, lib, pkgs, ... }: {
+  # On every node: keep a copy of the controller's backups on local disk,
+  # and keep the controller's backup schedule on _schedule.nix's time.
+  flake.nixosModules.clusterUnifi = { config, lib, pkgs, ... }: let
+    schedule = import ./_schedule.nix { inherit self lib; };
+    keep = 8;   # weekly: two months back
+    setSchedule = pkgs.writers.writePython3 "unifi-backup-schedule"
+      { libraries = [ pkgs.python3Packages.pymongo ]; } /* python */ ''
+        # Run inside the container's network namespace. UniFi schedules its
+        # auto-backup from the `scheduletask` document (what the UI's
+        # setting turns into); super_mgmt is what the UI shows. A restored
+        # backup brings its own schedule back, so this runs daily.
+        import sys
+        from pymongo import MongoClient
+
+        cron, tz, keep = sys.argv[1], sys.argv[2], int(sys.argv[3])
+        db = MongoClient("localhost", 27117,
+                         serverSelectionTimeoutMS=10000)["ace"]
+        task = db.scheduletask.find_one({"action": "backup"}) or {}
+        mgmt = db.setting.find_one({"key": "super_mgmt"}) or {}
+        if (task.get("cron_expr"), task.get("timezone")) == (cron, tz) \
+                and mgmt.get("autobackup_cron_expr") == cron \
+                and mgmt.get("autobackup_max_files") == keep \
+                and mgmt.get("autobackup_enabled") is True:
+            print(f"backup schedule already {cron} {tz}, keeping {keep}")
+            sys.exit(0)
+        if not task:
+            print("no backup task in the controller yet (fresh, not set up)")
+            sys.exit(0)
+        db.scheduletask.update_one({"_id": task["_id"]}, {"$set": {
+            "cron_expr": cron, "timezone": tz}})
+        db.setting.update_one({"key": "super_mgmt"}, {"$set": {
+            "autobackup_enabled": True, "autobackup_cron_expr": cron,
+            "autobackup_timezone": tz, "autobackup_max_files": keep}})
+        print(f"backup schedule was {task.get('cron_expr')} "
+              f"{task.get('timezone')}: now {cron} {tz}, keeping {keep}")
+        sys.exit(10)   # changed: the controller has to restart to load it
+      '';
+  in {
+    systemd.services.unifi-backup-schedule = {
+      description = "Keep the UniFi controller's backup schedule on time";
+      after = [ "incus.service" ];
+      path = [ config.virtualisation.incus.package pkgs.util-linux pkgs.gawk ];
+      serviceConfig.Type = "oneshot";
+      script = /* bash */ ''
+        # Only the node the controller runs on.
+        [ "$(incus list unifi -c L -f csv </dev/null)" = "$(uname -n)" ] || { echo "unifi isn't here"; exit 0; }
+        pid=$(incus info unifi </dev/null | awk '/^PID:/ {print $2}')
+        [ -n "$pid" ] || { echo "unifi isn't running"; exit 0; }
+        rc=0
+        nsenter -t "$pid" -n ${setSchedule} "${schedule.unifiBackup.cron}" "${schedule.unifiBackup.timeZone}" ${toString keep} || rc=$?
+        case $rc in
+          0) ;;
+          10) incus exec unifi -- systemctl restart unifi </dev/null; echo "controller restarted" ;;
+          *) exit "$rc" ;;
+        esac
+      '';
+    };
+    systemd.timers.unifi-backup-schedule = {
+      wantedBy = [ "timers.target" ];
+      timerConfig = { OnBootSec = "15min"; OnUnitActiveSec = "1d"; };
+    };
+
     systemd.services.unifi-backup-copy = {
       description = "Copy the UniFi controller's backups to this node's disk";
       after = [ "incus.service" ];
@@ -97,9 +158,15 @@ in {
         fi
       '';
     };
+    # Daily, half an hour after the backup's time of day: a node rebuilt
+    # mid-week gets its copy the next day, not the next Monday.
     systemd.timers.unifi-backup-copy = {
       wantedBy = [ "timers.target" ];
-      timerConfig = { OnCalendar = "daily"; RandomizedDelaySec = "1h"; Persistent = true; };
+      timerConfig = {
+        OnCalendar = schedule.unifiBackupCopy.dailyOnCalendar;
+        RandomizedDelaySec = "10min";
+        Persistent = true;
+      };
     };
     systemd.tmpfiles.rules = [ "d /persistent/backups 0700 root root -" ];
   };

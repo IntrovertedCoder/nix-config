@@ -1,7 +1,7 @@
 { self, lib, ... }: {
   # The weekly update, pulled by the nodes themselves: vmtest updates
   # flake.lock, pushes it and builds everything into its cache (Monday
-  # 03:00, modules/fleet); an hour later every node fetches GitHub's main,
+  # 03:00, modules/fleet); an hour later (_schedule.nix) every node fetches GitHub's main,
   # takes its new system from vmtest's cache -- never building it -- and
   # they install it one at a time, each rebooting into it. Nothing reaches
   # into the cluster from outside.
@@ -406,8 +406,8 @@
       };
       onCalendar = lib.mkOption {
         type = lib.types.str;
-        # vmtest starts at 03:00 Monday (modules/fleet/vmtest-orchestrator.nix).
-        default = "Mon *-*-* 04:00:00";
+        # An hour after vmtest's weekly update (_schedule.nix).
+        default = (import ./_schedule.nix { inherit self lib; }).clusterUpdate.onCalendar;
         description = "When every node starts its update.";
       };
     };
