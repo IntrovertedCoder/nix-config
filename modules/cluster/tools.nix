@@ -60,9 +60,11 @@
       #
       # Read-only, on this node:   ping attention report mesh-ups stale-procs
       #                            incus-active failed-units disk-info <osd disk>
+      #                            instance-here <instance>
       # Read-only, cluster-wide:   summary cluster-report incus-members
       #                            incus-instances incus-answers <node>
       #                            ceph <query> [osd id]
+      #                            instance-report <instance>
       # Changes:                   restore <node>
       #                            move-home <instance> <node>
       #
@@ -237,6 +239,33 @@
           incus start "$inst"
           ;;
 
+        instance-report)  # one instance, cluster-wide (cluster vm-debug)
+          args 1; inst=''${req[1]}; inst_arg "$inst"
+          echo "\$ incus list -f json   # this instance; user.* and cloud-init.* values hidden"
+          incus list -f json | jq --arg i "$inst" '.[] | select(.name == $i)
+            | .expanded_config |= with_entries(if (.key | test("^(user|cloud-init)\\.")) then .value = "(hidden)" else . end)
+            | {name, type, status, location, profiles, created_at, last_used_at, expanded_config, expanded_devices}' 2>&1
+          echo
+          c incus info "$inst" --show-log
+          c incus console "$inst" --show-log
+          c incus operation list
+          c incus warning list
+          ;;
+
+        instance-here)  # one instance on this node: "mapped <rbd image>" and
+                        # "process <pid>" lines, then "--- log" and its
+                        # journal lines (incus, healing, fencing; last 7 days)
+          args 1; inst=''${req[1]}; inst_arg "$inst"
+          rbd showmapped --format json 2>/dev/null | jq -r --arg i "$inst" \
+            '.[] | select(.name | test("^(container|virtual-machine)_" + $i + "(\\.block)?$")) | "mapped \(.name) \(.device)"' || true
+          pgrep -f "^\[lxc monitor\] /var/lib/incus/containers $inst\$" | sed 's/^/process /' || true
+          pgrep --cgroup /system.slice/incus.service -f "qemu-system.* -name $inst( |\$)" | sed 's/^/process /' || true
+          echo "--- log"
+          journalctl --since -7d --no-pager -o short-iso \
+              -u incus -u incus-healing-arm -u incus-autostart-recover -u mesh-fence -u incus-stale-cleanup 2>/dev/null \
+            | grep -E "(^|[^A-Za-z0-9_.-])$inst([^A-Za-z0-9_-]|\$)" | tail -n 25 || true
+          ;;
+
         "") die "no action given" ;;
         *) die "unknown action: $verb" ;;
       esac
@@ -269,6 +298,8 @@
       any cluster node (from a workstation: ssh -p 20530 shot@<node> cluster ...):
 
         cluster debug                                  health report to paste into a chat
+        cluster vm-debug <instance>                    why one instance (container or VM) isn't
+                                                       running, or is where it is
         cluster restore <node>                         bring an evacuated node back, safely
         cluster replace-osd <node> <osd-id> <disk>     rebuild an OSD on a replacement disk
                                                        (run it on <node>, with ssh -t)
@@ -379,6 +410,91 @@
           echo '```'
           if ! reachable "$n"; then echo "UNREACHABLE over SSH on the mesh"; echo '```'; continue; fi
           on "$n" report 2>&1 || true
+          echo '```'
+        done
+      }
+
+      # ------------------------------------------------------------------ vm-debug
+      # One instance (container or VM): why isn't it running, or why is it
+      # where it is. Like debug: what needs attention first, then the
+      # evidence -- Incus's view (via one node), then each node's (is its
+      # disk mapped there, does a process run there, what Incus, healing and
+      # fencing logged about it).
+      cmd_vm_debug() {
+        [ $# -eq 1 ] || usage
+        local inst=$1 j members st last loc locst origin type n l mapped procs any=0
+        [[ $inst =~ ^[A-Za-z0-9][A-Za-z0-9-]{0,62}$ ]] || die "bad instance name: $inst"
+        control
+        j=$(ctl incus-instances | jq --arg i "$inst" '.[] | select(.name == $i)')
+        [ -n "$j" ] || die "no instance called $inst -- there are: $(ctl incus-instances | jq -r '[.[].name] | join(" ")')"
+        members=$(ctl incus-members)
+        st=$(jq -r .status <<<"$j")
+        last=$(jq -r '.config["volatile.last_state.power"] // "unknown"' <<<"$j")
+        loc=$(jq -r .location <<<"$j")
+        origin=$(jq -r '.config["volatile.evacuate.origin"] // empty' <<<"$j")
+        type=$(jq -r .type <<<"$j")
+        locst=$(jq -r --arg n "$loc" '.[] | select(.server_name == $n) | "\(.status) (\(.message))"' <<<"$members")
+
+        # What each node has of it: "mapped ..."/"process ..." lines, the log after "--- log"
+        declare -A here
+        for n in $(node_names); do
+          if reachable "$n"; then here[$n]=$(on "$n" instance-here "$inst" 2>&1 || true)
+          else here[$n]=unreachable; fi
+        done
+
+        echo "## Elements instance debug report: $inst"
+        echo
+        echo "Generated $(date -u '+%F %T UTC') from $SELF; Incus asked via $CTRL."
+        echo
+        echo "### Attention"
+        echo '```'
+        echo "$inst ($type) is $st on $loc; the state Incus last recorded for it: $last"
+        if [ "$st" != Running ]; then
+          if [ "$last" = RUNNING ]; then echo "FAIL  it should be running (last recorded state RUNNING) but is $st"; any=1
+          else echo "info  stopped on purpose (last recorded state $last) -- not an outage"; fi
+        fi
+        case $locst in
+          Online*) ;;
+          "") echo "FAIL  its node $loc isn't an Incus member"; any=1 ;;
+          *) echo "FAIL  its node $loc is $locst"; any=1 ;;
+        esac
+        if [ -n "$origin" ]; then
+          echo "WARN  it was evacuated from $origin (healing or evacuation): 'cluster restore $origin' moves it back once that node is fine"; any=1
+        fi
+        for n in $(node_names); do
+          if [ "''${here[$n]}" = unreachable ]; then
+            echo "WARN  $n is unreachable over the mesh: can't see whether it still runs $inst or holds its disk"; any=1; continue
+          fi
+          mapped=$(sed '/^--- log$/q' <<<"''${here[$n]}" | awk '$1 == "mapped" {printf "%s%s", sep, $2; sep=", "}')
+          procs=$(sed '/^--- log$/q' <<<"''${here[$n]}" | awk '$1 == "process" {printf "%s%s", sep, $2; sep=", "}')
+          if [ "$n" != "$loc" ]; then
+            [ -z "$procs" ] || { echo "FAIL  a copy still runs on $n (pid $procs), not on $loc where Incus has it"; any=1; }
+            [ -z "$mapped" ] || { echo "FAIL  its disk is still mapped on $n ($mapped): $n kept it without cleaning up, so it can't safely run on $loc (rebooting $n clears it)"; any=1; }
+          elif [ "$st" = Running ] && [ -z "$procs" ]; then
+            echo "WARN  Incus says Running, but no process for it runs on $loc"; any=1
+          elif [ "$st" != Running ] && [ -n "$procs" ]; then
+            echo "WARN  Incus says $st, but a process for it still runs on $loc (pid $procs)"; any=1
+          fi
+        done
+        if [ "''${here[$loc]:-unreachable}" != unreachable ]; then
+          while IFS= read -r l; do [ -n "$l" ] && { echo "$loc: $l"; any=1; }; done < <(on "$loc" attention 2>/dev/null || true)
+        fi
+        [ $any = 0 ] && echo "nothing -- it is where Incus says, in the state it should be"
+        echo '```'
+
+        echo
+        echo "### Incus (via $CTRL)"
+        echo '```'
+        ctl instance-report "$inst" 2>&1 || true
+        echo '```'
+        for n in $(node_names); do
+          echo
+          echo "### $n"
+          echo '```'
+          if [ "''${here[$n]}" = unreachable ]; then echo "UNREACHABLE over SSH on the mesh"; echo '```'; continue; fi
+          sed '/^--- log$/q' <<<"''${here[$n]}" | grep -v '^--- log$' || echo "no disk mapped and no process for $inst here"
+          echo "--- what Incus, healing and fencing logged about $inst here (last 7 days, newest last)"
+          sed '1,/^--- log$/d' <<<"''${here[$n]}"
           echo '```'
         done
       }
@@ -612,6 +728,7 @@
 
       case ''${1:-} in
         debug)       shift; cmd_debug "$@" ;;
+        vm-debug)    shift; cmd_vm_debug "$@" ;;
         restore)     shift; cmd_restore "$@" ;;
         replace-osd) shift; cmd_replace_osd "$@" ;;
         check-ssh)   shift; cmd_check_ssh ;;
