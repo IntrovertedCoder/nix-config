@@ -19,7 +19,8 @@ let
   clusterKeys = map (h: h.hostKey) (builtins.attrValues clusterHosts);
 in
 {
-  "secrets/discord-webhook.age".publicKeys = [ vmtest ];
+  "secrets/discord-webhook.age".publicKeys = [ arik vmtest ] ++ clusterKeys;
+  "secrets/discord-urgent-webhook.age".publicKeys = [ arik vmtest ] ++ clusterKeys;
   "secrets/healthchecks-ping-url.age".publicKeys = [ vmtest ];
 
   # Tailscale OAuth client secret (auth keys: write, tag:cluster only) -- lets
