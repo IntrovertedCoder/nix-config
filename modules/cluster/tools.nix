@@ -496,7 +496,8 @@
           if [ "''${here[$n]}" = unreachable ]; then echo "UNREACHABLE over SSH on the mesh"; echo '```'; continue; fi
           sed '/^--- log$/q' <<<"''${here[$n]}" | grep -v '^--- log$' || echo "no disk mapped and no process for $inst here"
           echo "--- what Incus, healing and fencing logged about $inst here (last 7 days, newest last)"
-          sed '1,/^--- log$/d' <<<"''${here[$n]}"
+          # 0,: the marker may be the first line (1, would only look from line 2)
+          sed '0,/^--- log$/d' <<<"''${here[$n]}"
           echo '```'
         done
       }
