@@ -451,7 +451,9 @@
         echo "$inst ($type) is $st on $loc; the state Incus last recorded for it: $last"
         if [ "$st" != Running ]; then
           if [ "$last" = RUNNING ]; then echo "FAIL  it should be running (last recorded state RUNNING) but is $st"; any=1
-          else echo "info  stopped on purpose (last recorded state $last) -- not an outage"; fi
+          elif [ "$st" = Stopped ] || [ "$st" = Frozen ]; then echo "info  $st on purpose (last recorded state $last) -- not an outage"
+          # Incus can't read the instance's state while its node is down
+          else echo "FAIL  it is $st, and Incus can't say what it should be (is its node down?)"; any=1; fi
         fi
         case $locst in
           Online*) ;;

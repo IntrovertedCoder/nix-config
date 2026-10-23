@@ -12,7 +12,9 @@
   #                    running (any instance, so new services are covered:
   #                    Incus keeps volatile.last_state.power at RUNNING when
   #                    an instance dies with its node, STOPPED when you stop
-  #                    it yourself).
+  #                    it yourself; Incus can't read it while the node is
+  #                    down, so any state but Running, Stopped or Frozen --
+  #                    Error, Offline -- counts as down too).
   #                    Any node's ping counts; when none sees it fine the
   #                    check goes quiet (and alerts after its grace time),
   #                    and each node logs what it saw wrong to the check
@@ -58,7 +60,7 @@
           problems+=("incus: no answer")
         fi
         if i=$(timeout 30 incus list -f json </dev/null 2>/dev/null); then
-          down=$(jq -r '.[] | select(.config["volatile.last_state.power"] == "RUNNING" and .status != "Running") | "\(.name) \(.status) on \(.location)"' <<<"$i")
+          down=$(jq -r '.[] | select(.status != "Running" and (.config["volatile.last_state.power"] == "RUNNING" or (.status != "Stopped" and .status != "Frozen"))) | "\(.name) \(.status) on \(.location)"' <<<"$i")
           [ -z "$down" ] || problems+=("instances not running: $down")
         else
           problems+=("incus list: no answer")
