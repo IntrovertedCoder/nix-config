@@ -94,8 +94,9 @@
     # The work directory for the runner, from a checkout of this repo: the
     # .tf files, and the values from the flake, so nothing is typed twice.
     # Used by the app below (on the workstation) and by cluster-update (on
-    # a node, from its own checkout). Prints the UniFi image's two store
-    # paths, which the runner's node needs.
+    # a node, from its own checkout). Prints the store paths of the images
+    # (the UniFi controller's, the UniFi OS console's), which the runner's
+    # node needs.
     #
     #   elements-tofu-prepare <checkout> <workdir> [nix build options...]
     #
@@ -113,6 +114,9 @@
         # when the system actually changed.
         meta=$(nix build --no-link --print-out-paths "$@" "$flake#nixosConfigurations.unifi.config.system.build.metadata")
         data=$(nix build --no-link --print-out-paths "$@" "$flake#nixosConfigurations.unifi.config.system.build.squashfs")
+        # ...and the UniFi OS console's VM (modules/cluster/unifi-os.nix), the same way
+        osMeta=$(nix build --no-link --print-out-paths "$@" "$flake#nixosConfigurations.unifi-os.config.system.build.metadata")
+        osData=$(nix build --no-link --print-out-paths "$@" "$flake#nixosConfigurations.unifi-os.config.system.build.qemuImage")
         # The cluster's plan (opentofu/cluster.tf): members and their node ids,
         # the transit VLAN and ring MTU (same on every node), and the subnets.
         values=$(nix eval --json --impure --expr "let
@@ -129,10 +133,11 @@
         find "$dest" -maxdepth 1 \( -name '*.tf' -o -name '*.tfvars.json' \) -delete
         cp "$src"/opentofu/*.tf "$dest/"
         jq -n --arg m "$(echo "$meta"/tarball/*.tar.xz)" --arg d "$(echo "$data"/*.squashfs)" \
+          --arg om "$(echo "$osMeta"/tarball/*.tar.xz)" --arg od "$osData/nixos.qcow2" \
           --argjson c "$values" \
-          '{unifi_image: {metadata: $m, data: $d}, cluster: $c}' > "$dest/flake.auto.tfvars.json"
-        echo "$meta"
-        echo "$data"
+          '{unifi_image: {metadata: $m, data: $d}, unifi_os_image: {metadata: $om, data: $od}, cluster: $c}' \
+          > "$dest/flake.auto.tfvars.json"
+        printf '%s\n' "$meta" "$data" "$osMeta" "$osData"
       '';
     };
   in lib.mkIf pkgs.stdenv.isLinux {
@@ -155,7 +160,7 @@
         # Incus socket: no API listener, no client certificate. The state is
         # in Ceph, so any node can run it and no workstation holds anything
         # (elements-tofu-run above). This copies the runner and the UniFi
-        # image to the node, sends the .tf files and the values from the flake
+        # images to the node, sends the .tf files and the values from the flake
         # to /var/lib/elements-tofu there, and runs it. A saved plan
         # (plan -out=<file>) stays in that directory, on that node.
 
@@ -171,13 +176,17 @@
         [ -n "$node" ] || { echo "no node answers over SSH" >&2; exit 1; }
 
         # ---- the .tf files and the values from this checkout's flake
-        mapfile -t image < <(${lib.getExe prepare} "$PWD" "$_TMP/up")
-        meta=''${image[0]} data=''${image[1]}
+        mapfile -t images < <(${lib.getExe prepare} "$PWD" "$_TMP/up")
 
         # ---- to the node: the runner (OpenTofu and the provider) and the
-        # image, then this checkout's files
+        # images, then this checkout's files. The node first takes what
+        # vmtest's cache has (the images once Monday's build made them), so
+        # only the rest goes over this link: 1.5 GiB of console image
+        # takes minutes.
+        # shellcheck disable=SC2029  # meant to expand here
+        on "$node" "nix build --no-link ''${images[*]}" >/dev/null 2>&1 || true
         NIX_SSHOPTS="''${SSH_OPTS[*]}" nix copy --no-check-sigs --to "ssh-ng://root@$(ip "$node")" \
-          ${runner} "$meta" "$data"
+          ${runner} "''${images[@]}"
         W=/var/lib/elements-tofu
         tar -C "$_TMP/up" -cf - . | on "$node" \
           "mkdir -p $W && find $W -maxdepth 1 \( -name '*.tf' -o -name '*.tfvars.json' \) -delete && tar -C $W -xf -"

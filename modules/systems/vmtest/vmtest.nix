@@ -29,12 +29,15 @@
     # (modules/cluster/update.nix), an hour after this runs.
     var.fleet.hosts = [ "alaptop" "antimony" ]
       ++ builtins.attrNames (import ../../cluster/_hosts.nix);
-    # ...and the UniFi controller's image, which the last node to update
-    # hands to OpenTofu. Built from source it takes hours (unfree: not in
-    # cache.nixos.org), so it has to come from here.
+    # ...and the UniFi images, which the last node to update hands to
+    # OpenTofu: the controller's (built from source it takes hours -- unfree:
+    # not in cache.nixos.org) and the UniFi OS console's VM (made in a VM
+    # here, with the console's 800 MB download). The nodes take them from here.
     var.fleet.extraBuilds = [
       "nixosConfigurations.unifi.config.system.build.metadata"
       "nixosConfigurations.unifi.config.system.build.squashfs"
+      "nixosConfigurations.unifi-os.config.system.build.metadata"
+      "nixosConfigurations.unifi-os.config.system.build.qemuImage"
     ];
 
     # Example two-monitor layout for the not-yet-built desktop: a 1440p
