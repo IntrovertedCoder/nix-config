@@ -1,5 +1,6 @@
 { inputs, lib, ... }: let
   hosts = import ./_hosts.nix;
+  instanceDown = import ./_instance-down.nix;
   meshNet = "fd9a:7af:74af:ff::/64";
   # Public half of secrets/cluster-ssh-key.age.
   clusterSshPub = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIH8E4sA4+wHcXXN7kGC+E7kkoVDzp75hFzCspGCETyVP cluster-mesh";
@@ -177,6 +178,9 @@
           crashes=$(ceph --id status crash ls-new 2>/dev/null | tail -n +2 | wc -l)
           [ "$crashes" -gt 0 ] && echo "ceph: $crashes recent daemon crashes not yet archived (ceph crash ls-new)"
           incus cluster list -f csv -c ns 2>/dev/null | awk -F, '$2 != "ONLINE" {print "incus: member " $1 " is " $2}'
+          # The same rule as elements-health's (_instance-down.nix)
+          incus list -f json 2>/dev/null | jq -r '.[] | ${instanceDown}
+            | "incus: instance \(.name) should be running but is \(.status) on \(.location) (cluster vm-debug \(.name))"' || true
           true
           ;;
 
