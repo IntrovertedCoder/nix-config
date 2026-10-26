@@ -7,6 +7,13 @@
     fileSystems."/nix".neededForBoot = true;
     fileSystems."/persistent".neededForBoot = true; # sometimes needed too
 
+    # The journal across reboots: fleet-update ends with one, and its run
+    # should still be in `journalctl -u fleet-update` afterwards. From the
+    # initrd, so journald's first files already land on disk.
+    preservation.preserveAt."/persistent".directories = [
+      { directory = "/var/log"; inInitrd = true; }
+    ];
+
     disko.devices.nodev = {
       "/" = {
         fsType = "tmpfs";

@@ -175,6 +175,9 @@
       wantedBy = [ "multi-user.target" ];
       serviceConfig = {
         Type = "oneshot";
+        # notify-discord is a system package, as for fleet-update: without
+        # it the "booted OK" message silently never posted.
+        Environment = [ "PATH=/run/current-system/sw/bin" ];
         ExecStart = lib.getExe (pkgs.writeShellApplication {
           name = "fleet-boot-confirm";
           runtimeInputs = [ pkgs.curl pkgs.coreutils pkgs.gnugrep ];
@@ -183,7 +186,8 @@
             ${lib.optionalString haveHealthchecksSecret ''
               curl -sf "$(cat ${config.age.secrets.healthchecks-ping-url.path})" >/dev/null || true
             ''}
-            generation="$(readlink /run/current-system | grep -oE '[0-9]+' | tail -1)"
+            # system-<n>-link; /run/current-system is a store path, no number
+            generation="$(readlink /nix/var/nix/profiles/system | grep -oE '[0-9]+' | tail -1)"
             notify "vmtest booted OK on generation $generation"
           '';
         });
