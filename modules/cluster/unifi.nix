@@ -95,7 +95,7 @@
       unifi-os-backup-copy = {
         description = "Copy the UniFi OS console's backups to this node's disk";
         after = [ "incus.service" ];
-        path = [ incus pkgs.coreutils pkgs.findutils ];
+        path = [ incus pkgs.coreutils pkgs.findutils pkgs.gnused ];
         serviceConfig.Type = "oneshot";
         script = /* bash */ ''
           incus info unifi-os >/dev/null 2>&1 </dev/null || { echo "no unifi-os instance"; exit 0; }
@@ -105,7 +105,13 @@
           if incus file pull -r unifi-os${backups} "$tmp/" </dev/null \
              && [ -n "$(find "$tmp/autobackup" -name '*.unf' -print -quit)" ]; then
             rm -rf "$dest"; mv "$tmp/autobackup" "$dest"
-            echo "copied: $(find "$dest" -name '*.unf' | wc -l) backups"
+            n=$(find "$dest" -name '*.unf' | wc -l)
+            # For `cluster vm-debug unifi-os`, which can't read the backups
+            # (they hold the Wi-Fi keys): "<copied at> <count> <newest backup
+            # at>", the newest from its name (..._<unix ms>.unf).
+            newest=$(find "$dest" -name '*.unf' -printf '%f\n' | sed -nE 's/.*_([0-9]{13})\.unf$/\1/p' | sort -n | tail -1)
+            echo "$(date +%s) $n $(( ''${newest:-0} / 1000 ))" > /var/lib/unifi-backup-status/unifi-os
+            echo "copied: $n backups"
           else
             # Never replace the last good copy with nothing.
             echo "no backups in the console yet (turn on auto backup in UniFi); kept the old copy"
@@ -131,5 +137,9 @@
     };
     # The old controller's last copies stay in /persistent/backups/unifi.
     systemd.tmpfiles.rules = [ "d /persistent/backups 0700 root root -" ];
+    # The last good copy's time, readable by cluster-agent (see above)
+    preservation.preserveAt."/persistent".directories = [
+      { directory = "/var/lib/unifi-backup-status"; mode = "0755"; }
+    ];
   };
 }

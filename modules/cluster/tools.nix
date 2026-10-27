@@ -5,6 +5,24 @@
   # Public half of secrets/cluster-ssh-key.age.
   clusterSshPub = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIH8E4sA4+wHcXXN7kGC+E7kkoVDzp75hFzCspGCETyVP cluster-mesh";
 
+  # What `cluster vm-debug <instance>` checks an instance offers, from the
+  # node it asks: a URL (any HTTP answer counts) or a host:port (a TCP
+  # connection). The controller's address: unifi-os.tf's hwaddr, :0a.
+  controller = "${(import ./_lan.nix).segments.infra.v4}.10";
+  services = {
+    unifi-os = {
+      "web UI" = "https://${controller}:11443/";
+      "device inform" = "${controller}:8080";
+    };
+  };
+  serviceCases = lib.concatStringsSep "\n" (lib.mapAttrsToList (inst: checks:
+    "${inst}) " + lib.concatStringsSep "; " (lib.mapAttrsToList (what: target:
+      "${if builtins.match "https?://.*" target != null then "check_url" else "check_tcp"} ${lib.escapeShellArg what} ${lib.escapeShellArg target}"
+    ) checks) + " ;;") services);
+  # ...and whose backups every node copies (unifi.nix, <instance>-backup-copy):
+  # vm-debug checks those copies are recent.
+  backedUp = [ "unifi-os" ];
+
   # Two programs, installed on every cluster node (Bash `${...}` is written
   # `''${...}` inside these Nix strings):
   #
@@ -28,7 +46,7 @@
   mkAgent = { pkgs, config }: pkgs.writeShellApplication {
     name = "cluster-agent";
     runtimeInputs = with pkgs; [
-      coreutils gnugrep gawk gnused jq util-linux procps iproute2 iputils
+      coreutils gnugrep gawk gnused jq util-linux procps iproute2 iputils curl
       ceph                                       # ceph, rbd
       config.virtualisation.incus.clientPackage  # incus
       frr                                        # vtysh
@@ -62,10 +80,14 @@
       # Read-only, on this node:   ping attention report mesh-ups stale-procs
       #                            incus-active failed-units disk-info <osd disk>
       #                            instance-here <instance>
+      #                            backup-status <instance>
       # Read-only, cluster-wide:   summary cluster-report incus-members
       #                            incus-instances incus-answers <node>
       #                            ceph <query> [osd id]
       #                            instance-report <instance>
+      #                            service-check <instance>
+      # Probes inside an instance: instance-net <instance> (fixed commands:
+      #                            a ping and a name lookup)
       # Changes:                   restore <node>
       #                            move-home <instance> <node>
       #
@@ -96,6 +118,20 @@
       }
 
       c() { echo "\$ $*"; "$@" 2>&1; echo; }
+
+      # service-check's two kinds: a URL answers at all, a host:port accepts a connection
+      check_url() {
+        local code
+        code=$(curl -sk -o /dev/null -w '%{http_code}' --max-time 5 "$2" 2>/dev/null) || true
+        if [ -n "$code" ] && [ "$code" != 000 ]; then echo "ok    $1: $2 answers (HTTP $code)"
+        else echo "FAIL  $1: $2 doesn't answer"; fi
+      }
+      check_tcp() {
+        # shellcheck disable=SC2016  # $0/$1 are that bash's arguments
+        if timeout 4 ${pkgs.bash}/bin/bash -c 'exec 3<>"/dev/tcp/$0/$1"' "''${2%:*}" "''${2##*:}" 2>/dev/null; then
+          echo "ok    $1: $2 accepts connections"
+        else echo "FAIL  $1: nothing accepts connections on $2"; fi
+      }
 
       case $verb in
         ping) args 0 ;;
@@ -256,6 +292,36 @@
           c incus warning list
           ;;
 
+        instance-net)  # from inside a running instance, fixed commands only:
+                       # does it reach the internet, and resolve a name? (The
+                       # services network once lost the internet for 11 hours
+                       # and nothing said so.)
+          args 1; inst=''${req[1]}; inst_arg "$inst"
+          # shellcheck disable=SC2016  # expanded by the instance's shell
+          timeout 30 incus exec "$inst" -- sh -c '
+            PATH=$PATH:/run/current-system/sw/bin:/run/wrappers/bin
+            if ping -c 2 -W 3 1.1.1.1 >/dev/null 2>&1; then echo "ok    internet: 1.1.1.1 answers a ping"
+            else echo "FAIL  internet: no answer to a ping to 1.1.1.1"; fi
+            if { getent hosts one.one.one.one || nslookup one.one.one.one; } >/dev/null 2>&1; then echo "ok    DNS: one.one.one.one resolves"
+            else echo "FAIL  DNS: one.one.one.one does not resolve"; fi' </dev/null 2>&1 \
+            || echo "FAIL  couldn't run the check inside $inst (incus exec failed or timed out)"
+          ;;
+
+        service-check)  # what an instance offers, from this node (the table
+                        # in tools.nix); nothing for one that offers nothing
+          args 1; inst=''${req[1]}; inst_arg "$inst"
+          case $inst in
+            ${serviceCases}
+            *) ;;
+          esac
+          ;;
+
+        backup-status)  # this node's last good copy of an instance's backups
+                        # (unifi.nix): "<copied at> <count> <newest backup at>"
+          args 1; inst=''${req[1]}; inst_arg "$inst"
+          cat "/var/lib/unifi-backup-status/$inst" 2>/dev/null || echo none
+          ;;
+
         instance-here)  # one instance on this node: "mapped <rbd image>" and
                         # "process <pid>" lines, then "--- log" and its
                         # journal lines (incus, healing, fencing; last 7 days)
@@ -295,6 +361,7 @@
       SUDO=${config.security.wrapperDir}/sudo
       BASH_BIN=${pkgs.bash}/bin/bash
       ROOT_PATH=${lib.makeBinPath rootTools}
+      BACKED_UP=(${lib.escapeShellArgs backedUp})
 
       usage() {
         cat >&2 <<'EOF'
@@ -303,7 +370,9 @@
 
         cluster debug                                  health report to paste into a chat
         cluster vm-debug <instance>                    why one instance (container or VM) isn't
-                                                       running, or is where it is
+                                                       running, or is where it is; whether it
+                                                       reaches the internet, its services
+                                                       answer and its backups are copied
         cluster restore <node>                         bring an evacuated node back, safely
         cluster replace-osd <node> <osd-id> <disk>     rebuild an OSD on a replacement disk
                                                        (run it on <node>, with ssh -t)
@@ -420,13 +489,16 @@
 
       # ------------------------------------------------------------------ vm-debug
       # One instance (container or VM): why isn't it running, or why is it
-      # where it is. Like debug: what needs attention first, then the
-      # evidence -- Incus's view (via one node), then each node's (is its
-      # disk mapped there, does a process run there, what Incus, healing and
-      # fencing logged about it).
+      # where it is, and does what it offers work. Like debug: what needs
+      # attention first, then the evidence -- Incus's view (via one node),
+      # what it offers (internet from inside it, its services, the nodes'
+      # copies of its backups), then each node's view (is its disk mapped
+      # there, does a process run there, what Incus, healing and fencing
+      # logged about it).
       cmd_vm_debug() {
         [ $# -eq 1 ] || usage
         local inst=$1 j members st last loc locst origin type n l mapped procs any=0
+        local net="" svc="" bk="" now s copied count newest
         [[ $inst =~ ^[A-Za-z0-9][A-Za-z0-9-]{0,62}$ ]] || die "bad instance name: $inst"
         control
         j=$(ctl incus-instances | jq --arg i "$inst" '.[] | select(.name == $i)')
@@ -485,6 +557,34 @@
         if [ "''${here[$loc]:-unreachable}" != unreachable ]; then
           while IFS= read -r l; do [ -n "$l" ] && { echo "$loc: $l"; any=1; }; done < <(on "$loc" attention 2>/dev/null || true)
         fi
+        # What it offers: the internet from inside it and its services, while
+        # it runs; the nodes' copies of its backups (copied daily, made weekly)
+        if [ "$st" = Running ]; then
+          net=$(ctl instance-net "$inst" 2>&1 || true)
+          svc=$(ctl service-check "$inst" 2>&1 || true)
+          while IFS= read -r l; do
+            case $l in FAIL*) echo "$l"; any=1 ;; esac
+          done <<<"$net"$'\n'"$svc"
+        fi
+        if [[ " ''${BACKED_UP[*]} " == *" $inst "* ]]; then
+          now=$(date +%s)
+          for n in $(node_names); do
+            [ "''${here[$n]}" = unreachable ] && continue
+            s=$(on "$n" backup-status "$inst" 2>/dev/null || echo none)
+            if [ "$s" = none ]; then
+              bk="$bk$n: no copy yet"$'\n'
+              echo "WARN  $n has no copy of $inst's backups yet ($inst-backup-copy)"; any=1; continue
+            fi
+            read -r copied count newest <<<"$s"
+            bk="$bk$n: copied $(date -u -d "@$copied" '+%F %H:%M') UTC, $count backups, the newest from $(if [ "$newest" -gt 0 ]; then date -u -d "@$newest" '+%F %H:%M UTC'; else echo "an unknown time"; fi)"$'\n'
+            if [ $(( now - copied )) -gt 172800 ]; then
+              echo "WARN  $n's last copy of $inst's backups is $(( (now - copied) / 86400 )) days old: it copies daily (journalctl -u $inst-backup-copy)"; any=1
+            fi
+            if [ "$newest" -gt 0 ] && [ $(( now - newest )) -gt 691200 ]; then
+              echo "WARN  $inst's newest backup (copied to $n) is from $(date -u -d "@$newest" '+%F'): its weekly backup hasn't run ($inst-backup-schedule keeps its schedule)"; any=1
+            fi
+          done
+        fi
         [ $any = 0 ] && echo "nothing -- it is where Incus says, in the state it should be"
         echo '```'
 
@@ -492,6 +592,17 @@
         echo "### Incus (via $CTRL)"
         echo '```'
         ctl instance-report "$inst" 2>&1 || true
+        echo '```'
+        echo
+        echo "### What $inst offers"
+        echo '```'
+        if [ "$st" = Running ]; then
+          echo "--- from inside $inst"; echo "$net"
+          echo "--- its services, from $CTRL"; echo "''${svc:-none listed (tools.nix, services)}"
+        else
+          echo "not running: nothing checked from inside it, nor its services"
+        fi
+        [ -z "$bk" ] || { echo "--- each node's copy of its backups ($inst-backup-copy)"; printf '%s' "$bk"; }
         echo '```'
         for n in $(node_names); do
           echo
