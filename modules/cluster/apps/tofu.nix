@@ -67,6 +67,24 @@
           release
           exit "$rc"
         }
+        # A state file here means a run never finished: the node went down
+        # before finish() could save it (the work directories are kept on
+        # disk for this). The same as Ceph's: nothing was lost (a plan, or an
+        # apply that changed nothing). Different: an apply changed things
+        # after the last save, and this one is the truth -- never delete it.
+        if [ -f "$STATE" ]; then
+          if "''${R[@]}" get "$STATE" "$STATE.ceph" 2>/dev/null && cmp -s "$STATE" "$STATE.ceph"; then
+            echo "== a run here didn't finish; its state is the same as Ceph's: going on"
+            rm -f "$STATE.ceph"
+          else
+            echo "A run here didn't finish, and its state ($W/$STATE, serial $(jq .serial "$STATE"))" >&2
+            echo "differs from Ceph's (serial $(jq .serial "$STATE.ceph" 2>/dev/null || echo none)): an apply changed things after the last save." >&2
+            echo "If this one is newer, put it in Ceph, then remove it here and run again:" >&2
+            echo "  rados -p important -N opentofu put $STATE $W/$STATE && rm $W/$STATE" >&2
+            rm -f "$STATE.ceph"; release; exit 1
+          fi
+        fi
+
         trap finish EXIT
         # Wait for tofu to finish (bash runs the trap after the foreground
         # command), then save and unlock.
@@ -243,7 +261,7 @@
           ${runner} "''${images[@]}"
         W=/var/lib/elements-tofu
         tar -C "$_TMP/up" -cf - . | on "$node" \
-          "mkdir -p $W && find $W -maxdepth 1 \( -name '*.tf' -o -name '*.tfvars.json' \) -delete && tar -C $W -xf -"
+          "mkdir -p $W && find $W -maxdepth 1 \( -name '*.tf' -o -name '*.tfvars.json' \) -delete && tar -C $W --no-same-owner --no-overwrite-dir -xf -"
 
         echo "== OpenTofu on $(name "$node")"
         tty=(); [ -t 0 ] && tty=(-t)

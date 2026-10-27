@@ -377,6 +377,12 @@
     preservation.preserveAt."/persistent" = lib.mkIf cfg.enable {
       directories = [
         { directory = "/var/lib/incus"; mode = "0711"; }
+        # OpenTofu's work directory for `nix run .#tofu` (apps/tofu.nix).
+        # The state lives in Ceph, but during a run it's a file here: a run
+        # that dies before saving it (the node crashes mid-apply) leaves the
+        # newer one, and on disk that survives the reboot. The runner then
+        # refuses to start over it.
+        { directory = "/var/lib/elements-tofu"; mode = "0700"; }
       ];
     };
   };
