@@ -41,6 +41,12 @@
           osd_pool_default_size = "3";
           osd_pool_default_min_size = "2";
           mon_allow_pool_delete = "false";
+          # Space the OSDs free goes back to the disk: an SSD's own wear
+          # levelling, and a test node's thin disk, which only grew without
+          # it (it filled the host's pool on 2026-10-27). Async: in the
+          # background, not in the write path.
+          bdev_enable_discard = "true";
+          bdev_async_discard_threads = "1";
         } // lib.optionalAttrs (host ? osdMemoryTarget) {
           osd_memory_target = toString host.osdMemoryTarget;
         };
