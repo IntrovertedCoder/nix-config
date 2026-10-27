@@ -88,18 +88,3 @@ resource "incus_instance" "unifi_os" {
     }
   }
 }
-
-# The volume was made by hand first (2026-10-26), holding the console moved
-# from the Debian VM it was tried in, and so was the VM: the first apply
-# adopts them. The VM is replaced by one from the flake's image (an adopted
-# instance has no image to compare), the volume stays: the console restarts
-# once. Remove these blocks after that apply.
-import {
-  to = incus_storage_volume.unifi_os_data
-  id = "/remote/unifi-os-data"
-}
-
-import {
-  to = incus_instance.unifi_os
-  id = "unifi-os"
-}
