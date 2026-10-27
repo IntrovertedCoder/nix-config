@@ -11,9 +11,10 @@
   pinFile = "modules/cluster/_unifi-os-pin.json";
   pin = lib.importJSON ./_unifi-os-pin.json;
 in {
-  # UniFi OS Server (design doc, Next: the controller's move off the Network
-  # Server, whose standalone releases end with Network 10.6): an Incus VM on
-  # Ceph, NixOS built from this flake like the old controller (unifi.nix).
+  # UniFi OS Server, the UniFi controller: an Incus VM on Ceph, NixOS built
+  # from this flake. It replaced a Network Server container (whose
+  # standalone releases end with Network 10.6); the nodes' backup jobs for
+  # it are in unifi.nix.
   #
   # Ubiquiti ships the console only as an installer for Debian/Ubuntu: an
   # ELF with a zip on its end holding its programs and a podman image. Here
@@ -23,9 +24,9 @@ in {
   # runs the console: it creates the container itself, talks to it, and
   # runs device discovery.
   #
-  # The VM is disposable, like the old controller's container: its state
-  # (podman's storage with the console's volumes, server.conf with the
-  # console's id) lives on the unifi-os-data volume at /var/lib/uosserver.
+  # The VM is disposable: its state (podman's storage with the console's
+  # volumes, server.conf with the console's id) lives on the unifi-os-data
+  # volume at /var/lib/uosserver.
   # An update = a new image -> OpenTofu replaces the instance, the volume
   # stays. A new console version = a new pin (_unifi-os-pin.json), which
   # vmtest moves to Ubiquiti's latest release each Monday; turn the

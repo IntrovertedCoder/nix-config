@@ -153,9 +153,8 @@
     # The work directory for the runner, from a checkout of this repo: the
     # .tf files, and the values from the flake, so nothing is typed twice.
     # Used by the app below (on the workstation) and by cluster-update (on
-    # a node, from its own checkout). Prints the store paths of the images
-    # (the UniFi controller's, the UniFi OS console's), which the runner's
-    # node needs.
+    # a node, from its own checkout). Prints the store paths of the UniFi
+    # OS console's image, which the runner's node needs.
     #
     #   elements-tofu-prepare <checkout> <workdir> [nix build options...]
     #
@@ -168,12 +167,9 @@
       text = /* bash */ ''
         src=$1 dest=$2; shift 2
         flake=''${FLAKE:-$src}
-        # The controller's image (modules/cluster/unifi.nix). Same flake, same
-        # store paths: OpenTofu only replaces the image (and so the instance)
-        # when the system actually changed.
-        meta=$(nix build --no-link --print-out-paths "$@" "$flake#nixosConfigurations.unifi.config.system.build.metadata")
-        data=$(nix build --no-link --print-out-paths "$@" "$flake#nixosConfigurations.unifi.config.system.build.squashfs")
-        # ...and the UniFi OS console's VM (modules/cluster/unifi-os.nix), the same way
+        # The UniFi OS console's VM image (modules/cluster/unifi-os.nix). Same
+        # flake, same store paths: OpenTofu only replaces the image (and so
+        # the instance) when the system actually changed.
         osMeta=$(nix build --no-link --print-out-paths "$@" "$flake#nixosConfigurations.unifi-os.config.system.build.metadata")
         osData=$(nix build --no-link --print-out-paths "$@" "$flake#nixosConfigurations.unifi-os.config.system.build.qemuImage")
         # The cluster's plan (opentofu/cluster.tf): members and their node ids,
@@ -191,12 +187,11 @@
         mkdir -p "$dest"
         find "$dest" -maxdepth 1 \( -name '*.tf' -o -name '*.tfvars.json' \) -delete
         cp "$src"/opentofu/*.tf "$dest/"
-        jq -n --arg m "$(echo "$meta"/tarball/*.tar.xz)" --arg d "$(echo "$data"/*.squashfs)" \
-          --arg om "$(echo "$osMeta"/tarball/*.tar.xz)" --arg od "$osData/nixos.qcow2" \
+        jq -n --arg om "$(echo "$osMeta"/tarball/*.tar.xz)" --arg od "$osData/nixos.qcow2" \
           --argjson c "$values" \
-          '{unifi_image: {metadata: $m, data: $d}, unifi_os_image: {metadata: $om, data: $od}, cluster: $c}' \
+          '{unifi_os_image: {metadata: $om, data: $od}, cluster: $c}' \
           > "$dest/flake.auto.tfvars.json"
-        printf '%s\n' "$meta" "$data" "$osMeta" "$osData"
+        printf '%s\n' "$osMeta" "$osData"
       '';
     };
   in lib.mkIf pkgs.stdenv.isLinux {

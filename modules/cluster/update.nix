@@ -29,9 +29,9 @@
   # - Back up (cluster-update-resume): once the cluster is healthy again,
   #   bring the VMs back and release the lock. If the node doesn't come
   #   back healthy it keeps the lock, so no other node updates this week.
-  # - The last node to finish updates the controller and the UniFi OS
-  #   console (OpenTofu: new images, replaced instances), but only
-  #   when the plan does nothing else; anything more is left for you.
+  # - The last node to finish updates the controller, the UniFi OS console
+  #   (OpenTofu: a new image, a replaced instance), but only when the plan
+  #   does nothing else; anything more is left for you.
   #
   # Each node's state is an object in Ceph (pool `important`, namespace
   # `update`): status.<node> = "<unix time> <state> <rev>".
@@ -226,7 +226,7 @@
           trap unlock RETURN
           echo "== the controller (OpenTofu)"
           if ! FLAKE=$FLAKE elements-tofu-prepare "$D/src" "$work" "''${NIXB[@]}" >/dev/null; then
-            problem "controller: the UniFi images aren't in vmtest's cache -- not updated"; CTL_RESULT="images not in the cache"; return 1
+            problem "controller: the console's image isn't in vmtest's cache -- not updated"; CTL_RESULT="image not in the cache"; return 1
           fi
           rm -f "$work/update.plan"
           elements-tofu-run "$work" plan -input=false -out=update.plan >/dev/null \
@@ -234,8 +234,8 @@
           elements-tofu-run "$work" show -json update.plan | grep '^{' > "$work/plan.json"
           changes=$(jq -r '.resource_changes[]? | select(.change.actions != ["no-op"] and .change.actions != ["read"]) | .address' "$work/plan.json")
           if [ -z "$changes" ]; then echo "controller: nothing to change"; CTL_RESULT="nothing to change"; return 0; fi
-          # The controller and the UniFi OS console: each an image and its instance
-          other=$(grep -vxE 'incus_(image|instance)\.unifi(_os)?' <<<"$changes" || true)
+          # The controller, the UniFi OS console: its image and its instance
+          other=$(grep -vxE 'incus_(image|instance)\.unifi_os' <<<"$changes" || true)
           if [ -n "$other" ]; then
             problem "controller: the plan also changes $(echo "$other" | tr '\n' ' ')-- not applied; review it with nix run .#tofu -- plan"
             CTL_RESULT="NOT applied (the plan changes more than the controller)"; return 1

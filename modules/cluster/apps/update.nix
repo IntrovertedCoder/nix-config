@@ -41,13 +41,15 @@
           echo "== building main ($(git rev-parse --short main)) here"
           flake="git+file://$PWD?rev=$(git rev-parse main)"
           image=$(nix build --no-link --print-out-paths \
-            "$flake#nixosConfigurations.unifi.config.system.build.metadata" \
-            "$flake#nixosConfigurations.unifi.config.system.build.squashfs")
+            "$flake#nixosConfigurations.unifi-os.config.system.build.metadata" \
+            "$flake#nixosConfigurations.unifi-os.config.system.build.qemuImage")
           git bundle create -q "$_TMP/main.bundle" main
           for n in "''${NODES[@]}"; do
             nm=$(name "$n")
             sys=$(nix build --no-link --print-out-paths "$flake#nixosConfigurations.$nm.config.system.build.toplevel")
-            echo "== $nm: copying its system, the controller's image and the bundle"
+            # (nix copy only sends what the node lacks: the console's 1.5 GB
+            # image goes once per new image, not every run.)
+            echo "== $nm: copying its system, the console's image and the bundle"
             # shellcheck disable=SC2086  # $image: two store paths
             NIX_SSHOPTS="''${SSH_OPTS[*]}" nix copy --no-check-sigs --to "ssh-ng://root@$(ip "$n")" "$sys" $image
             on "$n" "mkdir -p $D && cat > $D/local.bundle && echo $D/local.bundle > $D/source" < "$_TMP/main.bundle"
