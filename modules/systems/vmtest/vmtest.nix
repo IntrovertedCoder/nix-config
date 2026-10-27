@@ -39,6 +39,13 @@
       "nixosConfigurations.unifi-os.config.system.build.metadata"
       "nixosConfigurations.unifi-os.config.system.build.qemuImage"
     ];
+    # The console's release follows Ubiquiti's latest (modules/cluster/unifi-os.nix)
+    var.fleet.pins = [ {
+      name = "unifi-os";
+      app = "unifi-os-pin";
+      file = "modules/cluster/_unifi-os-pin.json";
+      check = "nixosConfigurations.unifi-os.config.system.build.qemuImage";
+    } ];
 
     # Example two-monitor layout for the not-yet-built desktop: a 1440p
     # ultrawide with a 1080p monitor rotated vertical to its right, bottom

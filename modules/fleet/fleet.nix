@@ -29,5 +29,23 @@
         host fetches from the cache (e.g. the cluster's UniFi image).
       '';
     };
+
+    options.var.fleet.pins = lib.mkOption {
+      type = lib.types.listOf (lib.types.submodule {
+        options = {
+          name = lib.mkOption { type = lib.types.str; description = "For the commit message and notices."; };
+          app = lib.mkOption { type = lib.types.str; description = "Flake package that moves the pin (edits `file`)."; };
+          file = lib.mkOption { type = lib.types.str; description = "The pin's file, relative to the checkout."; };
+          check = lib.mkOption { type = lib.types.str; description = "Flake attribute that must build with the new pin."; };
+        };
+      });
+      default = [];
+      description = ''
+        Pinned downloads vmtest moves forward each cycle, beside flake.lock:
+        it runs `app`, and if `file` changed, commits it and builds `check`.
+        A failed build takes the commit back out (before the push), so the
+        pin only moves to a release that builds.
+      '';
+    };
   };
 }

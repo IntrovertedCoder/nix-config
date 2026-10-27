@@ -6,6 +6,10 @@
   # these; OpenTofu's hwaddr picks the address (unifi-os.tf).
   hosts = [ 10 11 12 ];
   macFor = host: "02:74:af:04:00:${lib.fixedWidthString 2 "0" (lib.toLower (lib.toHexString host))}";
+  # Which console release: data, so vmtest's Monday run can move it
+  # (unifi-os-pin below, var.fleet.pins).
+  pinFile = "modules/cluster/_unifi-os-pin.json";
+  pin = lib.importJSON ./_unifi-os-pin.json;
 in {
   # UniFi OS Server (design doc, Next: the controller's move off the Network
   # Server, whose standalone releases end with Network 10.6): an Incus VM on
@@ -23,28 +27,24 @@ in {
   # (podman's storage with the console's volumes, server.conf with the
   # console's id) lives on the unifi-os-data volume at /var/lib/uosserver.
   # An update = a new image -> OpenTofu replaces the instance, the volume
-  # stays. A new console version = a new pin below; turn the console's own
-  # automatic updates off in its settings (Control Plane, Updates): they
-  # would install outside the flake.
+  # stays. A new console version = a new pin (_unifi-os-pin.json), which
+  # vmtest moves to Ubiquiti's latest release each Monday; turn the
+  # console's own automatic updates off in its settings (Control Plane,
+  # Updates): they would install outside the flake, and the next VM would
+  # go back to the pin's version.
   # It has no SSH: `incus exec unifi-os -- ...` from a node.
   flake.nixosConfigurations.unifi-os = inputs.nixpkgs.lib.nixosSystem {
     modules = [ self.nixosModules.unifiOsServer ];
   };
 
   flake.nixosModules.unifiOsServer = { config, lib, pkgs, modulesPath, ... }: let
-    # From Ubiquiti's firmware API (fw-update.ui.com/api/firmware-latest,
-    # product unifi-os-server, platform linux-x64).
-    version = "5.1.42";
-    containerVersion = "c9603dec9010";   # the image's tag, in the installer's image.tar
+    inherit (pin) version containerVersion;   # containerVersion: the image's tag, in the installer's image.tar
     image = "docker.io/library/uosserver:${containerVersion}";
 
     uos = pkgs.stdenv.mkDerivation {
       pname = "unifi-os-server";
       inherit version;
-      src = pkgs.fetchurl {
-        url = "https://fw-download.ubnt.com/data/unifi-os-server/5172-linux-x64-5.1.42-12e9e3cf-8f8b-4e54-928c-76b80a10c8a4.42-x64";
-        sha256 = "f6111e9396a42c74016f5dde9b01fbef486a6fe69efe137935e6e38b7c22f94d";
-      };
+      src = pkgs.fetchurl { inherit (pin) url sha256; };
       dontUnpack = true;
       dontStrip = true;
       nativeBuildInputs = [ pkgs.unzip pkgs.autoPatchelfHook ];
@@ -119,14 +119,14 @@ in {
       "d ${homeData}/.config/containers 0755 uosserver uosserver -"
       "L+ ${homeData}/.config/containers/containers.conf - - - - /etc/containers/containers.conf"
       "L+ ${home} - - - - ${homeData}"
-      # Where the installer puts them; the supervisor runs them from there
-      "C+ /var/lib/uosserver/bin - - - - ${uos}/libexec"
-      "C+ /var/lib/uosserver/portmap.json - - - - ${uos}/share/portmap.json"
-      "C+ /var/lib/uosserver/mounts.json - - - - ${uos}/share/mounts.json"
       # The supervisor calls /usr/bin/podman, with its own PATH
       "L+ /usr/bin/podman - - - - ${podman}/bin/podman"
     ];
 
+    # The programs where the installer puts them (the supervisor runs them
+    # from there, and takes the console's version from its own build): links
+    # to this system's package, made again on every boot, as the volume
+    # outlives the VM -- a copy made once would keep the old release's.
     # server.conf: the console's id stays; the version lines follow the pin
     # (the supervisor recreates the container when they change).
     systemd.services.uosserver-setup = {
@@ -136,6 +136,11 @@ in {
       serviceConfig = { Type = "oneshot"; RemainAfterExit = true; };
       path = [ pkgs.coreutils pkgs.gnugrep pkgs.gnused ];
       script = ''
+        cd /var/lib/uosserver
+        rm -rf bin portmap.json mounts.json
+        ln -s ${uos}/libexec bin
+        ln -s ${uos}/share/portmap.json ${uos}/share/mounts.json .
+
         conf=/var/lib/uosserver/server.conf
         [ -e $conf ] || echo "UOS_UUID=$(cat /proc/sys/kernel/random/uuid)" > $conf
         set_key() {
@@ -195,6 +200,7 @@ in {
     systemd.services.uosserver-updater = {
       description = "UniFi OS Server Updater Service";
       wantedBy = [ "multi-user.target" ];
+      requires = [ "uosserver-setup.service" ];
       after = [ "network.target" "uosserver-setup.service" ];
       unitConfig = { StartLimitIntervalSec = 60; StartLimitBurst = 3; };
       path = [ pkgs.coreutils pkgs.systemd ];
@@ -215,5 +221,47 @@ in {
     networking.firewall.extraCommands = "iptables -A nixos-fw -p udp --sport 10001 -j nixos-fw-accept";
 
     services.openssh.enable = lib.mkForce false;
+  };
+
+  # Moves the pin to Ubiquiti's latest release, from its firmware API:
+  #   nix run .#unifi-os-pin [-- <pin file>]
+  # Never backwards. The download lands in the store under fetchurl's name,
+  # so the build after it doesn't fetch it again.
+  perSystem = { pkgs, ... }: {
+    packages.unifi-os-pin = pkgs.writeShellApplication {
+      name = "unifi-os-pin";
+      runtimeInputs = [ pkgs.curl pkgs.jq pkgs.unzip pkgs.gnutar pkgs.coreutils ];
+      # nix comes from the caller's system (its daemon's version).
+      text = /* bash */ ''
+        pin=''${1:-${pinFile}}
+        api='https://fw-update.ui.com/api/firmware-latest?filter=eq~~product~~unifi-os-server&filter=eq~~platform~~linux-x64&filter=eq~~channel~~release'
+        fw=$(curl -fsSL "$api" | jq -e '._embedded.firmware
+          | if length == 1 then .[0] else error("expected one release, the API gave \(length)") end')
+        latest=$(jq -r '.version | ltrimstr("v")' <<<"$fw")
+        current=$(jq -er '.version | strings' "$pin")
+        if [ "$latest" = "$current" ]; then
+          echo "unifi-os: $current is the latest"; exit 0
+        fi
+        if [ "$(printf '%s\n' "$current" "$latest" | sort -V | tail -1)" != "$latest" ]; then
+          echo "unifi-os: the API's latest ($latest) is older than the pin ($current): left as it is"; exit 0
+        fi
+
+        url=$(jq -r ._links.data.href <<<"$fw")
+        sha256=$(jq -r .sha256_checksum <<<"$fw")
+        # Checked against the API's sha256 (and not fetched again when the
+        # store has it)
+        file=$(nix-prefetch-url --print-path --type sha256 "$url" "$sha256" | tail -1)
+        # The image's tag, as the build checks it. (unzip warns about the
+        # installer program in front of the zip: exit 1.)
+        tag=$({ unzip -p "$file" image.tar || [ $? -eq 1 ]; } | tar -xOf - manifest.json \
+          | jq -r '[.[].RepoTags[] | select(startswith("uosserver:")) | ltrimstr("uosserver:")]
+                   | if length == 1 then .[0] else error("no single uosserver tag") end')
+
+        jq -n --arg v "$latest" --arg c "$tag" --arg u "$url" --arg s "$sha256" \
+          '{version: $v, containerVersion: $c, url: $u, sha256: $s}' > "$pin.new"
+        mv "$pin.new" "$pin"
+        echo "unifi-os: $current -> $latest (image $tag)"
+      '';
+    };
   };
 }

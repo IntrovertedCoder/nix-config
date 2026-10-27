@@ -132,6 +132,28 @@
             if ! git diff --quiet -- flake.lock; then
               git add flake.lock
               git commit -m "flake.lock: automated update $(date -Idate)"
+            fi
+
+            # The pinned downloads (var.fleet.pins), each its own commit,
+            # also before the loop. Built here first: one that doesn't build
+            # is taken back out, so it never reaches the push.
+            ${lib.concatMapStrings (p: /* bash */ ''
+              if ! nix run ${lib.escapeShellArg ".#${p.app}"} -- ${lib.escapeShellArg p.file}; then
+                git checkout -- ${lib.escapeShellArg p.file}
+                notify --urgent "fleet: looking for a new ${p.name} release FAILED (see journalctl -u fleet-update)"
+              elif ! git diff --quiet -- ${lib.escapeShellArg p.file}; then
+                git add ${lib.escapeShellArg p.file}
+                git commit -m "${p.name}: automated update $(date -Idate)"
+                if nix build ${lib.escapeShellArg ".#${p.check}"} --no-link; then
+                  notify "fleet: ${p.name} moved to a new release, built OK ($(git log -1 --format=%h))"
+                else
+                  # --keep: only this commit's file, nothing else in the checkout
+                  git reset --keep HEAD~1
+                  notify --urgent "fleet: ${p.name}'s new release doesn't build -- pin left as it was"
+                fi
+              fi
+            '') config.var.fleet.pins}
+            if [ -n "$(git log --oneline origin/main..HEAD)" ]; then
               git push
             fi
 
