@@ -9,7 +9,7 @@
     runner = pkgs.writeShellApplication {
       name = "elements-tofu-run";
       runtimeInputs = [ tofu pkgs.jq pkgs.coreutils pkgs.gnugrep ];
-      # rados comes from the node's own system (its Ceph version).
+      # rados and incus come from the node's own system (its versions).
       text = /* bash */ ''
         #   elements-tofu-run <workdir> <tofu arguments...>
         #
@@ -87,7 +87,66 @@
         fi
 
         [ -d .terraform ] || tofu init -input=false >/dev/null
-        tofu "$@"
+
+        # The Incus provider force-stops an instance before it deletes it: a
+        # power-off for a VM, a kill for a container. So every replacement of
+        # the UniFi controller or console stopped its database uncleanly (the
+        # controller's MongoDB: "Detected unclean shutdown" after each
+        # Monday's update). An apply first stops, cleanly, every instance the
+        # plan deletes or replaces; the provider leaves a stopped one alone.
+        # That needs the plan before the apply, so a plain `apply` plans into
+        # a file, asks as OpenTofu would, then applies that file.
+        stop_deleted() {
+          local name state
+          for name in $(jq -r '.resource_changes[]?
+              | select(.type == "incus_instance" and (.change.actions | index("delete")))
+              | .change.before.name' <<<"$1"); do
+            state=$(incus list -f json </dev/null | jq -r --arg n "$name" '.[] | select(.name == $n) | .status') || state=""
+            [ "$state" = Running ] || continue
+            echo "== stopping $name cleanly before OpenTofu deletes it"
+            incus stop "$name" --timeout 120 </dev/null \
+              || echo "$name didn't stop within 120 s: OpenTofu force-stops it" >&2
+          done
+        }
+
+        apply() {
+          local a json auto="" opts=() out=() rc=0 answer
+          # A saved plan (apply [options] <plan file>): stop, then apply it.
+          if [ $# -gt 0 ] && [ -f "''${!#}" ] && json=$(tofu show -json "''${!#}" 2>/dev/null); then
+            stop_deleted "$json"
+            tofu apply "$@"
+            return
+          fi
+          # The options for the plan; those about output also for the apply
+          # (a saved plan takes no -target, -var and the like).
+          for a in "$@"; do
+            case $a in
+              -auto-approve) auto=1 ;;
+              -no-color|-compact-warnings|-parallelism=*) opts+=("$a"); out+=("$a") ;;
+              *) opts+=("$a") ;;
+            esac
+          done
+          tofu plan -detailed-exitcode -out=apply.tfplan "''${opts[@]}" || rc=$?
+          # 0: nothing to change; 2: changes; anything else: plan failed
+          if [ $rc -ne 2 ]; then rm -f apply.tfplan; return $rc; fi
+          if [ -z "$auto" ]; then
+            printf '\nDo you want to perform these actions?\n  Only "yes" will be accepted to approve.\n\n  Enter a value: '
+            read -r answer || answer=""
+            if [ "$answer" != yes ]; then printf '\nApply cancelled.\n'; rm -f apply.tfplan; return 1; fi
+          fi
+          rc=0
+          stop_deleted "$(tofu show -json apply.tfplan)"
+          tofu apply "''${out[@]}" apply.tfplan || rc=$?
+          rm -f apply.tfplan
+          return $rc
+        }
+
+        if [ "''${1:-}" = apply ]; then
+          shift
+          apply "$@"
+        else
+          tofu "$@"
+        fi
       '';
     };
 
