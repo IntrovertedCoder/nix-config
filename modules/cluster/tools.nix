@@ -77,7 +77,7 @@
       # tools.nix). Runs as the cluster-agent user, as the forced command of
       # the mesh SSH key, or as shot when `cluster` asks its own node.
       #
-      # Read-only, on this node:   ping attention report mesh-ups stale-procs
+      # Read-only, on this node:   ping attention space report mesh-ups stale-procs
       #                            incus-active failed-units disk-info <osd disk>
       #                            instance-here <instance>
       #                            backup-status <instance>
@@ -156,6 +156,27 @@
           [ -e /run/mesh-fence/stale-ceph-client ] && echo "WARN  this node's kernel Ceph client is blocklisted (healing took its disks): reboot it before cluster restore"
           # update.nix: kept until this node updates fine or `cluster-update release`
           [ -r /var/lib/cluster-update-status/problem ] && echo "WARN  update: $(cat /var/lib/cluster-update-status/problem) (sudo cluster-update status)"
+          true
+          ;;
+
+        # This node's disk-space lines of that list (cluster-hwcheck writes them
+        # apart too, with the report), for `cluster space`. A WARN, too, when
+        # they can't be trusted: the report is stale, or missing past the first
+        # minutes after boot. Other lines are notes.
+        space)
+          args 0
+          r=/run/cluster-health/report.txt
+          if [ -r "$r" ]; then
+            # (Until its first run after the deploy that added it, a node's
+            # cluster-hwcheck hasn't written space.txt: nothing known yet.)
+            cat /run/cluster-health/space.txt 2>/dev/null || true
+            age=$(( ( $(date +%s) - $(stat -c %Y "$r") ) / 60 ))
+            [ "$age" -gt 40 ] && echo "WARN  its hardware report is ''${age} min old (is cluster-hwcheck.timer running?): disk space unknown"
+          elif [ "$(cut -d. -f1 /proc/uptime)" -lt 600 ]; then
+            echo "note  booted $(( $(cut -d. -f1 /proc/uptime) / 60 )) min ago, no hardware report yet"
+          else
+            echo "WARN  no hardware report (cluster-hwcheck runs 2 min after boot, then every 15 min): disk space unknown"
+          fi
           true
           ;;
 
@@ -377,6 +398,8 @@
         cluster replace-osd <node> <osd-id> <disk>     rebuild an OSD on a replacement disk
                                                        (run it on <node>, with ssh -t)
         cluster check-ssh                              can this node reach the others?
+        cluster space                                  disk-space problems on every node (what
+                                                       elements-space alerts on); exit 1 if any
       EOF
         exit 1
       }
@@ -632,6 +655,29 @@
         return $bad
       }
 
+      # ------------------------------------------------------------------ space
+      # Every node's disk-space problems: the WARN and FAIL lines cluster-hwcheck
+      # found about its own disks and its Ceph disks (health.nix). For you, and
+      # for elements-space (healthchecks.nix), which runs this on every node:
+      # each sees the whole cluster, so any node's "fine" counts. A node that
+      # doesn't answer is skipped and named -- whether it's up is the job of
+      # its own check and elements-health.
+      cmd_space() {
+        local n out l bad=0
+        for n in $(node_names); do
+          if ! out=$(ON_TIMEOUT=30 on "$n" space 2>&1); then
+            echo "$n: didn't answer, skipped ($(tail -n1 <<<"''${out:-timed out}"))"; continue
+          fi
+          while IFS= read -r l; do
+            [ -n "$l" ] || continue
+            echo "$n: $l"
+            case $l in WARN*|FAIL*) bad=1 ;; esac
+          done <<<"$out"
+        done
+        [ $bad = 1 ] || echo "every node's disk space is fine"
+        return $bad
+      }
+
       # ------------------------------------------------------------------ restore
       ceph_wait_healthy() {  # ceph_wait_healthy [node-that-must-be-in-quorum]
         local start now status checks bad osds q total up inn
@@ -850,6 +896,7 @@
         restore)     shift; cmd_restore "$@" ;;
         replace-osd) shift; cmd_replace_osd "$@" ;;
         check-ssh)   shift; cmd_check_ssh ;;
+        space)       shift; cmd_space ;;
         *) usage ;;
       esac
     '';
@@ -860,48 +907,57 @@ in {
   in {
     imports = [ inputs.agenix.nixosModules.default ];
 
-    environment.systemPackages = [ (mkCluster { inherit pkgs config agent; }) agent ];
-
-    # Read access for the cluster tool without root or wheel: the Ceph
-    # status keyring (ceph.nix) and the hardware report (health.nix).
-    users.groups.cluster-read = { };
-    users.users.shot.extraGroups = [ "cluster-read" ];
-
-    # The user other nodes log in as. Its only key runs cluster-agent and
-    # nothing else (forced command; `restrict` also rules out a terminal and
-    # any forwarding), and is accepted only from mesh addresses. Its groups
-    # give the read access the actions need -- incus-admin is root-equivalent
-    # for anyone who can run arbitrary incus commands, which is exactly what
-    # the forced command prevents. sshd runs the forced command through the
-    # login shell, so it needs a real one.
-    users.groups.cluster-agent = { };
-    users.users.cluster-agent = {
-      isSystemUser = true;
-      group = "cluster-agent";
-      extraGroups = [ "cluster-read" "incus-admin" "frrvty" "systemd-journal" ];
-      shell = pkgs.bashInteractive;
-      home = "/var/lib/cluster-agent";  # the incus client keeps its config here
-      createHome = true;
-      openssh.authorizedKeys.keys = [
-        ''restrict,from="${meshNet}",command="${lib.getExe agent}" ${clusterSshPub}''
-      ];
+    options.var.cluster.tool = lib.mkOption {
+      type = lib.types.package;
+      readOnly = true;
+      default = mkCluster { inherit pkgs config agent; };
+      description = "The `cluster` tool, for services that run it as shot (elements-space, healthchecks.nix).";
     };
 
-    # The key `cluster` uses to reach the other nodes' cluster-agent. Every
-    # node has the same one, decrypted with its pre-seeded host key; readable
-    # by shot, who runs `cluster`.
-    age.secrets.cluster-ssh-key = {
-      file = ../../secrets/cluster-ssh-key.age;
-      owner = "shot";
-      mode = "0400";
+    config = {
+      environment.systemPackages = [ config.var.cluster.tool agent ];
+
+      # Read access for the cluster tool without root or wheel: the Ceph
+      # status keyring (ceph.nix) and the hardware report (health.nix).
+      users.groups.cluster-read = { };
+      users.users.shot.extraGroups = [ "cluster-read" ];
+
+      # The user other nodes log in as. Its only key runs cluster-agent and
+      # nothing else (forced command; `restrict` also rules out a terminal and
+      # any forwarding), and is accepted only from mesh addresses. Its groups
+      # give the read access the actions need -- incus-admin is root-equivalent
+      # for anyone who can run arbitrary incus commands, which is exactly what
+      # the forced command prevents. sshd runs the forced command through the
+      # login shell, so it needs a real one.
+      users.groups.cluster-agent = { };
+      users.users.cluster-agent = {
+        isSystemUser = true;
+        group = "cluster-agent";
+        extraGroups = [ "cluster-read" "incus-admin" "frrvty" "systemd-journal" ];
+        shell = pkgs.bashInteractive;
+        home = "/var/lib/cluster-agent";  # the incus client keeps its config here
+        createHome = true;
+        openssh.authorizedKeys.keys = [
+          ''restrict,from="${meshNet}",command="${lib.getExe agent}" ${clusterSshPub}''
+        ];
+      };
+
+      # The key `cluster` uses to reach the other nodes' cluster-agent. Every
+      # node has the same one, decrypted with its pre-seeded host key; readable
+      # by shot, who runs `cluster`.
+      age.secrets.cluster-ssh-key = {
+        file = ../../secrets/cluster-ssh-key.age;
+        owner = "shot";
+        mode = "0400";
+      };
+      # Every node's host key at its mesh address, so ssh checks it strictly.
+      programs.ssh.knownHosts = lib.mapAttrs (_: h: {
+        hostNames = [ "[fd9a:7af:74af:ff::${toString h.id}]:20530" ];
+        publicKey = h.hostKey;
+      }) hosts;
+      # A burst of failed logins from another node (e.g. after a key change)
+      # must never get it banned.
+      services.fail2ban.ignoreIP = [ meshNet ];
     };
-    # Every node's host key at its mesh address, so ssh checks it strictly.
-    programs.ssh.knownHosts = lib.mapAttrs (_: h: {
-      hostNames = [ "[fd9a:7af:74af:ff::${toString h.id}]:20530" ];
-      publicKey = h.hostKey;
-    }) hosts;
-    # A burst of failed logins from another node (e.g. after a key change)
-    # must never get it banned.
-    services.fail2ban.ignoreIP = [ meshNet ];
   };
 }

@@ -14,6 +14,14 @@
   #                    Any node's ping counts; when none sees it fine the
   #                    check goes quiet (and alerts after its grace time),
   #                    and each node logs what it saw wrong to the check
+  #   elements-space   every node's disk space is fine (`cluster space`,
+  #                    tools.nix: no WARN or FAIL about a node's own disks or
+  #                    its Ceph disks, health.nix). Every 15 minutes, when the
+  #                    hardware check has new numbers. Like elements-health:
+  #                    each node asks every node, so any node's ping counts,
+  #                    and what's wrong goes to the check's log. Its own
+  #                    check, so a disk filling up for days doesn't hide an
+  #                    outage behind a check that's already down.
   #
   # Checks are created by their first ping (?create=1); their period and
   # grace time are set on the healthchecks.io page, and its Discord
@@ -25,18 +33,21 @@
     shared = builtins.elem host.hostKey
       ((import ../../secrets.nix).${secret}.publicKeys or []);
 
+    hc = /* bash */ ''
+      KEY=$(cat ${config.age.secrets.cluster-healthchecks-ping-key.path})
+      # hc <check>[/fail|/log], the message on stdin
+      hc() {
+        curl -fsS -m 15 --retry 3 -o /dev/null --data-binary @- \
+          "https://hc-ping.com/$KEY/$1?create=1"
+      }
+    '';
+
     ping = pkgs.writeShellApplication {
       name = "cluster-healthchecks";
       runtimeInputs = with pkgs; [
         coreutils gnugrep gnused curl jq ceph config.virtualisation.incus.clientPackage
       ];
-      text = /* bash */ ''
-        KEY=$(cat ${config.age.secrets.cluster-healthchecks-ping-key.path})
-        # hc <check>[/fail|/log], the message on stdin
-        hc() {
-          curl -fsS -m 15 --retry 3 -o /dev/null --data-binary @- \
-            "https://hc-ping.com/$KEY/$1?create=1"
-        }
+      text = hc + /* bash */ ''
 
         # This node, and its hardware check
         report=/run/cluster-health/report.txt
@@ -70,6 +81,21 @@
         fi
       '';
     };
+
+    space = pkgs.writeShellApplication {
+      name = "cluster-healthchecks-space";
+      runtimeInputs = with pkgs; [ coreutils curl util-linux ];
+      text = hc + /* bash */ ''
+
+        # As shot: the key that reaches the other nodes' cluster-agent is shot's.
+        # Exit 1 means a problem, or that `cluster space` itself failed: both
+        # go to the log, and the check goes quiet unless another node sees fine.
+        if out=$(runuser -u shot -- ${lib.getExe config.var.cluster.tool} space 2>&1); then check=elements-space
+        else check=elements-space/log; fi
+        printf '%s\n' "$out" "-> $check"  # the journal: what was seen, and sent
+        printf '%s\n' "seen from ${name}:" "$out" | hc "$check"
+      '';
+    };
   in lib.mkIf shared {
     age.secrets.cluster-healthchecks-ping-key.file = ../../${secret};
 
@@ -87,6 +113,24 @@
       timerConfig = {
         OnBootSec = "3min";
         OnUnitActiveSec = "5min";
+      };
+    };
+
+    systemd.services.cluster-healthchecks-space = {
+      description = "Ping healthchecks.io: every node's disk space";
+      after = [ "network-online.target" ];
+      wants = [ "network-online.target" ];
+      serviceConfig = {
+        Type = "oneshot";
+        ExecStart = lib.getExe space;
+      };
+    };
+    # The hardware check's pace (health.nix): checking more often finds nothing new
+    systemd.timers.cluster-healthchecks-space = {
+      wantedBy = [ "timers.target" ];
+      timerConfig = {
+        OnBootSec = "5min";
+        OnUnitActiveSec = "15min";
       };
     };
   };

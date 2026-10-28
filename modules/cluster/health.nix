@@ -5,10 +5,13 @@
   # records, clock. Runs as root (SMART needs
   # it) every 15 minutes and writes /run/cluster-health/report.txt for group
   # cluster-read (tools.nix), which is what `cluster debug` reads -- so the
-  # tool itself never needs root. (Bash `${...}` is written `''${...}`
-  # inside the Nix string.)
+  # tool itself never needs root. Its disk-space problems also go to
+  # space.txt beside it, for `cluster space` and elements-space
+  # (healthchecks.nix). (Bash `${...}` is written `''${...}` inside the Nix
+  # string.)
   flake.nixosModules.clusterHealth = { config, lib, pkgs, ... }: let
     report = "/run/cluster-health/report.txt";
+    space = "/run/cluster-health/space.txt";
 
     # This node's Ceph disks: how full they are, and how full they'd be after
     # a failure. Each node holds one copy of everything in a 3-copy pool, so:
@@ -72,6 +75,7 @@
       ];
       text = /* bash */ ''
         REPORT=${report}
+        SPACE=${space}
         RING_LINKS=${lib.escapeShellArg (lib.concatStringsSep " " config.var.cluster.host.ring)}
         HOST=${config.networking.hostName}
 
@@ -83,11 +87,13 @@
         # whose hardware isn't present (VMs have no SMART or sensors) says so instead
         # of passing silently.
         #
-        # Set by health.nix: REPORT (output path), RING_LINKS (space-separated),
+        # Set by health.nix: REPORT (output path), SPACE (the disk-space lines of
+        # the attention list, empty when none), RING_LINKS (space-separated),
         # HOST (this node's name, also its CRUSH host)
 
         status=OK
         attention=()
+        space=()
         details=$(mktemp)
         trap 'rm -f "$details"' EXIT
 
@@ -96,6 +102,7 @@
           if [ "$1" = FAIL ]; then status=FAIL
           elif [ "$status" = OK ]; then status=WARN; fi
         }
+        space_flag() { flag "$1" "$2"; space+=("$1  $2"); }  # ...about disk space
         sec() { printf '\n--- %s\n' "$1" >>"$details"; }
         say() { printf '%s\n' "$*" >>"$details"; }
         num() { [[ "''${1:-}" =~ ^[0-9]+$ ]] && echo "$1" || echo 0; }
@@ -227,17 +234,17 @@
           read -r used size pct <<<"''${usage[$key]}"
           t=''${mounts[$key]}; p=''${pct%\%}
           say "$t: $used of $size used ($pct)"
-          if [ "$(num "$p")" -ge 95 ]; then flag FAIL "$t: $pct full"
-          elif [ "$(num "$p")" -ge 85 ]; then flag WARN "$t: $pct full"; fi
+          if [ "$(num "$p")" -ge 95 ]; then space_flag FAIL "$t: $pct full"
+          elif [ "$(num "$p")" -ge 85 ]; then space_flag WARN "$t: $pct full"; fi
         done
 
         sec "Ceph disks (space)"
         cj() { timeout 20 ceph --id status "$@" -f json 2>/dev/null; }
         if tree=$(cj osd df tree) && dump=$(cj osd dump) && pgs=$(cj pg ls) \
-           && space=$(printf '%s\n' "$tree" "$dump" "$pgs" | jq -nr --arg me "$HOST" -f ${cephSpace}); then
+           && ceph_space=$(printf '%s\n' "$tree" "$dump" "$pgs" | jq -nr --arg me "$HOST" -f ${cephSpace}); then
           while IFS=$'\t' read -r kind text; do
-            if [ "$kind" = say ]; then say "$text"; else flag "$kind" "$text"; fi
-          done <<<"$space"
+            if [ "$kind" = say ]; then say "$text"; else space_flag "$kind" "$text"; fi
+          done <<<"$ceph_space"
         else
           say "Ceph doesn't answer (no quorum?) -- cluster debug's cluster-wide part says why"
         fi
@@ -305,6 +312,8 @@
           cat "$details"
         } >"$REPORT.tmp"
         mv "$REPORT.tmp" "$REPORT"
+        if [ ''${#space[@]} -eq 0 ]; then : >"$SPACE.tmp"; else printf '%s\n' "''${space[@]}" >"$SPACE.tmp"; fi
+        mv "$SPACE.tmp" "$SPACE"
       '';
     };
   in {
@@ -318,7 +327,7 @@
       serviceConfig = {
         Type = "oneshot";
         ExecStart = lib.getExe hwcheck;
-        ExecStartPost = "${pkgs.coreutils}/bin/chgrp cluster-read ${report}";
+        ExecStartPost = "${pkgs.coreutils}/bin/chgrp cluster-read ${report} ${space}";
         UMask = "0027";
         Nice = 10;
       };
