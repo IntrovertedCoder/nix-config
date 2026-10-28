@@ -1,21 +1,79 @@
 { lib, ... }: {
   # Hardware health check on every cluster node: SMART, temperatures, fans,
-  # throttling, memory errors, kernel hardware errors, disk space, ring links,
-  # unclean shutdowns, kernel crash records, clock. Runs as root (SMART needs
+  # throttling, memory errors, kernel hardware errors, disk space (its own
+  # disks and its Ceph disks), ring links, unclean shutdowns, kernel crash
+  # records, clock. Runs as root (SMART needs
   # it) every 15 minutes and writes /run/cluster-health/report.txt for group
   # cluster-read (tools.nix), which is what `cluster debug` reads -- so the
   # tool itself never needs root. (Bash `${...}` is written `''${...}`
   # inside the Nix string.)
   flake.nixosModules.clusterHealth = { config, lib, pkgs, ... }: let
     report = "/run/cluster-health/report.txt";
+
+    # This node's Ceph disks: how full they are, and how full they'd be after
+    # a failure. Each node holds one copy of everything in a 3-copy pool, so:
+    #   - one of its disks fails: Ceph copies that disk's data onto the
+    #     node's other disk(s). With two equal disks, the node has to stay
+    #     under half of Ceph's warning level (85%) to take that.
+    #   - another node fails: the 3-copy pools have nowhere to go (they run
+    #     on two copies until it's back), but a pool with fewer copies than
+    #     nodes (media, 2) gets the lost copies re-made on the other nodes.
+    # A disk past Ceph's own warning level is FAIL (recovery stops at 90%,
+    # every write at 95%); a failure that would push one past it is WARN.
+    # In: $me (this node's CRUSH host), then on stdin `ceph osd df tree`,
+    # `ceph osd dump`, `ceph pg ls` (JSON). Out: "say|WARN|FAIL<tab>text".
+    cephSpace = pkgs.writeText "ceph-space.jq" /* jq */ ''
+      def gib: . / 1048576 | (. * 10 | round) / 10;  # KiB -> GiB
+      def pc: . * 100 | round;
+      def fill: "\(pc)% full" + (if . >= 1 then ": it would not fit" else "" end);
+      input as $tree | input as $dump | input as $pgs
+      | $dump.nearfull_ratio as $near
+      | "Ceph warns at \($near | pc)%, stops recovery at \($dump.backfillfull_ratio | pc)% and every write at \($dump.full_ratio | pc)%" as $limits
+      | ($tree.nodes | map(select(.type == "host" and .kb > 0))) as $hosts
+      | ($tree.nodes | map(select(.type == "osd")) | INDEX(.id)) as $osds
+      | ([$hosts[] | .name as $n | .children[] | {key: tostring, value: $n}] | from_entries) as $hostOf
+      | ($dump.pools | map({key: (.pool | tostring), value: .pool_name}) | from_entries) as $poolName
+      | ($hosts | map(select(.name == $me)) | first) as $h
+      | if $h == null then "say\tnone of this node's disks are in Ceph (no OSDs yet, or all out)"
+        else
+          [$h.children | sort[] | $osds[tostring] | select(.kb > 0)] as $mine
+          | ($h.kb_used / $h.kb) as $now
+          | ($mine[]
+              | (.kb_used / .kb) as $u
+              | "say\t\(.name): \(.kb_used | gib) of \(.kb | gib) GiB used (\($u | pc)%)",
+                (select($u >= $near) | "FAIL\tCeph disk \(.name) is \($u | pc)% full (recovery stops at \($dump.backfillfull_ratio | pc)%, every write at \($dump.full_ratio | pc)%) -- free space or add disks")),
+            "say\tthis node: \($h.kb_used | gib) of \($h.kb | gib) GiB (\($now | pc)%); the cluster: \($tree.summary.total_kb_used | gib) of \($tree.summary.total_kb | gib) GiB (\($tree.summary.total_kb_used / $tree.summary.total_kb | pc)%); \($limits)",
+            (if ($mine | length) > 1 then
+               ($h.kb - ($mine | map(.kb) | max)) as $left
+               | ($h.kb_used / $left) as $after
+               | ($near * $left / $h.kb * 100 | floor) as $keep
+               | (if ($mine | length) == 2 then "the other" else "the others" end) as $rest
+               | "say\tif one of its disks failed: \($rest) \($after | fill) (a disk failure fits while the node stays under \($keep)%)",
+                 (select($after >= $near) | "WARN\tif one of this node's Ceph disks failed, its data would leave \($rest) \($after | fill) (Ceph warns at \($near | pc)%) -- keep the node under \($keep)% (now \($now | pc)%): free space or add disks")
+             else "say\tonly one disk of this node is in: if it failed, nothing would move onto another of its disks" end),
+            ([$pgs.pg_stats[] | {b: (.stat_sum.num_bytes / 1024), pool: $poolName[.pgid | split(".")[0]],
+                                 hosts: ([.up[] | $hostOf[tostring] // empty] | unique)}] as $pg
+             | $hosts[] | select(.name != $me) | .name as $g
+             # each copy lost with $g is re-made on a node that has none of that PG yet
+             | [$pg[] | select(any(.hosts[]; . == $g) and all(.hosts[]; . != $me))
+                      | .b /= ([$hosts[].name] - .hosts | length)] as $moved
+             | ($moved | map(.b) | add // 0) as $gain
+             | (($h.kb_used + $gain) / $h.kb) as $after
+             | ($moved | map(select(.b > 0) | .pool) | unique | join(", ")) as $pools
+             | "say\tif \($g) failed: about \($gain | gib) GiB more here\(if $pools != "" then " (its copies of \($pools))" else "" end), \($after | fill)",
+               (select($gain > 0 and $after >= $near) | "WARN\tif \($g) failed, re-making its copies of \($pools) (about \($gain | gib) GiB) would leave this node's Ceph disks \($after | fill) (Ceph warns at \($near | pc)%) -- free space or add disks"))
+        end
+    '';
+
     hwcheck = pkgs.writeShellApplication {
       name = "cluster-hwcheck";
       runtimeInputs = with pkgs; [
-        smartmontools lm_sensors jq coreutils gawk gnugrep util-linux config.systemd.package chrony
+        smartmontools lm_sensors jq coreutils gawk gnugrep util-linux config.systemd.package chrony ceph
       ];
       text = /* bash */ ''
         REPORT=${report}
         RING_LINKS=${lib.escapeShellArg (lib.concatStringsSep " " config.var.cluster.host.ring)}
+        HOST=${config.networking.hostName}
 
         # cluster-hwcheck -- hardware health report for one node, run as root by
         # cluster-hwcheck.timer (see health.nix). Writes REPORT, readable by group
@@ -25,7 +83,8 @@
         # whose hardware isn't present (VMs have no SMART or sensors) says so instead
         # of passing silently.
         #
-        # Set by health.nix: REPORT (output path), RING_LINKS (space-separated)
+        # Set by health.nix: REPORT (output path), RING_LINKS (space-separated),
+        # HOST (this node's name, also its CRUSH host)
 
         status=OK
         attention=()
@@ -155,12 +214,33 @@
 
         # --------------------------------------------------------------- disk space
         sec "Disk space"
-        while read -r target pct; do
-          p=''${pct%\%}
-          say "$target ''${pct} used"
-          if [ "$(num "$p")" -ge 95 ]; then flag FAIL "$target is ''${pct} full"
-          elif [ "$(num "$p")" -ge 85 ]; then flag WARN "$target is ''${pct} full"; fi
-        done < <(df --output=target,pcent / /nix /persistent /var/log 2>/dev/null | tail -n +2)
+        # One line per filesystem: /nix, /persistent and /var/log share the
+        # boot disk's btrfs. / is RAM (tmpfs), /boot holds the kernels.
+        fs=(); declare -A mounts=() usage=()
+        while read -r src size used pct target; do
+          key=$src; [[ $src == /dev/* ]] || key=$target
+          if [ -z "''${mounts[$key]:-}" ]; then
+            fs+=("$key"); mounts[$key]=$target; usage[$key]="$used $size $pct"
+          else mounts[$key]+=", $target"; fi
+        done < <(df -h --output=source,size,used,pcent,target / /boot /nix /persistent /var/log 2>/dev/null | tail -n +2)
+        for key in "''${fs[@]}"; do
+          read -r used size pct <<<"''${usage[$key]}"
+          t=''${mounts[$key]}; p=''${pct%\%}
+          say "$t: $used of $size used ($pct)"
+          if [ "$(num "$p")" -ge 95 ]; then flag FAIL "$t: $pct full"
+          elif [ "$(num "$p")" -ge 85 ]; then flag WARN "$t: $pct full"; fi
+        done
+
+        sec "Ceph disks (space)"
+        cj() { timeout 20 ceph --id status "$@" -f json 2>/dev/null; }
+        if tree=$(cj osd df tree) && dump=$(cj osd dump) && pgs=$(cj pg ls) \
+           && space=$(printf '%s\n' "$tree" "$dump" "$pgs" | jq -nr --arg me "$HOST" -f ${cephSpace}); then
+          while IFS=$'\t' read -r kind text; do
+            if [ "$kind" = say ]; then say "$text"; else flag "$kind" "$text"; fi
+          done <<<"$space"
+        else
+          say "Ceph doesn't answer (no quorum?) -- cluster debug's cluster-wide part says why"
+        fi
 
         sec "Memory"
         avail=$(awk '/MemAvailable/ {a=$2} /MemTotal/ {t=$2} END {printf "%d", a*100/t}' /proc/meminfo)

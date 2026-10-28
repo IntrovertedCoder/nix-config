@@ -45,7 +45,7 @@ resource "incus_instance" "unifi_os" {
     "limits.cpu"          = "2"
     "limits.memory"       = "4GiB" # ~2 GiB in use; loading a new console image takes 3
     "boot.autostart"      = "true"
-    "migration.stateful"  = "true"  # live around planned reboots, like v1
+    "migration.stateful"  = "true"  # live around planned reboots
     # ...and in an evacuation or a restore (cluster restore). Left on auto,
     # Incus would stop it for those: it counts a NIC on a host bridge
     # (br-trunk), not an Incus network, as one that can't migrate.

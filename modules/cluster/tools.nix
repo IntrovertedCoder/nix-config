@@ -224,7 +224,7 @@
           args 0
           c ceph --id status -s
           c ceph --id status health detail
-          c ceph --id status osd tree
+          c ceph --id status osd df tree
           c ceph --id status osd perf
           c ceph --id status df
           c ceph --id status osd pool ls detail
