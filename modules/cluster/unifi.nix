@@ -23,28 +23,54 @@
     # Where the console keeps its auto-backups (the .unf files)
     backups = "/var/lib/uosserver/home/.local/share/containers/storage/volumes/uosserver_var_lib_unifi/_data/backup/autobackup";
 
-    # Only the node the console runs on, and only while it runs. By its
+    # The node the console runs on does it, once the console runs and no
+    # update is moving or replacing it. Every node whose timer fires
+    # meanwhile waits too: the console may come up on any of them. By its
     # exact name: `incus list unifi-os` also matches unifi-os-debian.
-    hereAndRunning = /* bash */ ''
-      read -r loc st < <(incus list -f json </dev/null \
-        | jq -r '.[] | select(.name == "unifi-os") | "\(.location) \(.status)"') || true
-      [ "''${loc:-}" = "$(uname -n)" ] || { echo "unifi-os isn't here"; exit 0; }
-      [ "''${st:-}" = Running ] || { echo "unifi-os isn't running"; exit 0; }
+    waitForConsole = /* bash */ ''
+      where() {
+        timeout 30 incus list -f json </dev/null 2>/dev/null \
+          | jq -r '.[] | select(.name == "unifi-os") | "\(.location) \(.status)"' || true
+      }
+      # The weekly update's lock (update.nix): held from before a node moves
+      # the console away until it's back, and while the update replaces it.
+      # Ceph not answering reads as free: the lock only keeps this out of the
+      # update's way, and a read cut off by a move is retried below anyway.
+      update_lock() {
+        timeout 20 rados -p important -N update lock info lock update --format=json 2>/dev/null \
+          | jq -er '.lockers[0].description // empty' 2>/dev/null
+      }
+      # Up to 30 min. A console still not running then is for elements-health
+      # to report (healthchecks.nix), an update that keeps its lock for the
+      # update: neither is a failure here.
+      deadline=$((SECONDS + 1800)) said=""
+      while :; do
+        read -r loc st < <(where) || true
+        if lock=$(update_lock); then why="an update is under way ($lock)"
+        elif [ -z "''${loc:-}" ]; then why="there's no unifi-os (being replaced?)"
+        elif [ "''${st:-}" != Running ]; then why="unifi-os is ''${st:-} on $loc"
+        elif [ "$loc" != "$(uname -n)" ]; then echo "unifi-os runs on $loc: that node checks it"; exit 0
+        else break; fi
+        [ "$why" = "$said" ] || { echo "$why: waiting"; said=$why; }
+        [ $SECONDS -lt $deadline ] || { echo "$why, still after 30 min: not checked today"; exit 0; }
+        sleep 30
+      done
     '';
 
     # The console's MongoDB is in its container, inside the VM, and the
     # container has its own mongo shell, run as the console's user.
     consoleUid = toString self.nixosConfigurations.unifi-os.config.users.users.uosserver.uid;
     consoleSchedule = /* bash */ ''
-      ${hereAndRunning}
+      ${waitForConsole}
       console() {
         incus exec unifi-os --cwd /tmp -- /run/current-system/sw/bin/runuser -u uosserver -- \
           /run/current-system/sw/bin/env XDG_RUNTIME_DIR=/run/user/${consoleUid} \
           /usr/bin/podman exec -i uosserver "$@"
       }
-      # The backup task (what runs it) and super_mgmt (what the UI shows)
+      # The backup task (what runs it) and super_mgmt (what the UI shows);
+      # nothing, and a failure, unless the database answers.
       current() {
-        console mongo --quiet --port 27117 ace <<'EOF' | tail -1 | jq -ce .
+        console mongo --quiet --port 27117 ace 2>/dev/null <<'EOF' | tail -1 | jq -ce 'select(type == "object")' 2>/dev/null
       var t = db.scheduletask.findOne({action: "backup"}) || {};
       var m = db.setting.findOne({key: "super_mgmt"}) || {};
       print(JSON.stringify({cron: t.cron_expr || null, tz: t.timezone || null,
@@ -54,7 +80,15 @@
       }
       on_time() { [ "$(jq -r '[.cron, .shown, .keep, .on] | map(tostring) | join("|")' <<<"$1")" = "${cron}|${cron}|${toString keep}|true" ]; }
 
-      cur=$(current) || { echo "the console's database doesn't answer (Network still starting?)" >&2; exit 1; }
+      # Up to 10 min for its database: Network takes a minute or two after
+      # the VM starts. From here on the console is followed wherever it runs
+      # (incus exec works from any node): only an unplanned move is left.
+      deadline=$((SECONDS + 600)) said=""
+      until cur=$(current); do
+        [ $SECONDS -lt $deadline ] || { echo "the console's database hasn't answered for 10 min" >&2; exit 1; }
+        [ -n "$said" ] || { echo "its database doesn't answer yet (Network starting?): waiting"; said=1; }
+        sleep 20
+      done
       tz=$(jq -r .tz <<<"$cur")
       [ "$tz" != null ] || { echo "no backup task in the console yet (fresh, not set up)"; exit 0; }
       # The console keeps Network's backup time zone in step with its own
@@ -77,10 +111,15 @@
       db.setting.updateOne({key: "super_mgmt"}, {\$set: {autobackup_enabled: true,
         autobackup_cron_expr: "${cron}", autobackup_timezone: "$tz", autobackup_max_files: ${toString keep}}});
       EOF
-      new=$(current)
-      on_time "$new" || { echo "couldn't set the backup schedule: still $new" >&2; exit 1; }
-      # Network only reads the schedule when it starts
-      console systemctl restart unifi </dev/null
+      new=$(current) || true
+      on_time "$new" || { echo "couldn't set the backup schedule: still ''${new:-unknown}" >&2; exit 1; }
+      # Network only reads the schedule when it starts. Retried: saved but
+      # not loaded, the next run would find it on time and never restart it.
+      deadline=$((SECONDS + 600))
+      until console systemctl restart unifi </dev/null; do
+        [ $SECONDS -lt $deadline ] || { echo "the new schedule is saved, but Network didn't restart to load it: incus restart unifi-os" >&2; exit 1; }
+        sleep 20
+      done
       echo "backup schedule was $(jq -r '"\(.cron) (shown \(.shown)), keeping \(.keep), on \(.on)"' <<<"$cur"): now ${cron} $tz, keeping ${toString keep}; Network restarted"
     '';
   in {
@@ -88,8 +127,12 @@
       unifi-os-backup-schedule = {
         description = "Keep the UniFi OS console's backup schedule on time";
         after = [ "incus.service" ];
-        path = [ incus pkgs.jq pkgs.coreutils ];
-        serviceConfig.Type = "oneshot";
+        path = [ incus pkgs.jq pkgs.coreutils pkgs.ceph ];
+        serviceConfig = {
+          Type = "oneshot";
+          # Its own waits come to 50 min at most (30 + 10 + 10)
+          TimeoutStartSec = "1h";
+        };
         script = consoleSchedule;
       };
       unifi-os-backup-copy = {
