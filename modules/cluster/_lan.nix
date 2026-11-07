@@ -30,12 +30,17 @@ in {
     guest   = { v4 = "10.3.0";  plen = 21; v6 = null;               dhcp = true;  onLink = true; adblock = false; };
     # Network gear (UniFi switches, APs) and the UniFi controller. The one
     # UNTAGGED segment on the trunk: factory-fresh gear asks for DHCP there.
-    # DHCP only answers devices that say they are UniFi (dhcpClass).
+    # DHCP only answers devices that say they are UniFi (dhcpClasses): plain
+    # gear sends "ubnt", UniFi OS consoles like the UX7 "Ubiquiti UniFi
+    # Express 7". The UX7 asks from the MAC of whichever port is plugged in
+    # (WAN …:4f, LAN …:4e); its reservation is the one UniFi shows it by.
     infra   = {
-      v4 = "10.4.0"; plen = 21; v6 = null; dhcp = true; onLink = true; untagged = true; dhcpClass = "ubnt";
+      v4 = "10.4.0"; plen = 21; v6 = null; dhcp = true; onLink = true; untagged = true;
+      dhcpClasses = [ "ubnt" "Ubiquiti" ];
       reservations = [
         { name = "copper"; host = 29; mac = "8c:ed:e1:12:61:31"; }   # USW Flex 2.5G 5 (test switch)
         { name = "neon";   host = 10; mac = "9c:05:d6:79:8f:2e"; }   # UniFi AP
+        { name = "argon";  host = 18; mac = "8c:ed:e1:18:7e:4e"; }   # UniFi Express 7 (the rack's, as an AP)
       ];
     };
     transit = { v4 = "10.91.0"; plen = 24; v6 = "fd9a:7af:74af:91"; dhcp = false; onLink = true; };

@@ -46,7 +46,7 @@
   # Forwarding: every segment out to the internet over IPv4 (NAT); between
   # segments over IPv4 only Trusted -> Infra (managing the gear); locally over
   # IPv6, Trusted may reach anything, nothing else starts connections.
-  # Infra DHCP answers UniFi gear only (vendor class "ubnt").
+  # Infra DHCP answers UniFi gear only (vendor class "ubnt" or "Ubiquiti ...").
   #
   # Get a shell on this node's router (as root on the node):  router-ssh
   flake.nixosModules.clusterRouter = { config, lib, pkgs, ... }: let
@@ -304,14 +304,16 @@
           # gone is ignored rather than refused, so it keeps its address
           # until the lease runs out.
           authoritative = false;
-          # A segment with dhcpClass hands out addresses only to clients whose
-          # vendor class (DHCP option 60) starts with it -- UniFi gear sends
-          # "ubnt". Keeps whatever else gets plugged into an infra port off it
-          # (spoofable: the switch port profiles are the real gate).
+          # A segment with dhcpClasses hands out addresses only to clients whose
+          # vendor class (DHCP option 60) starts with one of them -- UniFi gear
+          # sends "ubnt", UniFi OS consoles "Ubiquiti ...". Keeps whatever else
+          # gets plugged into an infra port off it (spoofable: the switch port
+          # profiles are the real gate).
           client-classes = lib.mapAttrsToList (seg: s: {
             name = "${seg}-gear";
-            test = "substring(option[60].text, 0, ${toString (lib.stringLength s.dhcpClass)}) == '${s.dhcpClass}'";
-          }) (lib.filterAttrs (_: s: s ? dhcpClass) clientSegs);
+            test = lib.concatMapStringsSep " or " (c:
+              "substring(option[60].text, 0, ${toString (lib.stringLength c)}) == '${c}'") s.dhcpClasses;
+          }) (lib.filterAttrs (_: s: s ? dhcpClasses) clientSegs);
           # Fixed subnet ids (the second octet: trusted 1, iot 2, ...): ids by
           # position shifted when a segment was added, and every stored lease
           # failed Kea's sanity check. fix-del repairs such leases or drops them.
@@ -326,7 +328,7 @@
               hw-address = r.mac; ip-address = lan.v4reserved s r.host; hostname = r.name;
             }) (s.reservations or [ ]);
             pools = [({ pool = lan.v4pool s host.id; }
-              // lib.optionalAttrs (s ? dhcpClass) { client-classes = [ "${seg}-gear" ]; })];
+              // lib.optionalAttrs (s ? dhcpClasses) { client-classes = [ "${seg}-gear" ]; })];
             option-data = [
               { name = "routers"; data = "${s.v4}.1"; }
               { name = "domain-name-servers"; data = "${s.v4}.1"; }
