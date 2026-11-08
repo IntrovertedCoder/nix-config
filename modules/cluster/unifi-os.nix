@@ -215,10 +215,13 @@ in {
 
     environment.systemPackages = [ uos pkgs.curl ];   # `uosserver status`, debugging
 
-    # portmap.json's ports (443 is 11443 outside), and device discovery's
-    # answers from the gear's port 10001
+    # portmap.json's ports (443 is 11443 outside), and device discovery
+    # (Ubiquiti's `discovery`, here outside the container). New gear
+    # announces itself to port 10001: without that, Network only learns of
+    # it through an adopted AP's radio and tries a wireless (mesh) adoption,
+    # even of gear on a cable. Answers to its own probes come from port 10001.
     networking.firewall.allowedTCPPorts = [ 11443 8080 8444 8880 8881 8882 5671 6789 9543 28082 ];
-    networking.firewall.allowedUDPPorts = [ 3478 5514 10003 ];
+    networking.firewall.allowedUDPPorts = [ 3478 5514 10001 10003 ];
     networking.firewall.extraCommands = "iptables -A nixos-fw -p udp --sport 10001 -j nixos-fw-accept";
 
     services.openssh.enable = lib.mkForce false;
