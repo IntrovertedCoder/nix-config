@@ -17,7 +17,7 @@
       self.nixosModules.hypridle
       self.nixosModules.polkit
       self.nixosModules.flameshot
-      self.nixosModules.stash-clip
+      self.nixosModules.cliphist
       self.nixosModules.mako
       self.nixosModules.rbw
       self.nixosModules.displayConfigure
