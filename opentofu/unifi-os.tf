@@ -25,10 +25,10 @@ resource "incus_storage_volume" "unifi_os_data" {
   config = {
     size = "20GiB"
     # Ceph snapshots: undo a bad update or a wrong click. (Losing Ceph is
-    # what the nodes' daily copy of UniFi's own backups is for.)
-    "snapshots.schedule" = "@daily"
+    # what the nodes' weekly copy of UniFi's own backups is for.)
+    "snapshots.schedule" = "@weekly"
     "snapshots.expiry"   = "2w"
-    "snapshots.pattern"  = "daily-{{ creation_date|date:'2006-01-02' }}"
+    "snapshots.pattern"  = "weekly-{{ creation_date|date:'2006-01-02' }}"
   }
 
   # The console's whole state (podman's storage with its volumes, its id).
